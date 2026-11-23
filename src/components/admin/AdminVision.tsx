@@ -7,7 +7,7 @@ import { AdminButton } from "./AdminButton";
 // phases as columns, the lanes as rows of capsules (folded "+N"); a phase's head zooms into the phase. Every text from config/vision.ts,
 // every number from lib/admin/metrics.ts; the current phase is the one ocean focus ("Du bist hier"). First tab and the default: Überblick –
 // only tiles (TileBoard, group Planen), the numbers of the blocks, each opening its block zoom, the map or the timeline.
-import { ArrowRight, Building2, Castle, HeartPulse, ChevronLeft, Coins, Diamond, Globe, Hourglass, House, Landmark, Layers, MapPin, Milestone, Network, RotateCcw, Route, Shapes, Users, type LucideIcon } from "lucide-react";
+import { ArrowRight, Building2, Castle, ChevronLeft, Coins, Diamond, Hourglass, House, MapPin, Network, RotateCcw, Users, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState, useSyncExternalStore, type ReactNode } from "react";
 import { Textarea } from "@/components/ui/Input";
@@ -25,13 +25,11 @@ import {
   BLOCK_MAP_TEXT,
   TIMELINE_TEXT,
   VISION_VIEWS,
+  VISION_VIEW_ALIASES,
   type BlockId,
   type LaneKey,
   type VisionView,
   CONTINUUM,
-  HOST_PHASE_LABEL,
-  HOST_PHASE_NOW,
-  HOSTS,
   LANES,
   NOT_MEASURABLE,
   PHASE4,
@@ -50,11 +48,8 @@ import {
   UNLOCK_LANE_LABEL,
   VISION_TITLE,
   YOU_ARE_HERE,
-  TECH,
   LOCATION,
   type LocationSection,
-  type BuildKind,
-  type TechSection,
   type LaneItem,
   type Phase,
   type PhaseKey,
@@ -63,7 +58,7 @@ import {
   type Source,
   type SourceStatus,
 } from "@/config/vision";
-import { money, fundingReadiness, coreMetrics, providerCosts, getStatus, byAccommodation, depthUnlockValue, fullHousesPerMonth, hostMix, revenueLast12, revenueBySource, algorithmMetrics, visionPhase, type AdminInputs } from "@/lib/admin/metrics";
+import { money, fundingReadiness, connectionRateNow, visionLayerNumbers, coreMetrics, getStatus, byAccommodation, depthUnlockValue, fullHousesPerMonth, revenueLast12, revenueBySource, algorithmMetrics, visionPhase, type AdminInputs } from "@/lib/admin/metrics";
 import { useAdminInputs } from "@/lib/admin/useAdminInputs";
 import { ADMIN_DE } from "@/lib/i18n/admin.de";
 import { dec, eur, num, pct, share } from "@/lib/i18n/adminFormat";
@@ -72,18 +67,19 @@ import { cn } from "@/lib/utils";
 import { ProgressBar, StatusDot } from "./AdminCharts";
 import { AdminSection, AdminShell } from "./AdminShell";
 import { AdminSubTabs, AdminTabs } from "./AdminLayout";
-import { BlockMap, type BlockStatus } from "./BlockMap";
-import { MODELS } from "@/config/models";
+import { OVERVIEW_TARGETS } from "@/config/admin";
 import { goVision, VISION_NAV } from "@/lib/admin/visionNav";
 import { HOF } from "@/config/vision-hof";
-import { PatternScales } from "./vision/PatternScales";
 import { HofPartView, HofParts } from "./vision/HofParts";
 import { ContinuumForms, LongevityView } from "./vision/VisionDiagrams";
 import { chunkRows, TileBoard, type TileSpec } from "./AdminTiles";
+import { VISION_LAYERS } from "@/lib/admin/vision/layers";
+import { VisionLayers } from "./vision/VisionLayers";
+import { routeTiles, withUnits } from "./tileRoutes";
 
 export function AdminVision() {
   const inputs = useAdminInputs();
-  const { view, block, go, back } = useVisionUrl();
+  const { view, block, go, back, focus } = useVisionUrl();
   const phase = PHASES.find((p) => p.key === PHASE_NOW)!;
   const zoomed = block ? zoomOf(block, (next) => go({ view, block: next })) : null;
   const tOverview = useTranslations("admin.overviewBlock");
@@ -92,7 +88,7 @@ export function AdminVision() {
       title={VISION_TITLE}
       tabs={
         !zoomed ? (
-          <AdminTabs<VisionTab> label={VISION_TITLE} value={view} onChange={(next) => go({ view: next, block: null })} tabs={[{ value: "overview" as const, label: tOverview("tab") }, ...VISION_VIEWS.map((v) => ({ value: v.key, label: v.label }))]} />
+          <AdminTabs<VisionTab> label={VISION_TITLE} value={view} onChange={(next) => go({ view: next, block: null })} tabs={withUnits("vision", [{ value: "overview" as const, label: tOverview("tab") }, ...VISION_VIEWS.map((v) => ({ value: v.key, label: v.label }))])} />
         ) : (
           <Crumbs title={zoomed.title} onBack={back} backLabel={zoomed.backLabel ?? (view === "overview" ? `← ${tOverview("tab")}` : zoomed.fromTimeline ? BLOCK_MAP_TEXT.backTimeline : BLOCK_MAP_TEXT.back)} />
         )
@@ -108,14 +104,41 @@ export function AdminVision() {
           {zoomed.content(inputs)}
         </section>
       ) : view === "overview" ? (
-        <VisionOverview inputs={inputs} go={go} />
-      ) : (
+        <VisionOverview inputs={inputs} />
+      ) : view === "layers" ? (
+        // Schichten: the four layers with the continuum axis and the detail field; the flywheel small as the close.
+        <VisionLayers key={focus ?? "layers"} inputs={inputs} focus={focus} onZoom={(id) => go({ view: "layers", block: id })} />
+      ) : view === "continuum" ? (
         <>
-          {/* The motto (20px) and the three numbers, compact. */}
+          <ContinuumForms />
+          <ContinuumView inputs={inputs} />
+        </>
+      ) : view === "market" ? (
+        // Markt: the motto and the three numbers, then the T-model (where the money comes from).
+        <>
           <p className="text-adm-motto text-ink">{MOTTO.line}</p>
           <OverviewNumbers inputs={inputs} />
-          <div className={view === "timeline" ? "mt-(--adm-section)" : "mt-6"}>{view === "timeline" ? <Timeline inputs={inputs} onOpenPhase={(key) => go({ view: "timeline", block: key })} /> : <VisionMap inputs={inputs} onZoom={(id) => go({ view: "map", block: id })} />}</div>
+          <div className="mt-(--adm-section)">
+            <TModelView inputs={inputs} />
+          </div>
         </>
+      ) : view === "segments" ? (
+        <>
+          <SegmentsView />
+          <div className="mt-(--adm-section)">
+            <LongevityView />
+          </div>
+        </>
+      ) : view === "roadmap" ? (
+        // Roadmap: the phases' timeline (a phase's head zooms in), under it the stages to the stock market.
+        <>
+          <Timeline inputs={inputs} onOpenPhase={(key) => go({ view: "roadmap", block: key })} />
+          <div className="mt-(--adm-section)">
+            <RoadmapView />
+          </div>
+        </>
+      ) : (
+        <LocationView inputs={inputs} />
       )}
     </AdminShell>
   );
@@ -137,8 +160,10 @@ function useVisionUrl() {
   void noop;
   const params = new URLSearchParams(search);
   // No ?view= is the Überblick (the default); ?view=map and ?view=timeline the other two.
-  const raw = params.get("view");
-  const view: VisionTab = raw === "timeline" || raw === "map" ? raw : "overview";
+  // ?view= (Vision's own) or ?tab= (a tile's route, config/admin-tiles.ts – the same capsules).
+  const raw0 = params.get("view") ?? params.get("tab");
+  const raw = raw0 ? (VISION_VIEW_ALIASES[raw0] ?? raw0) : null;
+  const view: VisionTab = VISION_VIEWS.some((v) => v.key === raw) ? (raw as VisionView) : "overview";
   const block = params.get("block");
   const go = (next: { view: VisionTab; block: string | null }) => {
     const p = new URLSearchParams();
@@ -152,58 +177,98 @@ function useVisionUrl() {
     if (window.history.state === null && window.history.length > 1) window.history.back();
     else go({ view, block: null });
   };
-  return { view, block, go, back };
+  return { view, block, go, back, focus: params.get("focus") };
 }
 
 type VisionTab = "overview" | VisionView;
 
 /**
- * Überblick (CLAUDE.md "Überblick zuerst"): only tiles, group Planen – the numbers the block map shows, each opening its block zoom
- * (?block=…), the map or the timeline; Algorithmus and Finanzierung open their own pages.
+ * Überblick (CLAUDE.md "Vision"): eight tiles in the one tile plan, group Planen, no scrolling – Schichten · Kontinuum · Markt · Zielgruppen ·
+ * Verbindung · Roadmap · Standort · Finanzierung; each leads to its capsule (config/admin-tiles.ts, "vision"), Finanzierung to its page.
  */
-function VisionOverview({ inputs, go }: { inputs: AdminInputs; go: (next: { view: VisionTab; block: string | null }) => void }) {
+function VisionOverview({ inputs }: { inputs: AdminInputs }) {
   const t = useTranslations("admin.pageTiles.vision");
   const N = PHASE_TEXT.overviewNumbers;
-  const mix = hostMix(inputs);
-  const providers = providerCosts(inputs);
-  const shares = Object.values(providers.shares).map((p) => p.share);
-  const costShare = shares.every((x) => x === null) ? null : Math.round(shares.reduce<number>((n, x) => n + (x ?? 0), 0) * 10) / 10;
   const ready = fundingReadiness(inputs);
-  const again = coreMetrics(inputs).again;
+  const connection = connectionRateNow(inputs);
+  const layerNumbers = visionLayerNumbers(inputs);
   const country = inputs.admin.location?.country ?? null;
   const phase = PHASES.find((p) => p.key === PHASE_NOW)!;
-  const blocks = BLOCK_MAP.flatMap((c) => c.blocks);
-  const external = (id: BlockId) => blocks.find((b) => b.id === id)?.external;
-  const zoom = (id: BlockId) => {
-    const href = external(id);
-    return href ? { href } : { onOpen: () => go({ view: "overview", block: id }) };
-  };
-  const hostsAll = mix.counts.share + mix.counts.pro + mix.counts.anchor;
-  // "10–25 Mrd. € pro Jahr" → the range as the number, the unit under it (the config's own words, never cut).
+  const nextPhase = PHASES.find((p) => p.number === phase.number + 1);
+  const now = VISION_LAYERS.find((l) => l.status === "now")!;
+  const next = VISION_LAYERS.find((l) => l.status === "next");
+  // "10–25 Mrd. € pro Jahr" → the value with its unit ("10–25 Mrd. €", CLAUDE.md "Einheit am Hauptwert"), the rest ("pro Jahr") as a line.
   const split = (text: string) => {
-    const at = text.indexOf(" ");
-    return at < 0 ? { value: text, unit: undefined } : { value: text.slice(0, at), unit: text.slice(at + 1) };
+    const at = text.indexOf("€");
+    return at < 0 ? { value: text, unit: undefined } : { value: text.slice(0, at + 1).trim(), unit: text.slice(at + 1).trim() || undefined };
   };
   const market = split(N.market.value);
   const leader = split(N.leader.value);
+  const keep = (...lines: (string | null | undefined)[]) => lines.filter((l): l is string => Boolean(l));
+  const sourcesBy = (status: "live" | "idea") => CONTINUUM.groups.reduce((n, g) => n + g.sources.filter((src) => src.status === status).length, 0);
+  const segmentsNow = SEGMENTS.filter((seg) => seg.phase === SEGMENT_PHASE_NOW).length;
+  const critShort = { repeatRate: t("crit.repeatRate"), fullHousesGrowth: t("crit.fullHousesGrowth"), hubsFill: t("crit.hubsFill"), contribution: t("crit.contribution") } as const;
   const tiles: TileSpec[] = [
-    { key: "phase", label: t("phase.label"), info: t("phase.info"), value: t("phase.value", { n: String(phase.number), total: String(PHASES.length) }), extra: phase.title, onOpen: () => go({ view: "timeline", block: null }) },
-    { key: "map", label: t("map.label"), info: t("map.info"), value: t("map.value", { n: String(blocks.length) }), extra: BLOCK_MAP.map((c) => c.label).join(" · "), onOpen: () => go({ view: "map", block: null }) },
-    { key: "market", label: t("market.label"), info: t("market.info"), value: market.value, extra: market.unit, ...zoom("segments") },
-    { key: "leader", label: t("leader.label"), info: t("leader.info"), value: leader.value, extra: leader.unit, ...zoom("continuum") },
-    { key: "today", label: t("today.label"), info: t("today.info"), value: eur(revenueLast12(inputs)), ...zoom("tModel") },
-    { key: "core", label: t("core.label"), info: t("core.info"), value: again === null ? NOT_MEASURABLE : share(again), small: again === null, ...zoom("core") },
-    { key: "segments", label: t("segments.label"), info: t("segments.info"), value: t("segments.value", { n: String(SEGMENTS.length) }), ...zoom("segments") },
-    { key: "hosts", label: t("hosts.label"), info: t("hosts.info"), value: num(hostsAll), extra: t("hosts.extra", { pro: String(mix.counts.pro) }), ...zoom("hosts") },
-    { key: "places", label: t("places.label"), info: t("places.info"), value: num(ACCOMMODATION_CATEGORIES.length), extra: t("places.extra"), ...zoom("places") },
-    { key: "tech", label: t("tech.label"), info: t("tech.info"), value: num(Object.keys(providers.shares).length), extra: costShare === null ? t("tech.extraNone") : t("tech.extra", { share: `${dec(costShare)} %` }), ...zoom("tech") },
-    { key: "algorithm", label: t("algorithm.label"), info: t("algorithm.info"), value: num(MODELS.length), extra: t("algorithm.extra"), ...zoom("algorithm") },
-    { key: "continuum", label: t("continuum.label"), info: t("continuum.info"), value: num(CONTINUUM.groups.reduce((n, g) => n + g.sources.length, 0)), extra: t("continuum.extra"), ...zoom("continuum") },
-    { key: "roadmap", label: t("roadmap.label"), info: t("roadmap.info"), value: num(ROADMAP.stages.length), extra: t("roadmap.extra"), ...zoom("roadmap") },
-    { key: "location", label: t("location.label"), info: t("location.info"), value: country ?? t("location.open"), small: true, ...zoom("location") },
-    { key: "funding", label: t("funding.label"), info: t("funding.info"), value: t("funding.value", { met: String(ready.met), total: String(ready.total) }), extra: t("funding.extra"), ...zoom("funding") },
+    {
+      key: "layers",
+      label: t("layers.label"),
+      info: t("layers.info"),
+      value: t("layers.value", { n: String(now.no), total: String(VISION_LAYERS.length) }),
+      details: keep(t("layersNow", { title: now.title }), next ? t("layersNext", { title: next.title }) : null, t("layersRelease", { met: num(layerNumbers.places.met), of: num(layerNumbers.places.of) })),
+    },
+    {
+      key: "continuum",
+      label: t("continuum.label"),
+      info: t("continuum.info"),
+      value: t("continuum.value"),
+      details: keep(t("contNow"), t("contNext"), t("contLater"), t("liveIdea", { live: String(sourcesBy("live")), idea: String(sourcesBy("idea")) })),
+    },
+    {
+      key: "market",
+      label: t("market.label"),
+      info: t("market.info"),
+      value: market.value,
+      details: keep(market.unit, t("leaderLine", { value: leader.value }), t("todayLine", { value: eur(revenueLast12(inputs)) })),
+    },
+    {
+      key: "segments",
+      label: t("segments.label"),
+      info: t("segments.info"),
+      value: t("segments.value", { n: String(SEGMENTS.length) }),
+      details: keep(t("segmentsNow", { count: String(segmentsNow) }), ...SEGMENTS.map((seg) => seg.name)),
+    },
+    {
+      key: "connection",
+      label: t("connection.label"),
+      info: t("connection.info"),
+      value: connection === null ? NOT_MEASURABLE : pct(connection),
+      target: { text: t("coreTarget", { target: pct(OVERVIEW_TARGETS.connectionRate) }), status: getStatus("connectionRate", connection) },
+      details: keep(t("coreWhat"), t("coreSource"), t("connectionLayer")),
+    },
+    {
+      key: "roadmap",
+      label: t("roadmap.label"),
+      info: t("roadmap.info"),
+      value: t("phase.value", { n: String(phase.number), total: String(PHASES.length) }),
+      details: keep(phase.title, nextPhase ? t("nextPhase", { title: nextPhase.title }) : null, phase.goal ? t("goal", { goal: phase.goal }) : null),
+    },
+    {
+      key: "location",
+      label: t("location.label"),
+      info: t("location.info"),
+      value: country ?? t("location.open"),
+      small: true,
+      details: keep(t("candidates", { count: String(LOCATION.candidates.rows.length) }), ...LOCATION.candidates.rows.map((r) => r.country)),
+    },
+    {
+      key: "funding",
+      label: t("funding.label"),
+      info: t("funding.info"),
+      value: t("funding.value", { met: String(ready.met), total: String(ready.total) }),
+      details: keep(t("funding.extra"), ...[...ready.items.filter((i) => !i.met), ...ready.items.filter((i) => i.met)].map((i) => t(i.met ? "critMet" : "critOpen", { name: critShort[i.key] }))),
+    },
   ];
-  return <TileBoard label={VISION_TITLE} rows={chunkRows(tiles, "plan", 5)} />;
+  return <TileBoard label={VISION_TITLE} columns={4} rows={chunkRows(routeTiles("vision", tiles), "plan", 4)} />;
 }
 
 /** "Vision › <Name>" and "← Karte" in the click row while zoomed. */
@@ -240,70 +305,7 @@ function OverviewNumbers({ inputs }: { inputs: AdminInputs }) {
   );
 }
 
-const BLOCK_ICONS: Record<BlockId, LucideIcon> = {
-  hof: Castle,
-  longevity: HeartPulse,
-  core: Hourglass,
-  segments: Users,
-  hosts: House,
-  places: MapPin,
-  tech: Layers,
-  algorithm: Network,
-  phases: Milestone,
-  tModel: Shapes,
-  continuum: Coins,
-  roadmap: Route,
-  location: Globe,
-  funding: Landmark,
-};
 
-/** The map: Warum · Wie · Wohin (config/vision.ts BLOCK_MAP), each block with its live number from lib/admin/metrics.ts. */
-function VisionMap({ inputs, onZoom }: { inputs: AdminInputs; onZoom: (id: BlockId) => void }) {
-  const T = BLOCK_MAP_TEXT;
-  const mix = hostMix(inputs);
-  const providers = providerCosts(inputs);
-  const tooCostly = Object.values(providers.shares).some((p) => p.level !== null);
-  const ready = fundingReadiness(inputs);
-  const again = coreMetrics(inputs).again;
-  const country = inputs.admin.location?.country ?? null;
-  const metric: Record<BlockId, { value?: ReactNode; status: BlockStatus }> = {
-    hof: { status: "none" },
-    longevity: { status: "none" },
-    core: { value: again === null ? NOT_MEASURABLE : T.again(share(again)), status: "none" },
-    segments: { value: PHASE_TEXT.overviewNumbers.market.value.replace(" pro Jahr", ""), status: "none" },
-    hosts: { value: T.hosts(mix.counts.share + mix.counts.pro + mix.counts.anchor, mix.counts.pro), status: "none" },
-    places: { value: T.kinds(ACCOMMODATION_CATEGORIES.length), status: "none" },
-    tech: { value: T.providers(Object.keys(providers.shares).length), status: tooCostly ? "warn" : "ok" },
-    algorithm: { value: T.models(MODELS.length), status: "none" },
-    phases: { value: T.phaseOf(PHASES.find((p) => p.key === PHASE_NOW)!.number, PHASES.length), status: "open" },
-    tModel: { status: "none" },
-    continuum: { value: T.sources(CONTINUUM.groups.reduce((n, g) => n + g.sources.length, 0)), status: "none" },
-    roadmap: { value: T.stages(ROADMAP.stages.length), status: "none" },
-    location: { value: country ?? T.open, status: country ? "ok" : "open" },
-    funding: { value: T.ready(ready.met, ready.total), status: ready.met === ready.total ? "ok" : "open" },
-  };
-  return (
-    // Compact blocks: the map with its end picture fits 1470 × 814 without scrolling.
-    <BlockMap
-      label={VISION_TITLE}
-      compact
-      columns={BLOCK_MAP.map((col) => ({
-        key: col.key,
-        label: col.label,
-        blocks: col.blocks.map((b) => ({
-          id: b.id,
-          icon: BLOCK_ICONS[b.id],
-          title: b.title,
-          subtitle: b.subtitle,
-          metric: metric[b.id].value,
-          status: metric[b.id].status,
-          ...(b.feature ? { preview: <PatternScales compact /> } : {}),
-          ...(b.external ? { externalTab: b.external } : { href: `?block=${b.id}`, onOpen: () => onZoom(b.id) }),
-        })),
-      }))}
-    />
-  );
-}
 
 /** What a zoom shows: its title, the one summary line and the block's content (the former tabs) – the phases open the timeline's phase. */
 function zoomOf(id: string, go?: (block: string) => void): { title: string; summary: string; fromTimeline: boolean; backLabel?: string; content: (inputs: AdminInputs) => ReactNode } | null {
@@ -320,9 +322,7 @@ function zoomOf(id: string, go?: (block: string) => void): { title: string; summ
   const views: Partial<Record<BlockId, (inputs: AdminInputs) => ReactNode>> = {
     core: (inputs) => <CoreView inputs={inputs} />,
     segments: () => <SegmentsView />,
-    hosts: (inputs) => <HostsView inputs={inputs} />,
     places: (inputs) => <PlacesView inputs={inputs} />,
-    tech: (inputs) => <TechView inputs={inputs} />,
     phases: (inputs) => <Timeline inputs={inputs} onOpenPhase={() => undefined} />,
     tModel: (inputs) => <TModelView inputs={inputs} />,
     // The forms of living together on top, then the sources of revenue (the former content).
@@ -1016,97 +1016,7 @@ function RoadmapView() {
 
 // ── Hosts ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-const HOST_PHASES = ["launch", "abroad"] as const;
 
-/**
- * The three tiers as a pyramid (Share the wide base, Anchor the top), each with its role, how many hosts it has today and "What they look
- * for"; the gap as two sides with ↔ and the sentence; the formats and the host circle under their phase – "You are here" on launch.
- */
-function HostsView({ inputs }: { inputs: AdminInputs }) {
-  const mix = hostMix(inputs);
-  const widths = ["100%", "72%", "44%"];
-  return (
-    <>
-      <AdminSection title={HOSTS.tiersTitle}>
-        <ol className="flex flex-col-reverse gap-2">
-          {HOSTS.tiers.map((tier, i) => (
-            <li key={tier.tier} className="grid items-center gap-x-8 gap-y-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,320px)]">
-              <div className="flex justify-center">
-                <div className="flex min-h-16 items-center justify-between gap-4 rounded-[16px] bg-ink/8 px-5 py-3" style={{ width: widths[i] }}>
-                  <span className="min-w-0">
-                    <span className="block text-body font-semibold text-ink">{tier.title}</span>
-                    <span className="block text-small text-muted">{tier.role}</span>
-                  </span>
-                  <span className="shrink-0 text-small tabular-nums text-ink">{HOSTS.hosts(mix.counts[tier.tier])}</span>
-                </div>
-              </div>
-              <div className="min-w-0">
-                <p className="text-eyebrow uppercase text-(--adm-label)">{HOSTS.lookForLabel}</p>
-                {tier.lookFor.length > 0 ? <p className="mt-1 text-small text-ink">{tier.lookFor.join(" · ")}</p> : <p className="mt-1 text-small text-muted">{HOSTS.lookForEmpty}</p>}
-              </div>
-            </li>
-          ))}
-        </ol>
-      </AdminSection>
-
-      <AdminSection title={HOSTS.gapTitle} className="mt-(--adm-section)">
-        <div className="grid items-start gap-6 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
-          {[HOSTS.gap.left, null, HOSTS.gap.right].map((side, i) =>
-            side ? (
-              <div key={side.title} className={cn("min-w-0", i === 2 && "md:text-right")}>
-                <p className="text-h3 text-ink">{side.title}</p>
-                <p className="mt-1 text-body text-muted">{side.text}</p>
-              </div>
-            ) : (
-              <span key="vs" aria-hidden className="mt-1 text-h2 text-ink/40 max-md:hidden">
-                ↔
-              </span>
-            ),
-          )}
-        </div>
-        <p className="mt-8 max-w-2xl text-body-lg text-ink">{HOSTS.gap.sentence}</p>
-      </AdminSection>
-
-      {/* Formats and the host circle: one row per phase pair, launch (now) on the left. */}
-      {[
-        { title: HOSTS.formatsTitle, items: HOSTS.formats.map((f) => ({ key: f.title, title: f.title, text: undefined as string | undefined, phase: f.phase })) },
-        { title: HOSTS.circleTitle, items: HOSTS.circle.map((c) => ({ key: c.title, title: c.title, text: c.text as string | undefined, phase: c.phase })) },
-      ].map((block, b) => (
-        <AdminSection key={block.title} title={block.title} className="mt-(--adm-section)">
-          <div className="grid gap-y-8 md:grid-cols-2">
-            {HOST_PHASES.map((phase, i) => {
-              const now = phase === HOST_PHASE_NOW;
-              // One "You are here" per view: on the formats; the host circle marks launch in ink.
-              const here = now && b === 0;
-              return (
-                <div key={phase} className={cn("min-w-0", i > 0 && "md:border-l md:border-ink/8 md:pl-8", i === 0 && "md:pr-8")}>
-                  <div aria-hidden className="flex h-4 items-center">
-                    <span className={cn("size-3 shrink-0 rounded-full", here ? "bg-adm-chart-1 ring-4 ring-adm-chart-1-soft" : now ? "bg-ink" : "border-[1.5px] border-ink/30")} />
-                    <span className="ml-2 h-0.5 flex-1 rounded-full bg-ink/10" />
-                  </div>
-                  <p className="mt-3 text-small text-muted">
-                    {HOST_PHASE_LABEL[phase]}
-                    {here && <Here className="ml-2" />}
-                  </p>
-                  <ul className="mt-3 flex flex-col gap-3">
-                    {block.items
-                      .filter((item) => item.phase === phase)
-                      .map((item) => (
-                        <li key={item.key}>
-                          <p className="text-body font-semibold text-ink">{item.title}</p>
-                          {item.text && <p className="text-small text-muted">{item.text}</p>}
-                        </li>
-                      ))}
-                  </ul>
-                </div>
-              );
-            })}
-          </div>
-        </AdminSection>
-      ))}
-    </>
-  );
-}
 
 // ── Places ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -1324,198 +1234,12 @@ function SeasonRow({ segment }: { segment: Segment }) {
 
 // ── Technik ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-/** Vision › Technik (config/vision.ts TECH): four parts as capsules – Ebenen · Selbst oder einkaufen · Schnittstellen · Anbieter heute. */
-function TechView({ inputs }: { inputs: AdminInputs }) {
-  const [section, setSection] = useState<TechSection>("layers");
-  return (
-    <>
-      <AdminSubTabs label="Technik" className="mb-10" value={section} onChange={setSection} tabs={TECH.sections.map((s) => ({ value: s.key, label: s.label }))} />
-      {section === "layers" && <TechLayers />}
-      {section === "build" && <TechBuild />}
-      {section === "interfaces" && <TechInterfaces />}
-      {section === "providers" && <TechProviders inputs={inputs} />}
-    </>
-  );
-}
 
-/** Two stacks side by side, built from the bottom up: what Simpulo builds on (left) and what it is itself (right, numbered 1–5, notes beside). */
-function TechLayers() {
-  return (
-    <div className="grid gap-x-12 gap-y-12 lg:grid-cols-2">
-      <section aria-label={TECH.foundation.title} className="min-w-0">
-        <h3 className="mb-4 text-eyebrow uppercase text-(--adm-label)">{TECH.foundation.title}</h3>
-        <ol className="flex flex-col-reverse gap-1.5">
-          {TECH.foundation.layers.map((l) => (
-            <li key={l.title} className="flex min-h-16 flex-col justify-center rounded-[12px] bg-ink/5 px-5 py-3">
-              <span className="text-body font-semibold text-ink">{l.title}</span>
-              <span className="text-small text-muted">{l.text}</span>
-            </li>
-          ))}
-        </ol>
-      </section>
-      <section aria-label={TECH.own.title} className="min-w-0">
-        <h3 className="mb-4 text-eyebrow uppercase text-(--adm-label)">{TECH.own.title}</h3>
-        <ol className="flex flex-col-reverse gap-1.5">
-          {TECH.own.layers.map((l) => (
-            <li key={l.n} className="flex min-h-16 items-center gap-4 rounded-[12px] bg-ink/10 px-5 py-3">
-              <span className="w-5 shrink-0 text-h3 tabular-nums text-muted">{l.n}</span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-body font-semibold text-ink">{l.title}</span>
-                <span className="block text-small text-muted">{l.text}</span>
-              </span>
-              {l.note && <span className="shrink-0 text-right text-eyebrow uppercase text-ink max-sm:max-w-28">{l.note}</span>}
-            </li>
-          ))}
-        </ol>
-      </section>
-    </div>
-  );
-}
 
-/** ● selbst · ◐ selbst auf eingekauften Werkzeugen · ○ einkaufen – ink only. */
-function BuildGlyph({ kind }: { kind: BuildKind }) {
-  return (
-    <svg aria-hidden viewBox="0 0 12 12" className="size-3 shrink-0 text-ink">
-      {kind === "own" && <circle cx="6" cy="6" r="5.25" fill="currentColor" />}
-      {kind === "mixed" && (
-        <>
-          <circle cx="6" cy="6" r="4.75" fill="none" stroke="currentColor" strokeWidth="1.5" />
-          <path d="M6 1.25a4.75 4.75 0 0 1 0 9.5z" fill="currentColor" />
-        </>
-      )}
-      {kind === "buy" && <circle cx="6" cy="6" r="4.75" fill="none" stroke="currentColor" strokeWidth="1.5" />}
-    </svg>
-  );
-}
 
-/** The table Baustein · Empfehlung · Ab wann überdenken (glyph per recommendation, legend above), then the three conditions and the sentence. */
-function TechBuild() {
-  const b = TECH.build;
-  return (
-    <>
-      <ul className="mb-(--adm-inner) flex flex-wrap gap-x-6 gap-y-2 text-small text-muted">
-        {(["own", "mixed", "buy"] as const).map((k) => (
-          <li key={k} className="flex items-center gap-2">
-            <BuildGlyph kind={k} />
-            {b.kindLabel[k]}
-          </li>
-        ))}
-      </ul>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[640px] border-collapse text-left text-body">
-          <thead>
-            <tr className="border-b border-ink/8 text-small text-muted">
-              <th scope="col" className="py-2 pr-6 font-normal">{b.columns.block}</th>
-              <th scope="col" className="py-2 pr-6 font-normal">{b.columns.advice}</th>
-              <th scope="col" className="py-2 font-normal">{b.columns.rethink}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {b.rows.map((r) => (
-              <tr key={r.block} className="border-b border-ink/8 align-top">
-                <th scope="row" className="py-3 pr-6 font-semibold text-ink">{r.block}</th>
-                <td className="py-3 pr-6 text-ink">
-                  <span className="flex items-center gap-2">
-                    <BuildGlyph kind={r.kind} />
-                    {r.advice}
-                  </span>
-                </td>
-                <td className={cn("py-3", r.rethink ? "text-ink" : "text-muted")}>{r.rethink ?? "–"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <AdminSection title={b.conditionsTitle} className="mt-(--adm-section)">
-        <ol className="flex flex-wrap gap-x-10 gap-y-3">
-          {b.conditions.map((c, i) => (
-            <li key={c} className="flex items-baseline gap-3">
-              <span className="text-h3 tabular-nums text-muted">{i + 1}</span>
-              <span className="text-h3 text-ink">{c}</span>
-            </li>
-          ))}
-        </ol>
-        <p className="mt-(--adm-inner) text-body-lg text-ink">{b.sentence}</p>
-      </AdminSection>
-    </>
-  );
-}
 
-/** The interfaces as a time line (left to right; on phones top to bottom), each with its phase; the note below. */
-function TechInterfaces() {
-  const items = TECH.interfaces.items;
-  return (
-    <>
-      <ol className="relative grid gap-y-6 lg:grid-cols-5 lg:gap-x-4">
-        <span aria-hidden className="absolute inset-x-0 top-1.5 h-px bg-ink/15 max-lg:hidden" />
-        <span aria-hidden className="absolute bottom-1.5 left-1.5 top-1.5 w-px bg-ink/15 lg:hidden" />
-        {items.map((item) => (
-          <li key={item.title} className="relative flex min-w-0 gap-4 lg:flex-col lg:gap-4">
-            <span aria-hidden className="relative block size-3 shrink-0 rounded-full border-[1.5px] border-ink/50 bg-bg" />
-            <span className="min-w-0">
-              <span className="block text-small text-muted">{item.when}</span>
-              <span className="mt-0.5 block text-body font-semibold text-ink">{item.title}</span>
-            </span>
-          </li>
-        ))}
-      </ol>
-      <p className="mt-(--adm-section) text-body text-ink">{TECH.interfaces.note}</p>
-    </>
-  );
-}
 
-const COST_TEXT = { warning: "text-adm-warning", critical: "text-adm-critical", good: "text-ink" } as const;
-/** The bar's scale: 15 % of revenue fills it. */
-const COST_SCALE = 15;
 
-/** Today's providers: purpose, adapter yes/no and the cost in % of revenue (providerCosts) as a thin bar – from 5 % amber, from 10 % ember. */
-function TechProviders({ inputs }: { inputs: AdminInputs }) {
-  const p = TECH.providers;
-  const costs = providerCosts(inputs);
-  return (
-    <>
-      {costs.example && <p className="mb-4 text-small text-muted">{p.exampleNote}</p>}
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[640px] border-collapse text-left text-body">
-          <thead>
-            <tr className="border-b border-ink/8 text-small text-muted">
-              <th scope="col" className="py-2 pr-6 font-normal">{p.columns.name}</th>
-              <th scope="col" className="py-2 pr-6 font-normal">{p.columns.purpose}</th>
-              <th scope="col" className="py-2 pr-6 font-normal">{p.columns.adapter}</th>
-              <th scope="col" className="w-[40%] py-2 font-normal">{p.columns.cost}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {p.items.map((item) => {
-              const { share, level } = costs.shares[item.key];
-              return (
-                <tr key={item.key} className="border-b border-ink/8">
-                  <th scope="row" className="py-3 pr-6 font-semibold text-ink">{item.name}</th>
-                  <td className="py-3 pr-6 text-ink">{item.purpose}</td>
-                  <td className="py-3 pr-6 text-ink">{item.adapter ? p.yes : p.no}</td>
-                  <td className="py-3">
-                    {share === null ? (
-                      <span className="text-muted">{NOT_MEASURABLE}</span>
-                    ) : (
-                      <span className="flex items-center gap-3">
-                        <span aria-hidden className="h-1.5 w-32 shrink-0 overflow-hidden rounded-full bg-adm-chart-track">
-                          <span className="block h-full rounded-full bg-adm-chart-primary" style={{ width: `${Math.min(100, (share / COST_SCALE) * 100)}%` }} />
-                        </span>
-                        {level && <StatusDot status={level} />}
-                        <span className={cn("tabular-nums", level ? `font-semibold ${COST_TEXT[level]}` : "text-ink")}>{`${dec(share)} %`}</span>
-                        {level === "critical" && <span className="text-small text-adm-critical">{p.checkOwn}</span>}
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </>
-  );
-}
 
 // ── Standort ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -1722,7 +1446,7 @@ function CoreView({ inputs }: { inputs: AdminInputs }) {
   const live = coreMetrics(inputs);
   const L = CORE.live;
   const numbers: Record<(typeof CORE.pillars.items)[number]["key"], { label: string; info: string; value: string; sub?: string }> = {
-    matching: { label: L.matching.label, info: L.matching.info, value: live.again === null ? "–" : share(live.again), sub: live.again === null ? NOT_MEASURABLE : `${L.matching.sub} · ${L.matching.example}` },
+    matching: { label: L.matching.label, info: L.matching.info, value: live.again === null ? "–" : share(live.again), sub: live.again === null ? NOT_MEASURABLE : L.matching.sub },
     arc: { label: L.arc.label, info: L.arc.info, value: live.closingRounds === null ? "–" : num(live.closingRounds), sub: live.closingRounds === null ? L.arc.notMeasured : undefined },
     network: { label: L.network.label, info: L.network.info, value: num(live.yourPeoplePairs), sub: live.bookings.share === null ? undefined : L.network.share(share(live.bookings.share)) },
   };

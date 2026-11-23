@@ -6,15 +6,16 @@
 // Each tile: the title small (with ⓘ), the number left, the change right beside it; under them an extra line left and the target right.
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { Fragment, createContext, useCallback, useContext, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import type { Change, Status } from "@/lib/admin/metrics";
 import { cn } from "@/lib/utils";
-import { StatusDot } from "./AdminCharts";
 import { ChangeLine, InfoTip } from "./AdminNumbers";
 import { AREA_TEXT, AREA_TILE, type AreaColor } from "./AdminShell";
 
 export interface TileSpec {
   key: string;
+  /** The tile's own group when it differs from its row's (the overview's first row: Heute and Planen side by side) */
+  group?: AreaColor;
   label: string;
   /** One sentence: what it means and what a good value is */
   info: string;
@@ -30,6 +31,10 @@ export interface TileSpec {
    */
   details?: readonly ReactNode[];
   /** A word rather than a number (a name, "in 8 Tagen") – kept for callers; the size is the same for every value */
+  /** Its unit (the capsule it belongs to, config/admin-tiles.ts): tiles of one unit stand together, a wider gap between two units in a row */
+  unit?: string;
+  /** Its unit's colour for the title (the surface stays silvery); none: the usual secondary grey */
+  titleColor?: string | null;
   small?: boolean;
   /** Where the tile leads: a page (href) or a tab of this page (onOpen) */
   href?: string;
@@ -42,6 +47,9 @@ export interface TileRow {
   title?: string;
   group: AreaColor;
   tiles: readonly TileSpec[];
+  /** Groups in one row (units; the overview's two halves of R1): before these tile positions the gap is twice as wide (from 1024px; an
+   *  empty track of width 0 between them) */
+  gaps?: readonly number[];
 }
 
 /** The tiles' height: never below (≥ 1280 × 720 without scrolling), never above (large screens). */
@@ -52,49 +60,94 @@ const HEADING_H = 22;
 /** Room under the board: the page's bottom padding (--adm-section, 40px). */
 const BOTTOM_GAP = 40;
 
+/**
+ * One decision per page (CLAUDE.md "Kachel-Titel nie abkürzen"): when any tile's title and change don't fit its top row, the change of EVERY
+ * tile on that board moves into the value row, right – the same position on the whole page. Tiles report through this context.
+ */
+const ChangePlace = createContext<{ low: boolean; report: (id: string, crowded: boolean) => void } | null>(null);
+
+/** The grid's tracks for a row with group gaps: a column per tile, an empty track of width 0 before each gap (the gap doubles there). */
+const rowTracks = (columns: number, gaps: readonly number[]) =>
+  Array.from({ length: columns }, (_, i) => `${gaps.includes(i) ? "0px " : ""}minmax(0, 1fr)`).join(" ");
+
 /** Tiles in rows of `columns` (an overview tab's flat list → rows). */
 export function chunkRows(tiles: readonly TileSpec[], group: AreaColor, columns = 5): TileRow[] {
-  return Array.from({ length: Math.ceil(tiles.length / columns) }, (_, i) => ({ key: `r${i}`, group, tiles: tiles.slice(i * columns, i * columns + columns) }));
+  return Array.from({ length: Math.ceil(tiles.length / columns) }, (_, i) => {
+    const row = tiles.slice(i * columns, i * columns + columns);
+    // Where the unit changes inside the row: a wider gap (CLAUDE.md "Kapsel = Einheit").
+    const gaps = row.flatMap((tile, j) => (j > 0 && tile.unit && row[j - 1].unit && tile.unit !== row[j - 1].unit ? [j] : []));
+    return { key: `r${i}`, group, tiles: row, gaps: gaps.length ? gaps : undefined };
+  });
 }
 
 /**
  * The rows of tiles over the full height left on screen: measured from the board's top to the window's bottom, shared by the rows (with
  * their headings and gaps); the tile height is clamped (TILE_MIN–TILE_MAX), the gaps and the inner padding follow it.
  */
-export function TileBoard({ rows, columns = 5, label }: { rows: readonly TileRow[]; columns?: 4 | 5; label: string }) {
+export function TileBoard({ rows, columns = 5, label, spacious = false, colorTitles = false }: { rows: readonly TileRow[]; columns?: 2 | 4 | 5; label: string; /** More padding inside the tiles (the overview) – the gaps are the same on every page */ spacious?: boolean; /** Titles in the group colour of the page each tile leads to – only the overview (CLAUDE.md "Farbe nur zur Orientierung") */ colorTitles?: boolean }) {
   const t = useTranslations("admin.cockpit");
   const box = useRef<HTMLDivElement>(null);
   const [tileH, setTileH] = useState(96);
   const headings = rows.filter((r) => r.title).length;
+  // Measured after every render too (setState only on a change): rows above it can appear later – the period's day row after hydrating.
   useLayoutEffect(() => {
     const measure = () => {
       const top = box.current?.getBoundingClientRect().top;
       if (top === undefined || window.innerWidth < 1024) return setTileH(96);
       const room = window.innerHeight - (top + window.scrollY) - BOTTOM_GAP - headings * HEADING_H;
-      // The gaps grow with the room (about 1.5 % of the window), the tiles take the rest.
-      const gap = Math.min(20, Math.max(10, Math.round(window.innerHeight * 0.015)));
-      setTileH(Math.round(Math.min(TILE_MAX, Math.max(TILE_MIN, (room - gap * (rows.length - 1)) / rows.length))));
+      // One gap on every page (--adm-grid-gap, admin-tokens.css), read as rendered; the tiles take the rest.
+      const gap = box.current ? parseFloat(getComputedStyle(box.current).rowGap) || 0 : 0;
+      const next = Math.round(Math.min(TILE_MAX, Math.max(TILE_MIN, (room - gap * (rows.length - 1)) / rows.length)));
+      setTileH((now) => (now === next ? now : next));
     };
     measure();
+    // A row above appearing later (the sticky bar growing): watch the bar's size, re-measure on a resize.
+    const bar = document.querySelector("[data-admin-bar]");
+    const observer = bar ? new ResizeObserver(measure) : null;
+    if (bar) observer!.observe(bar);
     window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
-  }, [rows.length, headings]);
-  const gap = `clamp(10px, 1.5dvh, 20px)`;
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [rows.length, headings, spacious]);
+  const gap = "var(--adm-grid-gap)";
+  // Which tiles have no room for title + change on top; any → the change sits in the value row on every tile of this board.
+  const [crowdedIds, setCrowdedIds] = useState<ReadonlySet<string>>(new Set());
+  const report = useCallback((id: string, crowded: boolean) => {
+    setCrowdedIds((now) => {
+      if (now.has(id) === crowded) return now;
+      const next = new Set(now);
+      if (crowded) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }, []);
+  const place = { low: crowdedIds.size > 0, report };
   const big = tileH >= 108;
   const huge = tileH >= 170;
   return (
-    <div ref={box} data-tile-board className="flex flex-col" style={{ gap, "--adm-tile-h": `${tileH}px` } as CSSProperties}>
+    <ChangePlace.Provider value={place}>
+    <div ref={box} data-tile-board data-change-low={place.low || undefined} className="flex flex-col" style={{ gap, "--adm-tile-h": `${tileH}px` } as CSSProperties}>
       {rows.map((row) => (
         <section key={row.key} aria-label={row.title || label}>
           {row.title && <h2 className={cn("mb-1 text-eyebrow uppercase", AREA_TEXT[row.group])}>{row.title}</h2>}
-          <dl data-key-numbers className={cn("grid grid-cols-2 md:grid-cols-3", columns === 5 ? "lg:grid-cols-5" : "lg:grid-cols-4")} style={{ gap }}>
-            {row.tiles.map(({ key, ...tile }) => (
-              <Tile key={key} group={row.group} big={big} huge={huge} {...tile} openLabel={t("openCard", { label: tile.label })} />
+          <dl
+            data-key-numbers
+            className={cn("grid grid-cols-2", row.gaps?.length ? "md:grid-cols-3 lg:grid-cols-(--row-cols)" : columns === 2 ? "lg:grid-cols-2" : columns === 5 ? "md:grid-cols-3 lg:grid-cols-5" : "md:grid-cols-3 lg:grid-cols-4")}
+            style={{ gap, ...(row.gaps?.length ? { "--row-cols": rowTracks(columns, row.gaps) } : {}) } as CSSProperties}
+          >
+            {row.tiles.map(({ key, group, ...tile }, i) => (
+              <Fragment key={key}>
+              {row.gaps?.includes(i) && <span aria-hidden data-group-gap className="hidden lg:block" />}
+              <Tile key={key} tileKey={key} tileId={`${row.key}:${key}`} group={group ?? row.group} big={big || spacious} huge={huge} colorTitle={colorTitles} {...tile} openLabel={t("openCard", { label: tile.label })} />
+              </Fragment>
             ))}
           </dl>
         </section>
       ))}
     </div>
+    </ChangePlace.Provider>
   );
 }
 
@@ -113,16 +166,38 @@ export function TileValue({ value, className }: { value: ReactNode; className?: 
   const ref = useRef<HTMLSpanElement>(null);
   const [cut, setCut] = useState(false);
   const text = typeof value === "string" ? value : null;
+  const parts = text ? splitUnit(text) : null;
+  // A word value (a name, "Fitness · 1–2 Wochen", "Anchor Creator"): a step smaller than numbers, up to two lines, never "…" – too long for
+  // two lines at 22px, it steps down (18px, then 15px). Numbers stay one line in the one size.
+  const isText = text !== null && parts === null && /[A-Za-zÄÖÜäöüß]{3,}/.test(text);
+  const [step, setStep] = useState(0);
+  // A new value starts at the full word size again (reset while rendering, not in an effect).
+  const [stepFor, setStepFor] = useState(value);
+  if (stepFor !== value) {
+    setStepFor(value);
+    setStep(0);
+  }
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const check = () => setCut(el.scrollWidth > el.clientWidth + 1);
+    const check = () => {
+      if (isText) {
+        const lineH = parseFloat(getComputedStyle(el).lineHeight) || 26;
+        if (el.scrollHeight > lineH * 2 + 2) setStep((s) => Math.min(2, s + 1));
+        setCut(false);
+      } else setCut(el.scrollWidth > el.clientWidth + 1);
+    };
     check();
     const observer = new ResizeObserver(check);
     observer.observe(el);
     return () => observer.disconnect();
-  }, [value]);
-  const parts = text ? splitUnit(text) : null;
+  }, [value, isText, step]);
+  if (isText)
+    return (
+      <span ref={ref} data-tile-value data-tile-text={step} className={cn("adm-tile-text min-w-0 text-ink", step === 1 && "adm-tile-text-sm", step === 2 && "adm-tile-text-xs", className)}>
+        {text}
+      </span>
+    );
   return (
     <span ref={ref} data-tile-value data-tooltip-info={cut && text ? text : undefined} className={cn("adm-tile-value min-w-0 truncate tabular-nums text-ink", className)}>
       {parts ? (
@@ -137,48 +212,133 @@ export function TileValue({ value, className }: { value: ReactNode; className?: 
   );
 }
 
+/** A detail line: one line; cut with "…" only when it can't be helped – then its full words in the tooltip. */
+function TileLine({ children, title = false, inRow = false }: { children: ReactNode; /** The tile's title (data-tile-title, not a detail line) */ title?: boolean; /** Beside something (the title row, the last line with the target): it may shrink and end in "…" */ inRow?: boolean }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const [full, setFull] = useState<string | null>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const check = () => setFull(el.scrollWidth > el.clientWidth + 1 ? (el.textContent ?? null) : null);
+    check();
+    const observer = new ResizeObserver(check);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [children]);
+  return (
+    <span ref={ref} data-tile-line={title ? undefined : true} data-tile-title={title || undefined} data-tooltip-info={full ?? undefined} className={cn("min-w-0 truncate", !(title || inRow) && "shrink-0")}>
+      {children}
+    </span>
+  );
+}
+
+/** One detail line's height (13px text, line-height ≈ 1.375) and the gap between lines – the measure for how many fit. */
+const LINE_H = 18;
+const LINE_GAP = 2;
+
 /**
- * One tile – exactly --adm-tile-h high, everything aligned to the top (CLAUDE.md "Admin: Kacheln einheitlich"): the title small (caps, ⓘ,
- * one line with "…") on top; right under it the value in one fixed size (TileValue) with the change and the target right in the same line;
- * the detail lines (13px) right under the value; the free room stays at the bottom. The whole tile tinted in its group (AREA_TILE), the
- * title in the group's colour, a link (href) or a button (onOpen). `big`/`huge` (tall tiles) only add padding – never another size.
+ * One tile – the same fixed plan everywhere (CLAUDE.md "Admin: fester Kachel-Bauplan"), exactly --adm-tile-h high:
+ *   top left the title + ⓘ · top right the change (▲/▼) – always that corner
+ *   under them the value (one fixed size, a unit small after it)
+ *   bottom left the detail lines, the LAST one flush with the bottom edge (the free room lies between value and details)
+ *   bottom right the target (● Ziel x) – always that corner
+ * The detail lines come as a list ordered by importance; as many are shown as fit the room left (measured, never cut), so a large tile
+ * shows more. The whole tile a link (href) or a button (onOpen).
  */
-export function Tile({ group, label, info, value, change, target, extra, details, href, onOpen, openLabel, big = false, huge = false }: Omit<TileSpec, "key"> & { group: AreaColor; openLabel: string; big?: boolean; huge?: boolean }) {
-  const lines = [extra, ...(details ?? [])].filter((line) => line !== undefined && line !== null && line !== "");
+export function Tile({ tileKey, tileId, group, label, info, value, change, target, extra, details, href, onOpen, titleColor, openLabel, big = false, huge = false, colorTitle = false }: Omit<TileSpec, "key"> & { /** Its key (data-tile-key: the tile → capsule routes) */ tileKey?: string; /** Its id on the board (for the page-wide change place) */ tileId?: string; group: AreaColor; openLabel: string; big?: boolean; huge?: boolean; /** The title in its group's colour (the overview only); elsewhere secondary grey */ colorTitle?: boolean }) {
+  const all = [extra, ...(details ?? [])].filter((line) => line !== undefined && line !== null && line !== "");
+  // How many lines fit: the room between the value and the bottom edge (beside the target), measured.
+  const room = useRef<HTMLElement>(null);
+  const [fit, setFit] = useState(all.length);
+  useLayoutEffect(() => {
+    const el = room.current;
+    if (!el) return;
+    const measure = () => {
+      const h = el.clientHeight;
+      const next = Math.max(0, Math.floor((h + LINE_GAP) / (LINE_H + LINE_GAP)));
+      setFit((now) => (now === next ? now : next));
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  const lines = all.slice(0, fit);
+  // Title never cut: measured against the top row; no room for the change too → the board moves every change into the value row; no
+  // room even for the title alone → its type a step smaller (11px).
+  const board = useContext(ChangePlace);
+  const topRow = useRef<HTMLElement>(null);
+  const titleRef = useRef<HTMLSpanElement>(null);
+  const changeRef = useRef<HTMLSpanElement>(null);
+  const [crowded, setCrowded] = useState(false);
+  const [tight, setTight] = useState(false);
+  useLayoutEffect(() => {
+    const row = topRow.current;
+    const title = titleRef.current;
+    if (!row || !title) return;
+    const check = () => {
+      const info = 22; // the ⓘ and its gap
+      const need = title.scrollWidth + info;
+      const changeW = changeRef.current ? changeRef.current.getBoundingClientRect().width + 8 : 0;
+      const isCrowded = change !== undefined && need + changeW > row.clientWidth;
+      setCrowded(isCrowded);
+      setTight(need > row.clientWidth);
+      if (tileId) board?.report(tileId, isCrowded);
+    };
+    check();
+    const observer = new ResizeObserver(check);
+    observer.observe(row);
+    return () => observer.disconnect();
+  }, [label, change, tileId, board]);
+  const low = change !== undefined && (board ? board.low : crowded);
+  const changeEl = change !== undefined && (
+    <span ref={changeRef} data-tile-change className="shrink-0 text-small whitespace-nowrap normal-case tracking-normal">
+      <ChangeLine change={change} short />
+    </span>
+  );
+  const targetNode = target ? (
+          <span data-tile-target className="inline-flex shrink-0 items-center gap-1 text-small whitespace-nowrap text-muted">
+            {/* The target's dot neutral (CLAUDE.md "Farbe nur zur Orientierung"); its status is in the words for screen readers. */}
+            <span aria-hidden className="inline-block size-1.5 rounded-full bg-current opacity-60" />
+            {target.text}
+            {target.status && <span className="sr-only"> ({target.status})</span>}
+          </span>
+        ) : null;
   const link = "absolute inset-0 rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)";
   return (
-    <div data-cockpit-tile className={cn("relative flex h-(--adm-tile-h) min-w-0 flex-col justify-start overflow-hidden rounded-xl border", huge ? "px-5 pt-4 pb-3" : big ? "px-4 pt-3 pb-2.5" : "px-3 pt-2 pb-1.5", AREA_TILE[group])}>
+    <div data-cockpit-tile data-tile-key={tileKey} className={cn("relative flex h-(--adm-tile-h) min-w-0 flex-col overflow-hidden rounded-xl border", huge ? "px-5 pt-4 pb-3.5" : big ? "px-4 pt-3 pb-3" : "px-3 pt-2 pb-2", AREA_TILE[group])}>
       {href ? <Link href={href} data-card-link aria-label={openLabel} className={link} /> : onOpen ? <button type="button" data-card-link aria-label={openLabel} onClick={onOpen} className={link} /> : null}
-      {/* The title in the group's colour, muted. */}
-      <dt className="flex min-w-0 shrink-0 items-center gap-1 text-eyebrow uppercase">
-        <span className={cn("truncate", AREA_TEXT[group])}>{label}</span>
-        <InfoTip text={info} />
-      </dt>
-      {/* The value line: the value left, the change and the target right. */}
-      <dd className="mt-0.5 flex min-w-0 shrink-0 items-center justify-between gap-2">
-        <TileValue value={value} />
-        {(change !== undefined || target) && (
-          <span className="flex shrink-0 flex-col items-end gap-0.5 whitespace-nowrap text-small leading-tight">
-            {change !== undefined && <ChangeLine change={change} short />}
-            {target && (
-              <span className="inline-flex items-center gap-1 text-muted">
-                <StatusDot status={target.status} />
-                {target.text}
-              </span>
-            )}
+      {/* Top: the title + ⓘ left, the change right. */}
+      <dt ref={topRow} className="flex min-w-0 shrink-0 items-center gap-2 text-eyebrow uppercase">
+        <span className="flex min-w-0 flex-1 items-center gap-1">
+          <span ref={titleRef} data-tile-title style={titleColor ? { color: titleColor } : undefined} className={cn("whitespace-nowrap", tight && "text-[11px]", colorTitle ? AREA_TEXT[group] : "text-(--adm-label)")}>
+            {label}
           </span>
-        )}
+          <InfoTip text={info} />
+        </span>
+        {!low && changeEl}
+      </dt>
+      {/* The value, one fixed size; the change right beside it when the page moved it down. */}
+      <dd className="mt-1 flex min-w-0 shrink-0 flex-wrap items-center gap-x-2">
+        <TileValue value={value} className="max-w-full" />
+        {/* Too narrow for both: the change goes right-aligned under the value – the number is never cut for it. */}
+        {low && <span className="ml-auto">{changeEl}</span>}
       </dd>
-      {/* The detail lines right under the value, 13px, each one line with "…"; whatever room is left stays at the bottom. */}
-      {lines.length > 0 && (
-        <dd className="mt-0.5 flex min-h-0 min-w-0 flex-col gap-0.5 overflow-hidden text-small leading-snug text-muted">
-          {lines.map((line, i) => (
-            <span key={i} className="min-w-0 truncate">
-              {line}
+      {/* Bottom: the detail lines (the last flush with the bottom edge), the free room above them; the target right beside the LAST line only,
+          so the other lines keep the full width. */}
+      <dd ref={room} data-tile-lines className="mt-1 flex min-h-0 min-w-0 flex-1 flex-col justify-end gap-0.5 text-small leading-snug text-muted">
+        {lines.map((line, i) =>
+          i === lines.length - 1 && target ? (
+            <span key={i} className="flex min-w-0 shrink-0 items-center gap-3">
+              <TileLine inRow>{line}</TileLine>
+              <span className="ml-auto shrink-0">{targetNode}</span>
             </span>
-          ))}
-        </dd>
-      )}
+          ) : (
+            <TileLine key={i}>{line}</TileLine>
+          ),
+        )}
+        {lines.length === 0 && target && <span className="ml-auto shrink-0">{targetNode}</span>}
+      </dd>
     </div>
   );
 }

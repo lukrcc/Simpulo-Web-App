@@ -1906,7 +1906,7 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
       const refunds = state.payments.some((p) => p.stayId === stay.id && p.status === "paid") ? [systemLine({ id: `${action.systemMessage.id}-refund`, createdAt: action.systemMessage.createdAt }, crewThreadId(stay.id), "refund", { count: state.payments.filter((p) => p.stayId === stay.id && p.status === "paid").length })] : [];
       return {
         ...state,
-        stays: state.stays.map((s) => (s.id === stay.id ? { ...s, status: "closed", acceptingRequests: false, paymentDueAt: undefined } : s)),
+        stays: state.stays.map((s) => (s.id === stay.id ? { ...s, status: "closed", cancelledAt: action.systemMessage.createdAt, acceptingRequests: false, paymentDueAt: undefined } : s)),
         payments: state.payments
           .filter((p) => !(p.stayId === stay.id && p.status === "pending"))
           .map((p) => (p.stayId === stay.id && p.status === "paid" ? { ...p, status: "refunded" as const } : p)),

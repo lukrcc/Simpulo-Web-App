@@ -166,12 +166,12 @@ function Block({ block, selected, compact }: { block: MapBlock; selected: boolea
   const href = block.externalTab ?? block.href;
   if (href)
     return (
-      <Link href={href} onClick={block.onOpen ? (e) => (e.preventDefault(), block.onOpen!()) : undefined} data-block={block.id} aria-current={selected || undefined} className={className}>
+      <Link href={href} onClick={block.onOpen ? (e) => (e.preventDefault(), block.onOpen!()) : undefined} data-block={block.id} data-focus-key={block.id} aria-current={selected || undefined} className={className}>
         {body}
       </Link>
     );
   return (
-    <button type="button" onClick={block.onOpen} data-block={block.id} aria-pressed={selected} className={cn(className, "w-full")}>
+    <button type="button" onClick={block.onOpen} data-block={block.id} data-focus-key={block.id} aria-pressed={selected} className={cn(className, "w-full")}>
       {body}
     </button>
   );

@@ -6,20 +6,22 @@ import { Sheet } from "@/components/ui/Sheet";
 // opens on its own; each House's reason in one sentence, the lever to pull first, the others, what was done (the log), "✓ Erledigt". Every
 // action through lib/admin/actions.ts (logged); in the mock nothing is sent.
 import { ProgressBar } from "./AdminCharts";
+import { X } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { Img } from "@/components/ui/Img";
 import { useToast } from "@/components/ui/Toast";
-import { HOUSE_LEVERS, type HouseLever } from "@/config/admin";
+import { HOUSE_LEVERS, HOUSE_RISK, type HouseLever } from "@/config/admin";
 import { HIGHLIGHT_POLICY } from "@/config/policies";
 import { useFormat } from "@/i18n/format";
+import { shortNameOf } from "@/lib/shortName";
 import { Textarea } from "@/components/ui/Input";
 import { activeBoosts, actionOutcome, alternativeFor, exploreRank, hostComparison, isBoosted, nudgeAudience, type HostComparisonRow, type HouseAction } from "@/lib/houseHelp";
 import { tEn } from "@/lib/i18n/translate";
 import { catalogText } from "@/lib/notify";
 import { useAdminActions } from "@/lib/admin/actions";
-import { cockpit, fastestFull, hostOverview, needsHelp, type NeedsHelpRow, type RiskReason } from "@/lib/admin/metrics";
+import { cockpit, comingFillRate, fastestFull, hostOverview, needsHelp, type NeedsHelpRow, type RiskReason } from "@/lib/admin/metrics";
 import { useAdminData } from "@/lib/admin/store";
 import { useAdminInputs } from "@/lib/admin/useAdminInputs";
 import { VIBES } from "@/lib/catalog";
@@ -32,6 +34,8 @@ import { AdminListDetail, AdminSearch, AdminSort, AdminTabs, BackToList, DirectL
 import { firebaseDocUrl } from "@/config/tools";
 import { InfoTip, MetricCard } from "./AdminNumbers";
 import { AdminShell } from "./AdminShell";
+import { routeTiles, withUnits } from "./tileRoutes";
+import { setAdminSearch, useAdminTab } from "@/lib/admin/urlState";
 import { TileBoard, chunkRows, type TileSpec } from "./AdminTiles";
 import { OpenTasksHint } from "./OpenTasksHint";
 
@@ -43,12 +47,41 @@ const enNumber = new Intl.NumberFormat("en-GB");
 
 /** "Überblick" first and by default (CLAUDE.md "Überblick zuerst"), then the lists. */
 type Tab = "overview" | "atRisk" | "goingWell" | "all";
+/** A tile's focus (?focus=, config/admin-tiles.ts): a filter on "Alle" or "Braucht Hilfe", and the sort it brings. */
+type HouseFocus = "open" | "full" | "reserved" | "cancelled" | "soon" | "fill" | "quiet" | "unanswered";
+const FOCUS_SORT: Partial<Record<HouseFocus, HouseSort>> = { open: "start", full: "fill", reserved: "fill", soon: "start", fill: "fill", cancelled: "start" };
+/** The Houses a focus keeps (on "Alle"): the same rules as the tiles that lead here (HousesOverview). */
+function focusFilter(focus: HouseFocus | null, today: string): (s: Stay) => boolean {
+  const coming = (s: Stay) => s.startDate > today && s.status !== "closed";
+  const in30 = new Date(Date.parse(`${today}T12:00:00Z`) + 30 * 86_400_000).toISOString().slice(0, 10);
+  switch (focus) {
+    case "open":
+      return (s) => coming(s) && s.spotsFilled < s.spotsTotal;
+    case "full":
+      return (s) => coming(s) && s.spotsTotal > 0 && s.spotsFilled >= s.spotsTotal;
+    case "reserved":
+      return (s) => coming(s) && s.spotsFilled - 1 >= 2;
+    case "soon":
+      return (s) => coming(s) && s.startDate <= in30;
+    case "fill":
+      return coming;
+    case "cancelled":
+      return (s) => Boolean(s.takenDownAt) || s.status === "closed" || (s.startDate < today && s.status === "published" && s.spotsFilled < s.spotsTotal);
+    default:
+      return () => true;
+  }
+}
 type HouseSort = "urgency" | "start" | "fill" | "title";
+/** Abgesagt: the window it looks back (Houses that didn't take place). */
+const CANCELLED_DAYS = 90;
+/** A House's name in a tile line: whole, never cut – longer titles become "Thema · Ort". */
+const NAME_MAX = 28;
 const fillOf = (stay: Stay) => (stay.spotsTotal > 0 ? stay.spotsFilled / stay.spotsTotal : 0);
 
 export function AdminHouseList() {
   const t = useTranslations("admin.houses");
   const tc = useTranslations("admin.cockpit");
+  const tTiles = useTranslations("admin.pageTiles.houses");
   const tOverview = useTranslations("admin.overviewBlock");
   const inputs = useAdminInputs();
   const store = useStore();
@@ -60,8 +93,14 @@ export function AdminHouseList() {
   const [picked, setPicked] = useState<string | null>(() => (typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("house")));
   // Houses is for looking (CLAUDE.md "Handeln nur über Aufgaben"): it opens on the overview; a House from a link (?house=) in its list –
   // "Braucht Hilfe" when it needs help, else "Alle".
-  const [tab, setTab] = useState<Tab>(() => (picked ? (help.some((h) => h.stay.id === picked) ? "atRisk" : "all") : "overview"));
-  const [sort, setSort] = useState<HouseSort>(() => (tab === "atRisk" ? "urgency" : "start"));
+  // The capsule in ?tab= (pushed – back works); without one a House from a link opens its list, else the overview. ?focus= (a tile's route,
+  // config/admin-tiles.ts) filters the list ("Offene Houses" only the open ones …) and sets its sort; "Filter: … ✕" lifts it.
+  const url = useAdminTab<Tab>(["overview", "atRisk", "goingWell", "all"], "overview");
+  const tab: Tab = url.tab === "overview" && picked && !new URLSearchParams(typeof window === "undefined" ? "" : window.location.search).get("tab") ? (help.some((h) => h.stay.id === picked) ? "atRisk" : "all") : url.tab;
+  const focus = url.focus as HouseFocus | null;
+  const setTab = (next: Tab) => url.open(next);
+  const [chosenSort, setSort] = useState<HouseSort | null>(null);
+  const sort: HouseSort = chosenSort ?? (focus && FOCUS_SORT[focus]) ?? (tab === "atRisk" ? "urgency" : "start");
   const [query, setQuery] = useState("");
 
   const reasonText = (r: RiskReason, stay: Stay) =>
@@ -72,12 +111,14 @@ export function AdminHouseList() {
         : t("reason.unanswered", { hours: r.hours });
   const q = query.trim().toLowerCase();
   type Row = { stay: Stay; help: NeedsHelpRow | null; fullIn: number | null };
+  const inFocus = focusFilter(focus, inputs.today);
   const base: Row[] =
     tab === "atRisk"
-      ? help.map((h) => ({ stay: h.stay, help: h, fullIn: null }))
+      ? help.filter((h) => !focus || !(focus === "quiet" || focus === "unanswered") || h.reasons.some((r) => r.key === focus)).map((h) => ({ stay: h.stay, help: h, fullIn: null }))
       : tab === "goingWell"
         ? fastest.map(({ stay, days }) => ({ stay, help: null, fullIn: days }))
         : all
+            .filter((s) => inFocus(s))
             .filter((s) => !q || [s.title, findUser(store, s.hostId)?.name ?? "", s.city, s.region, s.location?.city ?? ""].some((v) => v.toLowerCase().includes(q)))
             .map((stay) => ({ stay, help: help.find((h) => h.stay.id === stay.id) ?? null, fullIn: fastest.find((x) => x.stay.id === stay.id)?.days ?? null }));
   // "Braucht Hilfe" keeps its urgency order unless another sort is chosen; the other tabs sort by start.
@@ -90,18 +131,18 @@ export function AdminHouseList() {
   // The numbers on top: Braucht Hilfe (count, against the month before) · 2+ Vormerkungen (% of the coming Houses).
   const reserved = cockpit(inputs, "month").areas.find((a) => a.key === "demand")!.number;
 
-  const open = (next: Tab, nextSort?: HouseSort) => (setTab(next), setPicked(null), setSort(nextSort ?? (next === "atRisk" ? "urgency" : "start")));
+  const open = (next: Tab, nextSort?: HouseSort) => (setTab(next), setPicked(null), setSort(nextSort ?? null));
   const tabs = (
     <AdminTabs
       label={t("tabsLabel")}
       value={tab}
       onChange={(next) => open(next)}
-      tabs={[
+      tabs={withUnits<Tab>("houses", [
         { value: "overview", label: tOverview("tab") },
         { value: "atRisk", label: t("atRisk"), count: help.length, tooltip: t("info.atRisk") },
         { value: "goingWell", label: t("goingWell"), count: fastest.length },
         { value: "all", label: t("all"), count: all.length },
-      ]}
+      ])}
     />
   );
   if (tab === "overview")
@@ -117,6 +158,14 @@ export function AdminHouseList() {
       tabs={tabs}
       aside={
         <>
+          {/* A tile's filter, shown and liftable: "Filter: Offene Houses ✕". */}
+          {focus && (
+            <button type="button" data-focus-filter onClick={() => setAdminSearch({ focus: null })} className="adm-cap" data-open>
+              <span className="adm-cap-count">{t("filterLabel")}:</span>
+              {tTiles(`${focus}.label`)}
+              <X aria-hidden className="size-3.5" />
+            </button>
+          )}
           <AdminSearch label={t("search")} value={query} onChange={setQuery} disabled={tab !== "all"} />
           <AdminSort label={t("sort.label")} value={sort} onChange={setSort} options={(["urgency", "start", "fill", "title"] as const).filter((v) => v !== "urgency" || tab === "atRisk").map((value) => ({ value, label: t(`sort.${value}`) }))} />
         </>
@@ -601,7 +650,8 @@ function HousesOverview({ all, help, fastest, reserved, onOpen }: { all: readonl
   const full = coming.filter((s) => s.spotsTotal > 0 && s.spotsFilled >= s.spotsTotal);
   const in30 = new Date(now + 30 * 86_400_000).toISOString().slice(0, 10);
   const soon = coming.filter((s) => s.startDate <= in30);
-  const avgFill = coming.length ? coming.reduce((n, s) => n + fillOf(s), 0) / coming.length : null;
+  // The one function for the coming Houses' fill (Labore › Marktplatz reads the same).
+  const avgFill = comingFillRate(store.stays, today);
   const reason = (key: RiskReason["key"]) => help.filter((h) => h.reasons.some((r) => r.key === key)).length;
   const helpIds = new Set(help.map((h) => h.stay.id));
   const pctOf = (part: number, whole: number) => (whole > 0 ? pct(Math.round((part / whole) * 100)) : "–");
@@ -624,27 +674,70 @@ function HousesOverview({ all, help, fastest, reserved, onOpen }: { all: readonl
   const cities = new Set(all.map((s) => s.location?.city ?? s.city)).size;
   const hosts = new Set(all.map((s) => s.hostId)).size;
   const days = (n: number | null) => (n === null ? "–" : t("days", { days: n }));
+  // Small helpers for more detail lines (CLAUDE.md "fester Kachel-Bauplan": as many lines as fit, the most important first).
+  const f = useFormat();
+  const freeOf = (list: readonly Stay[]) => list.reduce((n, s) => n + Math.max(0, s.spotsTotal - s.spotsFilled), 0);
+  const topBy = (list: readonly Stay[], keyOf: (s: Stay) => string) => {
+    const counts = new Map<string, number>();
+    for (const s of list) counts.set(keyOf(s), (counts.get(keyOf(s)) ?? 0) + 1);
+    return [...counts.entries()].toSorted((a, b) => b[1] - a[1])[0] ?? null;
+  };
+  const cityOf = (s: Stay) => s.location?.city ?? s.city;
+  const topCity = (list: readonly Stay[]) => {
+    const top = topBy(list, cityOf);
+    // Only when it says something: at least two Houses in that place.
+    return top && top[1] >= 2 ? t("d.topCity", { name: top[0], count: num(top[1]) }) : null;
+  };
+  const topTopic = (list: readonly Stay[]) => {
+    const top = topBy(list, (s) => s.vibe);
+    return top && top[1] >= 2 ? t("d.topTopic", { name: f.vibe(top[0] as Stay["vibe"]), count: num(top[1]) }) : null;
+  };
+  const nextStart = (list: readonly Stay[]) => {
+    const first = list.toSorted((a, b) => a.startDate.localeCompare(b.startDate))[0];
+    return first ? t("d.nextStart", { title: nameOf(first), date: day(first.startDate) }) : null;
+  };
+  const avgNights = (list: readonly Stay[]) =>
+    list.length ? t("d.avgNights", { nights: num(Math.round(list.reduce((n, s) => n + Math.max(1, Math.round((Date.parse(s.endDate) - Date.parse(s.startDate)) / 86_400_000)), 0) / list.length)) }) : null;
+  // Abgesagt: Houses of the last 90 days that didn't take place – cancelled by the host, taken down by Simpulo, or the start passed before
+  // the crew was complete (no payment, no stay). The date that counts: the cancellation, the take-down, else the start.
+  const since90 = new Date(now - CANCELLED_DAYS * 86_400_000).toISOString().slice(0, 10);
+  const cancelReason = (s: Stay): "host" | "takenDown" | "notFull" | null =>
+    s.takenDownAt ? "takenDown" : s.status === "closed" ? "host" : s.startDate < today && s.status === "published" && s.spotsFilled < s.spotsTotal ? "notFull" : null;
+  const cancelDate = (s: Stay) => (s.takenDownAt ?? s.cancelledAt ?? s.startDate).slice(0, 10);
+  const cancelled = all
+    .map((s) => ({ stay: s, reason: cancelReason(s), at: cancelDate(s) }))
+    .filter((c): c is { stay: Stay; reason: "host" | "takenDown" | "notFull"; at: string } => c.reason !== null && c.at >= since90 && c.at <= today)
+    .toSorted((a, b) => b.at.localeCompare(a.at));
+  const due90 = all.filter((s) => (s.startDate >= since90 && s.startDate < today) || cancelled.some((c) => c.stay.id === s.id)).length;
+  // "neu diese Woche": created since Monday of this week.
+  const weekday = (new Date(now).getUTCDay() + 6) % 7;
+  const monday = new Date(now - weekday * 86_400_000).toISOString().slice(0, 10);
+  const newThisWeek = all.filter((s) => s.createdAt.slice(0, 10) >= monday).length;
+  // Names in tiles are never cut (CLAUDE.md "Textwerte"): the short name when it fits whole, else the full title.
+  const nameOf = (s: Stay) => (!shortNameOf(s).endsWith("…") ? shortNameOf(s) : s.title.length <= NAME_MAX ? s.title : `${f.vibe(s.vibe)} · ${cityOf(s)}`);
+  const reasonsLine = t("d.reasons", { deadline: num(reason("deadline")), quiet: num(reason("quiet")), unanswered: num(reason("unanswered")) });
+  const keep = (...lines: (string | null | undefined | false)[]) => lines.filter((l): l is string => Boolean(l) && !/–$/.test(l as string));
   const tile = (key: Exclude<keyof typeof import("@/lib/i18n/admin-tiles/houses").TILES_HOUSES, "days" | "d">, value: string, details: string[], tab: Tab, sort?: HouseSort): TileSpec => ({
     key,
     label: t(`${key}.label`),
-    info: key === "boosted" ? t("boosted.info", { max: String(HIGHLIGHT_POLICY.maxConcurrent) }) : t(`${key}.info`),
+    info: key === "cancelled" ? t("cancelled.info", { days: String(CANCELLED_DAYS) }) : t(`${key}.info`),
     value,
     details,
     onOpen: () => onOpen(tab, sort),
   });
   const tiles: TileSpec[] = [
-    tile("all", num(all.length), [t("d.comingPast", { coming: num(coming.length), past: num(all.length - coming.length) }), t("d.citiesHosts", { cities: num(cities), hosts: num(hosts) })], "all"),
-    tile("atRisk", num(help.length), [t("d.within7", { count: num(help.filter((h) => h.stay.startDate <= in7).length) }), help[0] ? t("d.first", { title: help[0].stay.title }) : t("d.none")], "atRisk"),
-    tile("goingWell", num(fastest.length), [t("d.medianFull", { days: days(medianDays) }), fastest[0] ? t("d.top", { title: fastest[0].stay.title, days: days(fastest[0].days) }) : t("d.none")], "goingWell"),
-    tile("open", num(open.length), [t("d.needHelp", { count: num(open.filter((s) => helpIds.has(s.id)).length) }), t("d.avgFill", { fill: avgFillOf(open) })], "all", "start"),
-    tile("full", num(full.length), [t("d.shareComing", { share: pctOf(full.length, coming.length) }), t("d.spots", { filled: num(filledSpots), total: num(totalSpots) })], "all", "fill"),
-    tile("reserved", reserved === null ? "–" : pct(reserved), [t("d.ofComing", { count: num(withTwo), total: num(coming.length) }), t("d.hostOnly", { count: num(hostOnly) })], "all", "fill"),
-    tile("boosted", num(boosted.length), [t("d.maxBoost", { max: num(HIGHLIGHT_POLICY.maxConcurrent) }), boosted[0] ? t("d.first", { title: boosted[0].title }) : t("d.none")], "all"),
-    tile("soon", num(soon.length), [t("d.soonFull", { count: num(soon.filter((s) => s.spotsTotal > 0 && s.spotsFilled >= s.spotsTotal).length) }), t("d.needHelp", { count: num(soon.filter((s) => helpIds.has(s.id)).length) })], "all", "start"),
-    tile("fill", avgFill === null ? "–" : pct(Math.round(avgFill * 100)), [t("d.fillHigh", { count: num(coming.filter((s) => fillOf(s) >= 0.7).length) }), t("d.fillLow", { count: num(coming.filter((s) => fillOf(s) < 0.5).length) })], "all", "fill"),
-    tile("quiet", num(reason("quiet")), quietMax ? [t("d.longestDays", { days: days(quietMax.n) }), quietMax.stay.title] : [t("d.none")], "atRisk"),
-    tile("unanswered", num(reason("unanswered")), unansweredMax ? [t("d.longestHours", { hours: num(unansweredMax.n) }), unansweredMax.stay.title] : [t("d.none")], "atRisk"),
-    tile("fastest", fastest[0] ? days(fastest[0].days) : "–", [fastest[0] ? fastest[0].stay.title : t("d.none"), t("d.medianFull", { days: days(medianDays) })], "goingWell"),
+    tile("all", num(all.length), keep(t("d.comingPast", { coming: num(coming.length), past: num(all.length - coming.length) }), t("d.newCancelled", { fresh: num(newThisWeek), cancelled: num(cancelled.length) }), t("d.citiesHosts", { cities: num(cities), hosts: num(hosts) }), topCity(all), topTopic(all)), "all"),
+    tile("atRisk", num(help.length), keep(t("d.within7", { count: num(help.filter((h) => h.stay.startDate <= in7).length) }), help[0] ? t("d.first", { title: nameOf(help[0].stay) }) : null, reasonsLine, t("d.boostedOf", { count: num(boosted.length), max: num(HIGHLIGHT_POLICY.maxConcurrent) }), help.length ? t("d.avgFill", { fill: avgFillOf(help.map((h) => h.stay)) }) : null, topCity(help.map((h) => h.stay))), "atRisk"),
+    tile("goingWell", num(fastest.length), keep(t("d.medianFull", { days: days(medianDays) }), fastest[0] ? t("d.top", { title: nameOf(fastest[0].stay), days: days(fastest[0].days) }) : null, fastest.length ? t("d.fullIn7", { count: num(fastest.filter((x) => x.days <= 7).length) }) : null, topTopic(fastest.map((x) => x.stay)), topCity(fastest.map((x) => x.stay)), avgNights(fastest.map((x) => x.stay))), "goingWell"),
+    tile("open", num(open.length), keep(t("d.freeSpots", { count: num(freeOf(open)) }), t("d.needHelp", { count: num(open.filter((s) => helpIds.has(s.id)).length) }), t("d.avgFill", { fill: avgFillOf(open) }), nextStart(open), topCity(open), topTopic(open)), "all", "start"),
+    tile("full", num(full.length), keep(t("d.shareComing", { share: pctOf(full.length, coming.length) }), t("d.spots", { filled: num(filledSpots), total: num(totalSpots) }), nextStart(full), topTopic(full), topCity(full), avgNights(full)), "all", "fill"),
+    tile("reserved", reserved === null ? "–" : pct(reserved), keep(t("d.ofComing", { count: num(withTwo), total: num(coming.length) }), t("d.hostOnly", { count: num(hostOnly) }), t("d.oneGuest", { count: num(coming.filter((s) => s.spotsFilled - 1 === 1).length) }), t("d.avgFill", { fill: avgFillOf(coming) })), "all", "fill"),
+    tile("cancelled", num(cancelled.length), cancelled.length ? keep(t("d.cancelReasons", { host: num(cancelled.filter((c) => c.reason === "host").length), notFull: num(cancelled.filter((c) => c.reason === "notFull").length), takenDown: num(cancelled.filter((c) => c.reason === "takenDown").length) }), t("d.cancelLast", { title: nameOf(cancelled[0].stay) }), t("d.cancelRate", { date: day(cancelled[0].at), share: pctOf(cancelled.length, due90) })) : [t("d.noneCancelled")], "all"),
+    tile("soon", num(soon.length), keep(t("d.soonFull", { count: num(soon.filter((s) => s.spotsTotal > 0 && s.spotsFilled >= s.spotsTotal).length) }), t("d.needHelp", { count: num(soon.filter((s) => helpIds.has(s.id)).length) }), soon.length ? t("d.avgFill", { fill: avgFillOf(soon) }) : null, nextStart(soon), t("d.within7", { count: num(soon.filter((s) => s.startDate <= in7).length) })), "all", "start"),
+    tile("fill", avgFill === null ? "–" : pct(Math.round(avgFill * 100)), keep(t("d.fillHigh", { count: num(coming.filter((s) => fillOf(s) >= 0.7).length) }), t("d.fillMid", { count: num(coming.filter((s) => fillOf(s) >= 0.5 && fillOf(s) < 0.7).length) }), t("d.fillLow", { count: num(coming.filter((s) => fillOf(s) < 0.5).length) }), t("d.spots", { filled: num(filledSpots), total: num(totalSpots) })), "all", "fill"),
+    tile("quiet", num(reason("quiet")), quietMax ? keep(t("d.longestDays", { days: days(quietMax.n) }), nameOf(quietMax.stay), t("d.avgFill", { fill: avgFillOf(help.filter((h) => h.reasons.some((r) => r.key === "quiet")).map((h) => h.stay)) }), nextStart(help.filter((h) => h.reasons.some((r) => r.key === "quiet")).map((h) => h.stay))) : [t("d.noneQuiet")], "atRisk"),
+    tile("unanswered", num(reason("unanswered")), unansweredMax ? keep(t("d.longestHours", { hours: num(unansweredMax.n) }), nameOf(unansweredMax.stay), t("d.answerRule", { hours: num(HOUSE_RISK.unansweredHours) })) : [t("d.noneUnanswered")], "atRisk"),
+    tile("fastest", fastest[0] ? days(fastest[0].days) : "–", fastest[0] ? keep(nameOf(fastest[0].stay), t("d.cityTopic", { city: cityOf(fastest[0].stay), topic: f.vibe(fastest[0].stay.vibe) }), t("d.medianFull", { days: days(medianDays) }), fastest[1] ? t("d.second", { title: nameOf(fastest[1].stay), days: days(fastest[1].days) }) : null, t("d.fullIn7", { count: num(fastest.filter((x) => x.days <= 7).length) })) : [t("d.noneFull")], "goingWell"),
   ];
-  return <TileBoard label={tHouses("title")} columns={4} rows={chunkRows(tiles, "platform", 4)} />;
+  return <TileBoard label={tHouses("title")} columns={4} rows={chunkRows(routeTiles("houses", tiles), "platform", 4)} />;
 }

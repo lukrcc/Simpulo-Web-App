@@ -36,6 +36,10 @@ export const INBOX_DE = {
     due: "Fällig",
     reporter: "Gemeldet von",
     subject: "Betrifft",
+    month: "Monat",
+    checks: "Kennzahlen",
+    bookings: "Buchungen",
+    earlier: "Frühere Meldungen",
   },
   /** Sicherheit: immediate help instead of "we'll get back to you" (the reply goes to the person – English). */
   safetySuggestion:
@@ -65,5 +69,8 @@ export const INBOX_DE = {
   noPerson: "Die gemeldete Person ist nicht bekannt – Kontakt einschränken und Sperren gehen nur bei Meldungen aus der App.",
   noHouse: "Kein House bekannt – Verwarnen und Pausieren gehen nur mit House.",
   partnerOpen: "Partner öffnen",
+  copyEmail: "E-Mail kopieren",
+  copied: "E-Mail kopiert.",
+  filterBy: "Liste nach {name} filtern",
   partnerStepDone: "Schritt erledigt",
 } as const;

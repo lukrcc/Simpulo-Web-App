@@ -46,7 +46,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* From md the header is fixed: the content starts below its bar. Every scrolling page ends with the same room before the footer:
           --footer-gap (64px after a light last section, 0 after a dark one – globals.css); phones 96px for the tab bar. Full-height app pages
           drop that padding and the footer via data-app-pane (globals.css). Phones: never less than the tab bar covers (--tabbar-clear) + 24px. */}
-      <main className="flex-1 pb-[max(6rem,calc(var(--tabbar-clear)+1.5rem))] md:pt-16 md:pb-(--footer-gap)">{children}</main>
+      <main className="flex-1 pb-[max(6rem,calc(var(--tabbar-clear)+1.5rem))] md:pt-(--header-h) md:pb-(--footer-gap)">{children}</main>
       {/* usePathname suspends on dynamic routes during prerender. */}
       <Suspense fallback={<SlimFooter />}>
         <FooterByRoute large={<Footer />} slim={<SlimFooter />} />

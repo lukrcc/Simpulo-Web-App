@@ -178,7 +178,7 @@ export function SearchField({
       ) : trigger === "whereNext" ? (
         // Every other page: ONE capsule "Where to next?" (magnifier + words, 40px, at most 360px) – it opens the same sheet on Where.
         <span ref={anchor} className={cn("flex min-w-0 flex-1", className)}>
-          <button type="button" onClick={() => toggle("where")} aria-expanded={open} aria-haspopup="dialog" className="bar-capsule press inline-flex h-10 w-full max-w-90 max-split:max-w-none items-center gap-2 rounded-full px-4 text-nav-main transition-colors duration-150">
+          <button type="button" onClick={() => toggle("where")} aria-expanded={open} aria-haspopup="dialog" data-search className="bar-capsule press inline-flex h-10 w-full max-w-90 max-split:max-w-none items-center gap-2 rounded-full px-4 text-nav-main transition-colors duration-150">
             <Search aria-hidden className="size-4 shrink-0" />
             <span className="truncate">{t("whereNext")}</span>
           </button>

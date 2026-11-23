@@ -90,5 +90,6 @@ export function Button({ variant = "primary", size = "md", icon = false, classNa
  * fully round, the plus a 16px block on the text's centre line. Below 744px only the plus, a circle of the same height.
  */
 export const headerActionStyles = cn(
-  "press inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-full bg-(--header-pill) px-4 text-nav-main font-semibold text-ink transition-colors duration-150 hover:bg-(--header-pill-hover) max-md:w-9 max-md:px-0 [&_svg]:block [&_svg]:size-4",
+  // The bar's one filled button (CLAUDE.md "Kopfleiste leichter"): primary on the dark glass – cream (never pure white) with ink words, no text shadow; hover a step lighter.
+  "press inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-full bg-(--stage-text) px-4 text-nav-main font-semibold text-(--stage-bg) [text-shadow:none] transition-colors duration-150 hover:bg-[color-mix(in_srgb,var(--stage-text)_50%,var(--action-hover))] max-md:w-9 max-md:px-0 [&_svg]:block [&_svg]:size-4",
 );

@@ -18,7 +18,8 @@ import { StatusDot } from "./AdminCharts";
 const TIP_WIDTH = 440;
 import { cn } from "@/lib/utils";
 
-const TREND_TEXT = { better: "text-adm-good", worse: "text-adm-critical", same: "text-muted", neutral: "text-ink" } as const;
+/** ▲/▼ in a muted green and red (CLAUDE.md "Admin: Farbe nur zur Orientierung"). */
+const TREND_TEXT = { better: "text-(--adm-trend-up)", worse: "text-(--adm-trend-down)", same: "text-muted", neutral: "text-ink" } as const;
 
 /**
  * "▲ +3 (+8,6 %)" · "▼ −300 € (−6,4 %)" · "▲ +3 Pkt." · "±0" – coloured by better/worse; `against` follows ("ggü. Oktober"). With `target`
@@ -33,10 +34,21 @@ export function ChangeLine({ change, against, target, className, short = false }
       {target.text}
     </span>
   );
+  // No comparison: in tight places (tiles) "neu" with the reason in the tooltip, elsewhere "kein Vergleichswert".
   if (!change)
     return (
       <span className={cn("text-small text-muted", className)}>
-        {t("none")}
+        {short ? <span data-tooltip-info={t("freshInfo")}>{t("fresh")}</span> : t("none")}
+        {goal}
+      </span>
+    );
+  // Nothing comparable before: "neu" (the reason in the tooltip), never a huge percent.
+  if (change.fresh)
+    return (
+      <span className={cn("text-small", className)}>
+        <span data-tooltip-info={t("freshInfo")} className="font-semibold text-muted">
+          {t("fresh")}
+        </span>
         {goal}
       </span>
     );
@@ -47,7 +59,10 @@ export function ChangeLine({ change, against, target, className, short = false }
       : change.unit === "percent"
         ? t("points", { value: signed(change.delta) })
         : short && change.relative !== null
-          ? signedPct(change.relative)
+          ? // From 10 % whole percents ("+320 %"), below one decimal ("+8,6 %") – a tile's line stays short.
+            Math.abs(change.relative) >= 0.1
+            ? signedPct(Math.round(change.relative * 100) / 100).replace(/,0 %$/, " %")
+            : signedPct(change.relative)
           : `${signed(change.delta, change.unit === "eur" ? eur : change.unit === "ratio" ? dec : num)}${change.relative !== null ? ` (${signedPct(change.relative)})` : ""}`;
   return (
     <span className={cn("text-small", className)}>
@@ -127,7 +142,7 @@ export function KeyNumbers({
   return (
     <dl data-key-numbers className={cn("grid grid-cols-2 gap-y-(--adm-inner) md:grid-cols-3", className)}>
       {items.map((n, i) => (
-        <div key={n.key} className={cn("min-w-0 pr-4 md:px-6 lg:first:pl-0", i > 0 && "lg:border-l lg:border-ink/8", i % 3 !== 0 && "md:max-lg:border-l md:max-lg:border-ink/8", i % 3 === 0 && "md:max-lg:pl-0", i % 2 === 1 && "max-md:border-l max-md:border-ink/8 max-md:pl-4")}>
+        <div key={n.key} data-focus-key={n.key} className={cn("min-w-0 pr-4 md:px-6 lg:first:pl-0", i > 0 && "lg:border-l lg:border-ink/8", i % 3 !== 0 && "md:max-lg:border-l md:max-lg:border-ink/8", i % 3 === 0 && "md:max-lg:pl-0", i % 2 === 1 && "max-md:border-l max-md:border-ink/8 max-md:pl-4")}>
           <dt className="flex items-center gap-1 text-eyebrow uppercase text-(--adm-label)">
             {n.href ? (
               <Link href={n.href} data-key-link className="underline-offset-4 hover:text-ink hover:underline">

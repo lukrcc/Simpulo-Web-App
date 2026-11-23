@@ -168,6 +168,8 @@ export const CHANGE_RULES = {
   installRateAndroid: { better: "higher", unit: "percent" },
   installRateAll: { better: "higher", unit: "percent" },
   paidBookings: { better: "higher", unit: "count" },
+  /** Wachstum › Kosten pro Buchung: marketing costs ÷ bookings – lower is better */
+  costPerBooking: { better: "lower", unit: "eur" },
   inboxOpen: { better: "lower", unit: "count" },
   openHouses: { better: "higher", unit: "count" },
   growthPct: { better: "higher", unit: "percent" },

@@ -3,7 +3,7 @@ import { HeaderBack } from "@/components/layout/HeaderBack";
 import { useOpenHouseEntry } from "@/components/platform/useOpenHouseEntry";
 import { CompactSearch } from "./CompactSearch";
 import { cn } from "@/lib/utils";
-import { setHeaderSlot } from "@/lib/headerSlot";
+import { setAdminHeaderSlot, setHeaderSlot } from "@/lib/headerSlot";
 import { Plus, UserRound } from "lucide-react";
 
 import Link from "next/link";
@@ -81,6 +81,8 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
   // Explore's header (its quick search in the bar's slot): /explore, and / once signed in – visitors get the start page there (Landing), with
   // the "Where to next?" search of every other page.
   const explorePage = pathname === "/explore" || (pathname === "/" && Boolean(store.sessionRestored && store.currentUserId));
+  // The admin: a compact bar (48px, data-admin → --header-h in globals.css) and its own search (⌘K, AdminCommandSearch portalled into the slot).
+  const adminPage = pathname === "/admin" || Boolean(pathname?.startsWith("/admin/"));
   // At the very top (scrollY < 8) the glass is a little more opaque: an IntersectionObserver on AppShell's 1px mark – no scroll listener; only
   // the colour changes (200ms), never the height or the place.
   useEffect(() => {
@@ -109,14 +111,15 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
       <UserRound aria-hidden className="size-4" />
     </button>
   );
-  // The text tabs: 36px, padding 0 14px, 15px medium; the one you're on a filled capsule cream 12 % and semibold, hover cream 6 %.
+  // The text tabs: 36px, padding 0 14px, 15px medium; from 1100px text buttons without a surface (CLAUDE.md "Kopfleiste leichter"): a light
+  // surface only on hover, the page you're on a light one and semibold (--hdr-tab-* in globals.css).
   // Below 1100px the words go and each tab is a 40px circle with its icon (the tooltip is its aria-label).
   const tab = "press relative inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-full px-3.5 text-nav-main text-ink transition-colors duration-150";
 
   return (
     // ONE bar on every page: the wordmark · in the middle Explore's quick search (ExploreFeed's portal) or, elsewhere, the capsule "Where to
     // next?" · right the tabs Explore · Your houses · Messages, the avatar and "Open a House".
-    <header data-site-header className="header-glass fixed inset-x-0 top-(--band-h) z-40 hidden h-(--header-h) md:block">
+    <header data-site-header data-admin={adminPage || undefined} className="header-glass fixed inset-x-0 top-(--band-h) z-40 hidden h-(--header-h) md:block">
       {/* Logo · 32px · the groups, 20px apart, left-aligned from the logo · what's left over · 20px at least · the right group, flush right. */}
       <div className="bar-width flex h-full items-center">
         {/* The installed app (tablets, desktop): the way back on sub-pages, left of the wordmark (HeaderBack). */}
@@ -124,6 +127,8 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
         <Logo className="mr-8 shrink-0" />
         {explorePage ? (
           <div ref={setHeaderSlot} data-explore-slot className="flex min-w-0 flex-1 items-center gap-5 max-split:hidden [--control-h:40px]" />
+        ) : adminPage ? (
+          <div ref={setAdminHeaderSlot} data-admin-slot className="flex min-w-0 flex-1 max-split:hidden" />
         ) : (
           <div className="flex min-w-0 flex-1 max-split:hidden">
             <HeaderSearch />
@@ -131,7 +136,7 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
         )}
         {/* Below 1100px (tablets): ONE light search field across the width with the filter button inside (CompactSearch) – Explore's quick
             search, the theme chips and the navigation are elsewhere then (the chip row under the header, the tab bar). */}
-        <CompactSearch className="split:hidden" />
+        {!adminPage && <CompactSearch className="split:hidden" />}
         {/* Right, in this order: the tabs Explore · Your houses · Messages · the avatar · "Open a House" – 8px apart. */}
         {/* Below 1100px (tablets) the tab bar at the bottom carries the navigation (BottomTabBar) – the header holds the logo, the search and
             Explore's filters only. */}

@@ -65,7 +65,9 @@ export function AdminZeitplan() {
       if (v === null) q.delete(k);
       else q.set(k, v);
     }
-    router.replace(`${pathname}?${q.toString()}`, { scroll: false });
+    // A new capsule is a new history entry (back works); filters within one replace it.
+    if ("tab" in next) router.push(`${pathname}?${q.toString()}`, { scroll: false });
+    else router.replace(`${pathname}?${q.toString()}`, { scroll: false });
   };
   return (
     <AdminShell title={t("title")} tabs={<AdminTabs label={t("tabsLabel")} value={tab} onChange={(v) => go({ tab: v, due: null, milestone: null })} tabs={TABS.map((value) => ({ value, label: t(`tabs.${value}`) }))} />} aside={<CountdownLine />}>

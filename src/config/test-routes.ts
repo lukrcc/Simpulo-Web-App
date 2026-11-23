@@ -97,7 +97,7 @@ export const TEST_ROUTES: readonly TestRoute[] = [
   { route: "/admin/labore", key: "admin-labore", label: "Admin Labore" },
   { route: "/admin/vision", key: "admin-vision", label: "Admin Vision" },
   { route: "/admin/funding", key: "admin-finanzierung", label: "Admin Finanzierung" },
-  { route: "/admin/market-cap", key: "admin-market-cap", label: "Admin Market Cap" },
+  { route: "/admin/market-cap", key: "admin-market-cap", label: "Admin Market Cap", skip: "leitet auf /admin/funding?tab=marketcap (Kapsel Market Cap)" },
   { route: "/admin/aufgaben", key: "admin-aufgaben", label: "Admin Aufgaben", core: true },
   { route: "/admin/posteingang", key: "admin-posteingang", label: "Admin Posteingang (alt)", skip: "leitet auf /admin/aufgaben" },
   { route: "/admin/zeitplan", key: "admin-zeitplan", label: "Admin Zeitplan" },

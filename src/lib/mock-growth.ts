@@ -56,6 +56,8 @@ const DEMO_FROM = "2025-01-01";
 const DEMO_TO = "2027-06-30";
 const DEMO_VISITS_START = 40;
 const DEMO_GROWTH = 1.035;
+/** Visitors who create an account (Anmeldungen). */
+const DEMO_SIGNUP_RATE = 0.045;
 
 /**
  * Views, requests and payments as they would have been tracked – marked `seed`, never persisted. A steady daily rhythm per channel (no
@@ -130,6 +132,28 @@ export function mockGrowthEvents({ stays }: { stays: Stay[]; joinRequests: JoinR
           seed: true,
         });
       }
+    }
+  }
+  // Anmeldungen (auth_completed, Wachstum › Überblick): about 4.5 % of a day's visitors create an account, spread over the channels like the
+  // visits; about two in five of them ask about a House afterwards – marked by its houseId (the demo has no user ids; real events link by user).
+  let signupTotal = 0;
+  let signups = 0;
+  for (let t = from, day = 0; t <= to; t += DAY_MS, day++) {
+    signupTotal += DEMO_VISITS_START * DEMO_GROWTH ** (day / 30.4) * DEMO_SIGNUP_RATE;
+    for (; signupTotal >= 1; signupTotal -= 1) {
+      const id = `seed-signup-${signups++}`;
+      const h = hash(id);
+      let pick = (h % 1000) / 1000;
+      const c = DEMO_CHANNELS.find((x) => (pick -= x.share) < 0) ?? DEMO_CHANNELS[0];
+      const stay = listed[h % listed.length];
+      events.push({
+        id,
+        name: "auth_completed",
+        at: new Date(t + (1 + ((h >>> 3) % 22)) * 60 * 60 * 1000).toISOString(),
+        ...(c.source && { utmSource: c.source }),
+        ...(h % 5 < 2 && { houseId: stay.id }),
+        seed: true,
+      });
     }
   }
   return events.toSorted((a, b) => a.at.localeCompare(b.at));

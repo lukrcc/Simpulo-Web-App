@@ -17,6 +17,8 @@ body:has(.admin-scope) {
   /* Übersicht: every tile exactly this high (TileBoard sets it from the window). The colours (status, charts, groups, kinds …): the light/dark
      blocks further down. */
   --adm-tile-h: 84px;
+  /* The ONE gap between tiles (columns and rows) on every page with a TileBoard – no page sets its own (CLAUDE.md "Kachel-Abstände"). */
+  --adm-grid-gap: clamp(10px, 1.5dvh, 20px);
 
   /* The chosen tab (side list, capsule groups, list selection): a filled capsule in ocean 16 %, no edge. */
   --sel-bg: var(--adm-chart-1-soft);
@@ -58,7 +60,16 @@ body:has(.admin-scope) {
      header after the top padding, the 4 area headings (28px each, + 4px), the appearance row (36px) and 16px of air: 28–40px a row; a gap half a row. Room for more
      entries: the rows shrink first; below 28px the list folds (AdminSideList: only the current area's entries, the others by their heading). */
   --sidebar-heading-h: 28px;
-  --sidebar-item-h: clamp(28px, calc((100dvh - var(--header-h) - var(--adm-page-top) - 4 * (var(--sidebar-heading-h) + 4px) - 16px - 36px) / 16), 40px);
+  /* The appearance strip at the very bottom (System · Hell · Dunkel): as high as a group heading, a neutral surface, the chosen field a step lighter. */
+  --adm-theme-strip-bg: color-mix(in srgb, var(--text) 5%, transparent);
+  --adm-theme-strip-on: color-mix(in srgb, var(--text) 11%, transparent);
+  /* The side list (CLAUDE.md "Seitenleiste"): one flex column over the full height under the header, the same inset top and bottom. The entries
+     take what's left after the 5 group headings, the appearance strip, its 8px gap and the 4 spacers at their minimum (8px), shared by the
+     15 entries – at most 36px; from 900px window height 39px and the words 1px larger (below). The spacers between the groups share the rest
+     equally (flex), so the strip sits flush at the bottom. Too flat for 28px entries: the list folds (AdminSideList). */
+  --sidebar-gap-min: 8px;
+  --sidebar-strip-gap: 8px;
+  --sidebar-item-h: clamp(28px, calc((100dvh - var(--header-h) - 2 * var(--adm-page-top) - 5 * (var(--sidebar-heading-h) + 4px) - var(--sidebar-heading-h) - var(--sidebar-strip-gap) - 4 * var(--sidebar-gap-min)) / 15), 36px);
   --sidebar-gap: calc(var(--sidebar-item-h) * 0.5);
   --sidebar-item-font: 15px;
   --sidebar-icon: 18px;
@@ -98,6 +109,14 @@ body:has(.admin-scope) {
  * others white 70 % regular, their icon the area colour muted; hover white 90 %, no surface. Rows of a fixed height, so nothing moves. The
  * sizes are tokens (--sidebar-item-h, --sidebar-item-font, --sidebar-icon, --sidebar-gap).
  */
+/* Enough height (≥ 900px): the entries a little larger – rows 39px (+3), words 16px (+1); the icons stay. */
+@media (min-height: 900px) {
+  .admin-scope,
+  body:has(.admin-scope) {
+    --sidebar-item-h: 39px;
+    --sidebar-item-font: 16px;
+  }
+}
 .admin-scope [data-admin-nav] nav a,
 .admin-scope [data-admin-nav] button {
   user-select: none;
@@ -180,26 +199,25 @@ body:has(.admin-scope) {
 }
 /* Active: the page's group colour, lightly tinted like the tiles; edge and words in the strong colour, a little bolder. A toned capsule
    (Aufgaben's kinds, AdminTab tone) takes its own colour instead. */
-.admin-scope .adm-cap[data-toned] {
-  --adm-cur: var(--cap-tone);
-  --adm-cur-tint: color-mix(in srgb, var(--cap-tone) 13%, transparent);
-}
+/* Active (CLAUDE.md "Admin: Farbe nur zur Orientierung"): ONE neutral look on every page – silvery filled, legible words; no group colours.
+   A toned capsule (Aufgaben's kinds) keeps only its small dot. */
 .admin-scope .adm-cap[data-on],
 .admin-scope .adm-cap[data-on]:hover {
-  border-color: var(--adm-cur);
-  background-color: var(--adm-cur-tint);
-  color: var(--adm-cur);
+  border-color: var(--adm-cap-on-fill);
+  background-color: var(--adm-cap-on-fill);
+  color: var(--adm-cap-on-ink);
   font-weight: 600;
 }
 .admin-scope .adm-cap:focus-visible {
-  outline: 2px solid var(--adm-cur, var(--focus-ring));
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 .admin-scope .adm-cap-count {
   color: var(--text-muted);
 }
 .admin-scope .adm-cap[data-on] .adm-cap-count {
-  color: var(--adm-cur);
+  color: var(--adm-cap-on-ink);
+  opacity: 0.75;
 }
 .admin-scope .adm-cap-dot {
   width: 7px;
@@ -261,14 +279,14 @@ body:has(.admin-scope) {
 }
 .admin-scope [data-capsule-group] > div > :is([aria-checked="true"], [aria-current="page"]),
 .admin-scope [data-capsule-group] > div > :is([aria-checked="true"], [aria-current="page"]):hover {
-  border-color: var(--adm-cur);
-  background-color: var(--adm-cur-tint);
-  color: var(--adm-cur);
+  border-color: var(--adm-cap-on-fill);
+  background-color: var(--adm-cap-on-fill);
+  color: var(--adm-cap-on-ink);
   font-weight: 600;
   text-decoration: none;
 }
 .admin-scope [data-capsule-group] > div > :is(button, a):focus-visible {
-  outline: 2px solid var(--adm-cur, var(--focus-ring));
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
@@ -451,10 +469,12 @@ body:has(.admin-scope) {
   --adm-group-numbers: #1d6644;
   --adm-group-platform: #6242ac;
   --adm-group-plan: #874a0d;
+  --adm-group-system: #4b5868;
   --adm-group-today-chip: rgb(51 95 163 / 0.08);
   --adm-group-numbers-chip: rgb(35 117 79 / 0.08);
   --adm-group-platform-chip: rgb(110 73 188 / 0.08);
   --adm-group-plan-chip: rgb(150 82 15 / 0.08);
+  --adm-group-system-chip: rgb(75 88 104 / 0.09);
   --adm-group-today-tint: rgb(51 95 163 / 0.07);
   --adm-group-numbers-tint: rgb(35 117 79 / 0.07);
   --adm-group-platform-tint: rgb(110 73 188 / 0.07);
@@ -559,10 +579,12 @@ body:has(.admin-scope) {
   --adm-group-numbers: #5fcf9f;
   --adm-group-platform: #b48ef0;
   --adm-group-plan: #f0a35a;
+  --adm-group-system: #a9b5c4;
   --adm-group-today-chip: rgb(127 166 232 / 0.16);
   --adm-group-numbers-chip: rgb(95 207 159 / 0.16);
   --adm-group-platform-chip: rgb(180 142 240 / 0.16);
   --adm-group-plan-chip: rgb(240 163 90 / 0.16);
+  --adm-group-system-chip: rgb(169 181 196 / 0.14);
   --adm-group-today-tint: rgb(127 166 232 / 0.09);
   --adm-group-numbers-tint: rgb(95 207 159 / 0.08);
   --adm-group-platform-tint: rgb(180 142 240 / 0.09);
@@ -675,13 +697,14 @@ body:has(.admin-scope[data-admin-group="system"]) {
   --adm-brand-preview: #7fa6e8;
   --adm-brand-mail: #5fc3c0;
 }
+/* The surface silvery like every tile (CLAUDE.md "Admin: Farbe nur zur Orientierung"); the brand colour only in the symbol. */
 .admin-scope .adm-brand-tile {
   --b: var(--adm-brand-github);
-  background-color: color-mix(in srgb, var(--b) 12%, var(--card));
-  border-color: color-mix(in srgb, var(--b) 32%, transparent);
+  background-color: var(--adm-tile-bg);
+  border-color: var(--adm-tile-edge);
 }
 .admin-scope .adm-brand-tile:hover {
-  background-color: color-mix(in srgb, var(--b) 20%, var(--card));
+  background-color: var(--adm-tile-hover);
 }
 .admin-scope .adm-brand-tile .adm-brand-icon {
   color: var(--b);
@@ -781,6 +804,125 @@ body:has(.admin-scope[data-admin-group="system"]) {
   white-space: pre-line;
 }
 
+/* ── Market Cap (CLAUDE.md): two colours – Planen's orange for every datum (the methods' spans, the bars), the rest neutral. The admin's
+   chart tokens take the orange inside the page; the spans an orange fill with an orange edge. ── */
+.admin-scope .adm-market-cap {
+  --adm-chart-primary: var(--adm-group-plan);
+  --adm-chart-hover: var(--adm-group-plan);
+  --adm-chart-fill: color-mix(in srgb, var(--adm-group-plan) 24%, transparent);
+  --adm-chart-fill-hover: color-mix(in srgb, var(--adm-group-plan) 42%, transparent);
+  --adm-chart-fill-current: color-mix(in srgb, var(--adm-group-plan) 8%, transparent);
+}
+.admin-scope .adm-mc-span {
+  background-color: color-mix(in srgb, var(--adm-group-plan) 28%, transparent);
+  border-color: var(--adm-group-plan);
+}
+.admin-scope .adm-mc-span:hover {
+  background-color: color-mix(in srgb, var(--adm-group-plan) 45%, transparent);
+}
+
+/* ── Aufgaben › Detail (CLAUDE.md "Aufgaben – drei Boxen"): A Anfrage (the kind's tint over the ground, a stripe in its colour) · B Person &
+   Kontext (neutral, a step off the ground) · C Deine Reaktion (lighter, clearly not A) – 16px apart, together the column's height. ── */
+.admin-scope {
+  --adm-detail-gap: 16px;
+  --adm-detail-pad: 16px;
+  --adm-detail-stripe: 4px;
+  --adm-box-request-tint: 7%;
+  --adm-box-context: color-mix(in srgb, var(--text) 4%, var(--bg));
+  --adm-box-reaction: var(--surface);
+  --adm-box-edge: var(--line);
+}
+:root[data-theme="dark"] .admin-scope {
+  --adm-box-request-tint: 10%;
+  --adm-box-context: color-mix(in srgb, var(--text) 5%, var(--bg));
+  --adm-box-reaction: var(--surface-2);
+}
+.admin-scope .adm-message {
+  font-size: 22px;
+  line-height: 1.45;
+  font-weight: 500;
+}
+
+/* ── Admin: few colours (CLAUDE.md "Admin: Farbe nur zur Orientierung"): every tile silvery – a light grey over the ground with a fine
+   neutral edge, a little lighter on hover; capsules neutral (active silvery filled); the changes ▲/▼ a muted green and red. Colour stays
+   only in the side list's group blocks, the overview's tile titles, Market Cap and ▲▼. ── */
+.admin-scope {
+  --adm-tile-bg: color-mix(in srgb, var(--text) 4.5%, var(--bg));
+  --adm-tile-hover: color-mix(in srgb, var(--text) 7.5%, var(--bg));
+  --adm-tile-edge: color-mix(in srgb, var(--text) 11%, transparent);
+  --adm-cap-on-fill: color-mix(in srgb, var(--text) 16%, var(--bg));
+  --adm-cap-on-ink: var(--text);
+  --adm-trend-up: #33634a;
+  --adm-trend-down: #9a4537;
+}
+:root[data-theme="dark"] .admin-scope {
+  --adm-tile-bg: color-mix(in srgb, #ffffff 7%, var(--bg));
+  --adm-tile-hover: color-mix(in srgb, #ffffff 10%, var(--bg));
+  --adm-tile-edge: color-mix(in srgb, #ffffff 11%, transparent);
+  --adm-cap-on-fill: #d8d4ce;
+  --adm-cap-on-ink: #1a1715;
+  --adm-trend-up: #8fb89c;
+  --adm-trend-down: #d99484;
+}
+.admin-scope .adm-tile {
+  background-color: var(--adm-tile-bg);
+  border-color: var(--adm-tile-edge);
+}
+.admin-scope .adm-tile:has([data-card-link]:hover),
+.admin-scope .adm-tile.adm-press:hover {
+  background-color: var(--adm-tile-hover);
+}
+
+/* ── The page head (CLAUDE.md "Admin: einheitlicher Kopfbereich"): the capsule rows, then ONE gap to the content; the second row (sub-tabs,
+   the days) always the same distance under the first. ── */
+.admin-scope {
+  --adm-header-gap: 20px;
+  --adm-header-row-gap: 8px;
+}
+
+/* A word as a tile's value (a name, a group like "Fitness · 1–2 Wochen"): a step smaller than numbers, up to two lines, never "…"; too long,
+   it steps down once or twice (TileValue measures). Numbers keep .adm-tile-value, one line. */
+.admin-scope .adm-tile-text {
+  font-family: var(--font-display);
+  font-size: 22px;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  overflow-wrap: anywhere;
+}
+.admin-scope .adm-tile-text-sm {
+  font-size: 18px;
+}
+.admin-scope .adm-tile-text-xs {
+  font-size: 15px;
+}
 
 
+/* A tile's focus (?focus=, CLAUDE.md "Jede Kachel → eine Kapsel"): the number or row it opened, marked in the page's group colour. */
+.admin-scope [data-focused] {
+  outline: 2px solid var(--adm-cur, var(--text));
+  outline-offset: 4px;
+  border-radius: 10px;
+}
 
+/* Units (CLAUDE.md "Kapsel = Einheit = eine Frage = eine Farbe"): a muted palette – Sand · Salbei · Nebelblau · Flieder · Terrakotta ·
+   Schiefer – for a capsule's dot and the titles of its tiles (the surface stays silvery). Greyer than the side list's group colours and the
+   ▲/▼ colours, so neither is mistaken for them; each ≥ 4.5 : 1 on the tile surface in both modes. */
+.admin-scope,
+body:has(.admin-scope) {
+  --adm-unit-sand: #7a5c30;
+  --adm-unit-sage: #4e6a57;
+  --adm-unit-mist: #456478;
+  --adm-unit-lilac: #6e5a8c;
+  --adm-unit-terra: #8c5a48;
+  --adm-unit-slate: #4f5965;
+}
+:root[data-theme="dark"] .admin-scope,
+:root[data-theme="dark"] body:has(.admin-scope) {
+  --adm-unit-sand: #d6b98e;
+  --adm-unit-sage: #a9c2ae;
+  --adm-unit-mist: #a2bacb;
+  --adm-unit-lilac: #c3b0d8;
+  --adm-unit-terra: #dca38e;
+  --adm-unit-slate: #b3bbc5;
+}

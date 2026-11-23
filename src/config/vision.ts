@@ -63,7 +63,7 @@ export const CORE = {
     ],
   },
   live: {
-    matching: { label: "Matching-Erfolg", sub: "gegenseitig „Mit dir wieder“", example: "Beispielwert – Bewertung folgt", info: "Anteil der Paare aus einer Crew, die nach dem Aufenthalt beide „Mit dir wieder“ gesagt haben." },
+    matching: { label: "Matching-Erfolg", sub: "gegenseitig „Mit dir wieder“", info: "Anteil der Paare aus einer Crew, die nach dem Aufenthalt beide „Mit dir wieder“ gesagt haben." },
     arc: { label: "Houses mit Abschlussrunde", notMeasured: "noch nicht gemessen", info: "Houses, deren Abschlussrunde abgeschlossen ist – die Abschlussrunde wird noch gebaut." },
     network: {
       label: "Your-people-Verbindungen",
@@ -727,16 +727,26 @@ export const LOCATION = {
  * Untertitel (höchstens 5 Wörter, aus den Inhalten dieser Datei abgeleitet), eine Zusammenfassung für die Zoom-Ansicht (höchstens 12 Wörter)
  * und wohin er führt – eine Zoom-Ansicht (?block=<id>) oder ein anderer Admin-Tab (`external`). Reihenfolge fest, wie hier.
  */
+/**
+ * Vision's capsules after "Überblick" (CLAUDE.md "Vision"): Schichten (the four layers, formerly "Karte") · Kontinuum · Markt · Zielgruppen ·
+ * Roadmap (the phases' timeline, formerly "Zeitleiste") · Standort. Old links (?view=map, ?view=timeline) lead to Schichten and Roadmap.
+ */
 export const VISION_VIEWS = [
-  { key: "map", label: "Karte" },
-  { key: "timeline", label: "Zeitleiste" },
+  { key: "layers", label: "Schichten" },
+  { key: "continuum", label: "Kontinuum" },
+  { key: "market", label: "Markt" },
+  { key: "segments", label: "Zielgruppen" },
+  { key: "roadmap", label: "Roadmap" },
+  { key: "location", label: "Standort" },
 ] as const;
+/** Old view names → the capsules they became */
+export const VISION_VIEW_ALIASES: Readonly<Record<string, VisionView>> = { map: "layers", timeline: "roadmap" };
 export type VisionView = (typeof VISION_VIEWS)[number]["key"];
 
 export const BLOCK_MAP_TEXT = {
   crumb: "Vision",
-  back: "← Karte",
-  backTimeline: "← Zeitleiste",
+  back: "← Schichten",
+  backTimeline: "← Roadmap",
   status: (phase: number) => `Phase ${phase}`,
   phaseOf: (n: number, total: number) => `${n} von ${total}`,
   groups: (n: number) => `${n} Gruppen`,

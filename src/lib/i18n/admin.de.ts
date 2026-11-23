@@ -17,14 +17,33 @@ export const ADMIN_DE = {
   inboxNew: INBOX_DE,
   /** The admin's own look (side list, next to System) */
   theme: { label: "Darstellung", system: "System", light: "Hell", dark: "Dunkel" },
+  /** The admin search in the header (⌘K, AdminCommandSearch) */
+  search: {
+    trigger: "Suchen …",
+    shortcut: "⌘K",
+    label: "Admin durchsuchen",
+    placeholder: "Hosts, Houses, Aufgaben, Nutzer …",
+    groups: { tasks: "Aufgaben", houses: "Houses", hosts: "Hosts", users: "Nutzer" },
+    empty: "Nichts gefunden",
+    start: "Tippe einen Namen, ein House, einen Ort oder eine Aufgabe.",
+    hint: "↑ ↓ wählen · Enter öffnen · Esc schließen",
+    close: "Suche schließen",
+  },
   /** Admin › Market Cap (/admin/market-cap, button in the overview) */
   marketCap: {
     title: "Market Cap",
     button: "Market Cap",
     close: "Schließen",
-    estimate: "Geschätzter Wert",
-    estimateInfo: "Mitte der Umsatz-Methode: Umsatz der letzten 12 Monate × Vielfaches. Die Spanne darunter reicht vom kleinsten bis zum größten Ergebnis aller drei Methoden.",
+    estimate: "Geschätzter Wert · Median aus 3 Methoden",
+    estimateInfo: "Der mittlere der drei Methoden-Werte (je die Mitte ihrer Spanne) – ein Ausreißer zieht ihn nicht. Der Mittelwert ist der Durchschnitt der drei; die Spanne reicht vom kleinsten bis zum größten Ergebnis aller Methoden.",
     span: "Spanne {low} – {high}",
+    meanSpan: "Mittelwert {mean} · Spanne {low} – {high}",
+    median: "Median",
+    thousand: "{value} Tsd. €",
+    methodsTitle: "Methoden",
+    methodRow: { profit: "Gewinn × {multiple}", revenue: "Umsatz × {multiple}", bookingVolume: "Buchungsvolumen × {multiple}" },
+    methodTip: "{base} × {low}–{high} = {resultLow} – {resultHigh}\n{basis} · {step}",
+    driverLine: { growth: "Wachstum {value}/Monat", repeat: "Wiederkehrer {value}", takeRate: "Take Rate {value}", openHouses: "Offene Houses {value}" },
     vsMonth: "ggü. Vormonat",
     methods: { profit: "Gewinn × Vielfaches", revenue: "Umsatz × Vielfaches", bookingVolume: "Buchungsvolumen × Vielfaches" },
     methodInfo: {
@@ -76,7 +95,7 @@ export const ADMIN_DE = {
     log: "Log",
     prepared: "Vorbereitete Houses",
   },
-  navGroup: { today: "Heute", numbers: "Zahlen", platform: "Plattform", plan: "Planen" },
+  navGroup: { today: "Heute", numbers: "Zahlen", platform: "Plattform", plan: "Planen", system: "System" },
   demoData: "Demo-Daten",
   mockData: "Mock-Daten",
   empty: "Hier ist noch nichts.",
@@ -158,7 +177,7 @@ export const ADMIN_DE = {
     title: "Heute",
     allDone: "✓ Alles erledigt",
     count: "{count, plural, one {# offene Aufgabe} other {# offene Aufgaben}}",
-    kind: { report: "Meldung", appeal: "Widerspruch", safety: "Sicherheit", money: "Geld", deadline: "Frist", atRisk: "House braucht Hilfe", application: "Bewerbung", anchor: "Anchor-Vorschlag", hostWarning: "Host", partnerStep: "Partner", support: "Support" },
+    kind: { report: "Meldung", appeal: "Widerspruch", safety: "Sicherheit", money: "Geld", deadline: "Frist", valueWarning: "Wert-Check", atRisk: "House braucht Hilfe", application: "Bewerbung", anchor: "Anchor-Vorschlag", hostWarning: "Host", partnerStep: "Partner", support: "Support" },
     sentence: {
       report: "{reason}: {subject}{house}",
       deadline: "{label} – {when}.",
@@ -248,6 +267,7 @@ export const ADMIN_DE = {
     rows: { money: "Geld", core: "Kern", growth: "Wachstum & Angebot", growthOnly: "Wachstum", ops: "Betrieb & Launch", today: "Heute", numbers: "Zahlen", platform: "Plattform", plan: "Planen" },
     /** Übersicht: the tiles (titles and ⓘ, one sentence each: meaning + a good value) */
     tiles: {
+      marketCap: "Market Cap",
       bookings: "Buchungen",
       visitors: "Besucher",
       requests: "Anfragen",
@@ -282,6 +302,7 @@ export const ADMIN_DE = {
         webApp: "Gäste mit Buchung, die Simpulo zum Home-Bildschirm hinzugefügt haben (iPhone und Android, letzter voller Monat) – gut sind ab 25 %.",
         askToRequest: "Anteil der Fragen an einen Host, nach denen der Gast anfragt (letzter voller Monat) – gut sind 30–50 %.",
         needsHelp: "Houses, die ohne Hilfe wohl nicht voll werden (heute) – gut ist 0; Veränderung nur im Zeitraum Monat.",
+        marketCap: "Grobe Schätzung des Werts: Median aus drei Methoden (Gewinn, Umsatz, Buchungsvolumen × Vielfaches) – öffnet Market Cap.",
         inbox: "Offene Aufgaben – die einzige Stelle, an der Handlungen anstehen (heute) – gut ist 0.",
         waitlist: "Bestätigte Einträge auf der Warteliste gegen das Launch-Kriterium 1.000.",
         applications: "Host-Bewerbungen, die neu sind oder auf Rückfrage warten (heute).",
@@ -351,10 +372,15 @@ export const ADMIN_DE = {
         month: "Dieser Monat bis heute – verglichen mit dem Vormonat bis zum gleichen Tag.",
         quarter: "Dieses Quartal bis heute – verglichen mit dem Vorquartal bis zum gleichen Tag.",
         year: "Dieses Jahr bis heute – verglichen mit dem Vorjahr bis zum gleichen Tag.",
+        day: "Dieser Tag – verglichen mit dem gleichen Wochentag der Vorwoche.",
       },
+      /** The running period beside the capsules: the calendar week and its days, the dates up to today. */
+      range: { week: "KW {kw} · {from}–{to}", day: "{weekday} {date}", month: "{from}–{to}", quarter: "Q{q} · {from} – {to}", year: "{from} – {to}" },
+      fresh: "Fehlt ein Vergleichswert, steht „neu“ statt eines Prozentwerts.",
+      days: { label: "Tag", all: "Ganze Woche", today: "heute", future: "Dieser Tag kommt noch.", d0: "Mo", d1: "Di", d2: "Mi", d3: "Do", d4: "Fr", d5: "Sa", d6: "So" },
     },
-    against: { week: "ggü. Vorwoche", month: "ggü. {month}", quarter: "ggü. Vorquartal", year: "ggü. {year}" },
-    change: { points: "{value} Pkt.", same: "±0", none: "kein Vergleichswert", better: "besser", worse: "schlechter" },
+    against: { day: "ggü. Vorwoche (gleicher Tag)", week: "ggü. Vorwoche", month: "ggü. {month}", quarter: "ggü. Vorquartal", year: "ggü. {year}" },
+    change: { points: "{value} Pkt.", same: "±0", none: "kein Vergleichswert", fresh: "neu", freshInfo: "Kein vergleichbarer Wert in der Vorperiode", better: "besser", worse: "schlechter" },
     info: {
       connectionRate: "Anteil der Gäste mit mindestens einer gegenseitigen Wahl („Mit dir wieder“) – von denen, die geantwortet haben.",
       fullHouses: "Volle Houses im Monat: Houses, die diesen Monat komplett belegt waren.",
@@ -385,6 +411,7 @@ export const ADMIN_DE = {
     openFirebase: "In Firebase öffnen",
     title: "Houses",
     tabsLabel: "Houses",
+    filterLabel: "Filter",
     sort: { label: "Sortieren", urgency: "Dringlichkeit", start: "Start", fill: "Füllrate", title: "Titel" },
     info: { atRisk: `Kommende Houses, bei denen eine Regel greift: wenig voll kurz vor dem Start, seit 7 Tagen keine Anfrage oder eine Anfrage länger als ${HOUSE_RISK.unansweredHours} h offen. Sortiert nach Dringlichkeit: freie Plätze pro verbleibendem Tag.` },
     lever: {
@@ -582,6 +609,9 @@ export const ADMIN_DE = {
     reviewNote: "Live werden Hosts automatisch freigeschaltet. Hier landen nur Fälle mit Warnsignal.",
     reviewEmpty: "Keine Warnfälle.",
     sort: { label: "Sortieren", value: "Wert pro Jahr", houses: "Houses", newest: "Neueste" },
+    /** "Alle": the tier and the activity as filter capsules (CLAUDE.md "Hosts") */
+    tierFilter: { label: "Stufe", all: "Alle", share: "Share", pro: "Pro", anchor: "Anchor", founding: "Founding" },
+    activityFilter: { label: "Aktivität", all: "Alle", active: "Aktiv", inactive: "Inaktiv", dormant: "Inaktiv > 6 Monate" },
     houses: "Houses",
     fill: "Füllrate",
     value: "Wert pro Jahr",
@@ -967,6 +997,28 @@ export const ADMIN_DE = {
     },
   },
   analysis: {
+    /** Analyse › Wert-Check (Wert statt Abschöpfen): three questions, each with its traffic light; the warning signal; the principles. */
+    value: {
+      tab: "Wert-Check",
+      tabInfo: "Wächst der Wert für die Menschen mit – oder nur die Gebühr? Drei Fragen mit Ampel.",
+      status: { good: "im grünen Bereich", warning: "beobachten", critical: "prüfen" },
+      check: {
+        connection: { title: "Entsteht Verbindung?", value: "Verbindungsrate", second: "noch in Kontakt nach 30 Tagen: {value}", info: "Gäste mit mindestens einer gegenseitigen Wahl nach ihrem House; dazu, wer nach 30 Tagen noch Kontakt hat. Grün ab {good} % bzw. {touch} %." },
+        hosts: { title: "Bleiben Hosts freiwillig?", value: "Hosts mit zweitem House", second: "zweites House über Simpulo binnen {months} Monaten", info: "Anteil der Hosts, deren zweites House innerhalb von {months} Monaten wieder über Simpulo läuft – niemand muss bleiben. Grün ab {good} %." },
+        perFee: { title: "Wächst der Wert schneller als die Gebühr?", value: "Gemeinsame Nächte je 100 € Umsatz", second: "gegenseitige Verbindungen je 100 €: {value}", info: "Was an Zusammenleben und Verbindung je 100 € Umsatz entsteht. Grün, solange beides gegenüber vor {months} Monaten höchstens {drop} % fällt." },
+      },
+      bars: "Letzte {months} vollen Monate",
+      warning: "Umsatz steigt, Wert sinkt – prüfen.",
+      warningInfo: "Der Umsatz ist {months} Monate in Folge gestiegen, während diese Wert-Kennzahl gefallen ist.",
+      noData: "Noch nicht messbar – die Monatswerte fehlen.",
+      principles: "Grundsätze",
+      principle: { measure: "Wert messen", earn: "Erst verdienen, wenn Wert entsteht", free: "Niemanden festhalten" },
+      open: "Wert-Check öffnen",
+      tile: "Wert-Check",
+      tileInfo: "Drei Fragen: entsteht Verbindung, bleiben Hosts freiwillig, wächst der Wert schneller als die Gebühr.",
+      tileValue: "{green} von {total}",
+      tileGreen: "im grünen Bereich",
+    },
     cohorts: {
       title: "Kohorten der Wiederkehrer",
       note: "Pro Startmonat: Anteil der Gäste, die innerhalb von 3, 6 und 12 Monaten wieder gebucht haben.",
@@ -1009,7 +1061,7 @@ export const ADMIN_DE = {
     topTopics: "Top-Themen",
     topCountries: "Top-Länder",
     perBooking: "€ pro Buchung",
-    dimension: { label: "Blickrichtung", overview: "Überblick", spectrum: "Spektrum", topic: "Thema", length: "Länge", crew: "Crew", category: "Ort-Typ", origin: "Ort-Herkunft", hub: "Hub", tier: "Host-Stufe", depth: "Tiefe" },
+    dimension: { label: "Blickrichtung", overview: "Überblick", spectrum: "Spektrum", topic: "Thema", length: "Länge", crew: "Crew", category: "Ort-Typ", origin: "Ort-Herkunft", hub: "Hub", tier: "Stufe", depth: "Tiefe" },
     origin: {
       own: "Eigener Ort",
       new: "Neuer Ort",
@@ -1546,7 +1598,7 @@ export const ADMIN_DE = {
     added: "Entnahme eingetragen",
     taxNote: "Eine grobe Rücklage, keine Steuerberatung.",
     schedules: { daily: "Täglich", weekly: "Wöchentlich", monthly: "Monatlich" },
-    views: { label: "Ansicht", overview: "Überblick", guests: "Gäste", hosts: "Hosts", costs: "Kosten", payouts: "Auszahlungen", taxes: "Steuern" },
+    views: { label: "Ansicht", overview: "Überblick", guests: "Gäste", hosts: "Hosts", costs: "Kosten", payments: "Zahlungen", taxes: "Steuern" },
     /** The money terms – one definition each, the same in the overview's ⓘ and on Geld (lib/admin/metrics.ts MONEY_TERMS). */
     terms: {
       bookingVolume: { label: "Buchungsvolumen", info: "Alles, was Gäste zahlen: Miete, Host-Fee und Servicegebühr, in EUR." },
@@ -1589,7 +1641,7 @@ export const ADMIN_DE = {
       byCategory: "Nach Kategorie im Zeitraum",
       runway: "Reichweite des Geldes",
     },
-    payoutsTab: { openStripe: "In Stripe öffnen", paidList: "Ausgezahlt im Zeitraum", openList: "Offen", none: "Keine.", note: "Nur Anzeige – ausgezahlt wird automatisch, sobald alle im House bezahlt haben." },
+    payoutsTab: { openStripe: "In Stripe öffnen", paidList: "Ausgezahlt im Zeitraum", openList: "Offen", none: "Keine.", note: "Nur Anzeige – ausgezahlt wird automatisch, sobald alle im House bezahlt haben.", issuesLabel: "Zahlungsprobleme", issuesInfo: "Fehlgeschlagene Zahlungen von Gästen, die noch offen sind – erledigt werden sie in Aufgaben › Geld.", issuesList: "Zahlungsprobleme", issuesNone: "Keine offenen Zahlungsprobleme.", toTasks: "In Aufgaben bearbeiten →" },
     taxViews: { label: "Steuern", journal: "Buchungsjournal", overview: "Überblick" },
     journal: {
       disclaimer: "Orientierung, keine Steuerberatung. Alle Sätze, Konten und die Rücklage stehen in config/tax.ts als Platzhalter – mit Steuerberater klären.",

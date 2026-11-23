@@ -1,5 +1,9 @@
 "use client";
 
+import { useStore } from "@/lib/store";
+import { useAdminInputs } from "@/lib/admin/useAdminInputs";
+import { APP_MODE } from "@/lib/appMode";
+import { adminNumberMismatches } from "@/lib/admin/consistency";
 import { Compass, Megaphone, Menu, X, FlaskConical, Gauge, Home, Inbox, Landmark, Network, SlidersHorizontal, Tags, TrendingUp, Users, Wallet, type LucideIcon, CalendarRange } from "lucide-react";
 import Link from "next/link";
 import { notFound, usePathname } from "next/navigation";
@@ -14,9 +18,12 @@ import { ScrollRow } from "@/components/ui/ScrollRow";
 import { useIsAdmin } from "@/lib/admin/access";
 import type { Status } from "@/lib/admin/metrics";
 import { StatusDot } from "./AdminCharts";
-import { AdminPageHeader, PeriodTabs, TabLevelContext } from "./AdminLayout";
+import { useAdminPeriod } from "@/lib/admin/period";
+import { AdminPageHeader, PeriodDays, PeriodMenu, PeriodTabs, TabLevelContext } from "./AdminLayout";
 import { AdminTooltip } from "./AdminTooltip";
 import { AdminThemeSwitch, useAdminThemeLabels } from "./AdminThemeSwitch";
+import { AdminCommandSearch } from "./AdminCommandSearch";
+import { useAdminSearch } from "@/lib/admin/urlState";
 import { useAdminTasks } from "@/lib/admin/useAdminTasks";
 import { taskCounts } from "@/lib/admin/tasks";
 import { cn } from "@/lib/utils";
@@ -90,12 +97,8 @@ const AREA_CHIP: Record<AreaColor, string> = {
 };
 export const AREA_BG: Record<AreaColor, string> = { today: "bg-adm-group-today", numbers: "bg-adm-group-numbers", platform: "bg-adm-group-platform", plan: "bg-adm-group-plan" };
 /** Tiles: the card surface (--card) tinted in its group (≈ 7–9 %) with an edge (≈ 28–32 %); hover a little stronger. */
-export const AREA_TILE: Record<AreaColor, string> = {
-  today: "[background:linear-gradient(var(--adm-group-today-tint),var(--adm-group-today-tint)),var(--card)] border-(--adm-group-today-edge) has-[[data-card-link]:hover]:[background:linear-gradient(var(--adm-group-today-chip),var(--adm-group-today-chip)),var(--card)]",
-  numbers: "[background:linear-gradient(var(--adm-group-numbers-tint),var(--adm-group-numbers-tint)),var(--card)] border-(--adm-group-numbers-edge) has-[[data-card-link]:hover]:[background:linear-gradient(var(--adm-group-numbers-chip),var(--adm-group-numbers-chip)),var(--card)]",
-  platform: "[background:linear-gradient(var(--adm-group-platform-tint),var(--adm-group-platform-tint)),var(--card)] border-(--adm-group-platform-edge) has-[[data-card-link]:hover]:[background:linear-gradient(var(--adm-group-platform-chip),var(--adm-group-platform-chip)),var(--card)]",
-  plan: "[background:linear-gradient(var(--adm-group-plan-tint),var(--adm-group-plan-tint)),var(--card)] border-(--adm-group-plan-edge) has-[[data-card-link]:hover]:[background:linear-gradient(var(--adm-group-plan-chip),var(--adm-group-plan-chip)),var(--card)]",
-};
+/** Every tile the same silvery surface (CLAUDE.md "Admin: Farbe nur zur Orientierung") – the group no longer tints it; kept per group so callers stay. */
+export const AREA_TILE: Record<AreaColor, string> = { today: "adm-tile", numbers: "adm-tile", platform: "adm-tile", plan: "adm-tile" };
 
 /**
  * The entry a path belongs to: the longest href (or `also` path) it is or starts with – "/admin", the overview, only for itself; prepared
@@ -130,6 +133,8 @@ export function AdminFrame({ children }: { children: ReactNode }) {
   return (
     <NextIntlClientProvider locale={"de" as Locale} messages={adminMessages} timeZone="UTC">
       <AdminFrameInner>{children}</AdminFrameInner>
+      {/* The admin's search in the header (⌘K) – portalled into the bar's slot, inside this German provider. */}
+      <AdminCommandSearch />
       {/* The admin's one tooltip – large, cream (the app's Tooltip stays out on admin pages). */}
       <AdminTooltip />
     </NextIntlClientProvider>
@@ -144,6 +149,42 @@ function AdminFrameInner({ children }: { children: ReactNode }) {
   const counts = taskCounts(useAdminTasks());
   // The open elements: every task and open ticket, once (the same list as the Posteingang).
   const inboxOpen = counts.total;
+  // Dev only (CLAUDE.md "Admin: eine Datenquelle"): bookings and revenue must agree on every page – a difference is logged as an error.
+  const checkInputs = useAdminInputs();
+  const { events: checkEvents } = useStore();
+  useEffect(() => {
+    // Only once the data is in (the mock's events load after the first render) – before that there is nothing to compare.
+    if (APP_MODE !== "dev" || checkEvents.length === 0) return;
+    const mismatches = adminNumberMismatches(checkInputs, checkEvents);
+    if (mismatches.length) console.error("[admin] Zahlen weichen ab:", mismatches);
+    else console.info("[admin] Zahlen stimmen überein (Übersicht · Geld · Wachstum · Planen).");
+  }, [checkInputs, checkEvents]);
+  // ?focus= (a tile's route, config/admin-tiles.ts): the element with that data-focus-key is marked (data-focused) and scrolled into view –
+  // once it is there (a capsule's content can come a moment later). One place for every page.
+  const search = useAdminSearch();
+  const focusKey = search.get("focus");
+  const tabKey = search.get("tab");
+  useEffect(() => {
+    document.querySelectorAll(".admin-scope [data-focused]").forEach((el) => el.removeAttribute("data-focused"));
+    if (!focusKey) return;
+    let done = false;
+    const mark = () => {
+      if (done) return;
+      const el = document.querySelector<HTMLElement>(`.admin-scope [data-focus-key="${CSS.escape(focusKey)}"]`);
+      if (!el) return;
+      done = true;
+      el.setAttribute("data-focused", "");
+      el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    };
+    mark();
+    const observer = new MutationObserver(mark);
+    observer.observe(document.body, { childList: true, subtree: true });
+    const stop = window.setTimeout(() => observer.disconnect(), 3000);
+    return () => {
+      observer.disconnect();
+      window.clearTimeout(stop);
+    };
+  }, [focusKey, tabKey, pathname]);
   // Tablet (744–1023px): the side list as a sheet from the left, closed again when a page is picked.
   const [navOpen, setNavOpen] = useState(false);
   const [navPath, setNavPath] = useState(pathname);
@@ -188,7 +229,7 @@ function AdminFrameInner({ children }: { children: ReactNode }) {
       {/* The side list fills the height: entries --sidebar-item-h (from the window's height), the active one white 8 %; before each area
           capsule 0.8 × an entry. */}
       {/* Never scrolls (overflow hidden): the rows follow the window's height; a very flat window folds the other areas (AdminSideList fit). */}
-      <aside className="max-lg:hidden lg:sticky lg:top-(--header-h) lg:h-[calc(100dvh-var(--header-h))] lg:w-[220px] lg:overflow-hidden lg:pb-1 lg:pt-(--adm-page-top)" data-admin-nav>
+      <aside className="max-lg:hidden lg:sticky lg:top-(--header-h) lg:h-[calc(100dvh-var(--header-h))] lg:w-[220px] lg:overflow-hidden lg:pb-(--adm-page-top) lg:pt-(--adm-page-top)" data-admin-nav>
         <AdminSideList active={active} item={item} needs={needs} fit />
       </aside>
       <div className="min-w-0 px-4 pb-(--adm-section) pt-(--adm-page-top) md:px-(--adm-page)">
@@ -259,13 +300,17 @@ function AdminSideList({ active, item, needs, fit = false }: { active: string | 
     if (probe.current) observer.observe(probe.current);
     return () => observer.disconnect();
   }, [fit]);
+  // The standing side list (fit) is ONE flex column over the full height: between the groups equal spacers that grow with the room (at least
+  // --sidebar-gap-min), SYSTEM and the appearance strip at the bottom – the strip flush with the bottom inset (CLAUDE.md "Seitenleiste").
+  // The sheet (tablets) keeps fixed gaps.
+  const spacer = (key: string) => <div key={key} aria-hidden data-nav-spacer className="min-h-(--sidebar-gap-min) flex-1 shrink-0" />;
   const list = (fold: boolean) =>
-    GROUPS.map((group, i) => {
+    GROUPS.flatMap((group, i) => {
       const shown = !fold || group.key === open;
       const heading = cn("mb-1 flex h-(--sidebar-heading-h) w-full items-center gap-2 rounded-lg px-3 text-nav-group uppercase", AREA_CHIP[group.key]);
       const waiting = group.areas.reduce((sum, a) => sum + (needs[a.key] ?? 0), 0);
-      return (
-        <div key={group.key} className={cn(i > 0 && "mt-(--sidebar-gap)")}>
+      const block = (
+        <div key={group.key} className={cn(!fit && i > 0 && "mt-(--sidebar-gap)")}>
           {fold && !shown ? (
             <button type="button" aria-expanded={false} onClick={() => setOpen(group.key)} className={cn(heading, "text-left")}>
               <span className="min-w-0 flex-1 truncate">{t(`navGroup.${group.key}`)}</span>
@@ -277,20 +322,21 @@ function AdminSideList({ active, item, needs, fit = false }: { active: string | 
           {shown && <SideNav compact iconClass={AREA_TEXT[group.key]} label={t(`navGroup.${group.key}`)} items={group.areas.map(item)} />}
         </div>
       );
+      return fit ? [block, spacer(`gap-${group.key}`)] : [block];
     });
-  // System: small, under the groups, without a heading.
+  // SYSTEM: its own group like the others (heading strip in slate, the entry's symbol in the same colour); under it, at the very bottom, the
+  // appearance (System · Hell · Dunkel – the product's one setting) as a full-width strip as high as a heading (CLAUDE.md "Seitenleiste").
   const themeLabels = useAdminThemeLabels();
-  // At the bottom: the appearance (System · Hell · Dunkel – the product's one setting) as its own small row, centred; under it "System" over
-  // the full width, never cut.
   const system = (
-    <div className="mt-(--sidebar-gap) flex flex-col gap-1" data-admin-system>
-      <div className="flex justify-center">
-        <AdminThemeSwitch labels={themeLabels} />
+    <>
+      <div className={cn("shrink-0", !fit && "mt-(--sidebar-gap)")} data-admin-system>
+        <p className="mb-1 flex h-(--sidebar-heading-h) w-full items-center gap-2 rounded-lg bg-adm-group-system-chip px-3 text-nav-group uppercase text-adm-group-system">{t("navGroup.system")}</p>
+        <SideNav compact iconClass="text-adm-group-system" label={t("navGroup.system")} items={[item(SYSTEM)]} />
       </div>
-      <div className="min-w-0 [&_a]:text-small [&_a]:text-ink/60">
-        <SideNav compact iconClass="text-ink/45" label={t("nav.platform")} items={[item(SYSTEM)]} />
+      <div data-admin-theme-row className={cn("shrink-0", fit ? "mt-(--sidebar-strip-gap)" : "mt-(--sidebar-gap)")}>
+        <AdminThemeSwitch strip labels={themeLabels} />
       </div>
-    </div>
+    </>
   );
   if (!fit)
     return (
@@ -300,7 +346,7 @@ function AdminSideList({ active, item, needs, fit = false }: { active: string | 
       </>
     );
   return (
-    <div ref={box} className="relative h-full overflow-hidden">
+    <div ref={box} className="relative flex h-full flex-col overflow-hidden">
       <div aria-hidden inert ref={probe} className="pointer-events-none invisible absolute inset-x-0 top-0">
         {list(false)}
         {system}
@@ -349,10 +395,12 @@ export function AdminShell({
   children: ReactNode;
 }) {
   const nest = useContext(NestContext);
+  const [chosen] = useAdminPeriod();
+  // The period: a menu button right (its days inside the menu); only Übersicht keeps the centred capsules with the day row.
   const controls = period === true ? (
     <>
       {aside}
-      <PeriodTabs />
+      <PeriodMenu />
     </>
   ) : (
     aside
@@ -385,7 +433,26 @@ export function AdminShell({
     );
   return (
     <>
-      <AdminPageHeader title={title} badge={badge} tabs={tabs} controls={controls} center={period === "center" ? <PeriodTabs /> : undefined} subTabs={subTabs} />
+      {/* With a period: "Woche" brings its days (Mo … So · Ganze Woche) as the second row. */}
+      <AdminPageHeader
+        title={title}
+        badge={badge}
+        tabs={tabs}
+        controls={controls}
+        center={period === "center" ? <PeriodTabs /> : undefined}
+        subTabs={
+          period === "center" && chosen === "week" ? (
+            <div className={cn("flex flex-wrap items-center gap-3", period === "center" ? "justify-center" : "justify-between")}>
+              {subTabs}
+              <span className={period === "center" ? "" : "ml-auto"}>
+                <PeriodDays />
+              </span>
+            </div>
+          ) : (
+            subTabs
+          )
+        }
+      />
       {children}
     </>
   );

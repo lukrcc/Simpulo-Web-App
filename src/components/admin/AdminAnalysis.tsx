@@ -13,22 +13,27 @@ import { useDepthChoice } from "@/config/platform";
 import { useTranslations } from "next-intl";
 import { useLayoutEffect, useRef, useState } from "react";
 import { useFormat } from "@/i18n/format";
-import { ANALYSIS_MEASURES, analysisDimensions, analysisRows, cockpit, measureOf, rankByMeasure, sweetSpot, type AnalysisDimension, type AnalysisMeasure, type AnalysisPeriod, type AnalysisRow } from "@/lib/admin/metrics";
+import { ANALYSIS_DIMENSIONS, ANALYSIS_MEASURES, analysisDimensions, analysisRows, cockpit, measureOf, rankByMeasure, sweetSpot, valueCheck, type ValueCheck, type AnalysisDimension, type AnalysisMeasure, type AnalysisPeriod, type AnalysisRow } from "@/lib/admin/metrics";
 import { useAdminInputs } from "@/lib/admin/useAdminInputs";
-import { days, eur, monthLong, num, share } from "@/lib/i18n/adminFormat";
+import { days, dec, eur, month as monthShort, monthLong, num, pct, share } from "@/lib/i18n/adminFormat";
+import { VALUE_CHECK } from "@/config/policies";
+import { ColumnChart, StatusDot } from "./AdminCharts";
+import { TileValue } from "./AdminTiles";
 import type { ADMIN_DE } from "@/lib/i18n/admin.de";
 import type { Vibe } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { SPECTRUM_ROWS } from "@/config/spectrum";
 import { AdminShell } from "./AdminShell";
-import { AdminTabs, BackToList } from "./AdminLayout";
+import { AdminSort, AdminTabs, BackToList } from "./AdminLayout";
+import { routeTiles, withUnits } from "./tileRoutes";
+import { setAdminSearch, useAdminTab } from "@/lib/admin/urlState";
 import { TileBoard, chunkRows, type TileSpec } from "./AdminTiles";
 import { InfoTip } from "./AdminNumbers";
 
 /** Analyse's one window: the Houses that began in the last 12 months. */
 const WINDOW: AnalysisPeriod = "12m";
 
-type Tab = "overview" | AnalysisDimension;
+type Tab = "overview" | "value" | AnalysisDimension;
 
 /** „Wen es anspricht“ per group, for the angles the spectrum describes (Länge · Crew · Host-Stufe). */
 const AUDIENCE: Partial<Record<AnalysisDimension, Record<string, string>>> = Object.fromEntries(
@@ -40,24 +45,35 @@ export function AdminAnalysis() {
   const tTopics = useTranslations("admin.topics");
   const depthOn = useDepthChoice();
   const dims = analysisDimensions(depthOn).filter((d) => d !== "origin");
-  const [tab, setTab] = useState<Tab>("overview");
-  const [measure, setMeasure] = useState<AnalysisMeasure>("value");
-  const shown: Tab = tab === "overview" || (dims as readonly string[]).includes(tab) ? tab : "overview";
+  // The capsule in ?tab= (pushed – back works); a tile's ?focus= that names a measure sets "Bewerten nach" (config/admin-tiles.ts).
+  const { tab, focus, open: setTab } = useAdminTab<Tab>(["overview", "value", ...ANALYSIS_DIMENSIONS] as Tab[], "overview");
+  const [chosenMeasure, setChosenMeasure] = useState<AnalysisMeasure>("value");
+  const focusMeasure = (ANALYSIS_MEASURES as readonly string[]).includes(focus ?? "") ? (focus as AnalysisMeasure) : null;
+  const measure = focusMeasure ?? chosenMeasure;
+  const setMeasure = (next: AnalysisMeasure) => {
+    setChosenMeasure(next);
+    if (focusMeasure) setAdminSearch({ focus: null }, { replace: true });
+  };
+  const shown: Tab = tab === "overview" || tab === "value" || (dims as readonly string[]).includes(tab) ? tab : "overview";
+  const tv = useTranslations("admin.analysis.value");
   return (
     <AdminShell
       title={tTopics("title")}
-      tabs={<AdminTabs<Tab> label={t("dimension.label")} value={shown} onChange={setTab} tabs={[{ value: "overview" as const, label: t("dimension.overview") }, ...dims.map((value) => ({ value, label: t(`dimension.${value}`) }))]} />}
+      tabs={<AdminTabs<Tab> label={t("dimension.label")} value={shown} onChange={setTab} tabs={withUnits("analysis", [{ value: "overview" as const, label: t("dimension.overview") }, { value: "value" as const, label: tv("tab"), tooltip: tv("tabInfo") }, ...dims.map((value) => ({ value, label: t(`dimension.${value}`) }))])} />}
       aside={
+        shown === "value" ? undefined : (
         <>
           <span data-tooltip-info={t("windowInfo")} className="mr-2 text-small text-muted">
             {t("window")}
             <span className="sr-only">. {t("windowInfo")}</span>
           </span>
-          <AdminTabs<AnalysisMeasure> label={t("measure.label")} value={measure} onChange={setMeasure} tabs={ANALYSIS_MEASURES.map((value) => ({ value, label: t(`measure.${value}`), tooltip: t(`measure.info.${value}`) }))} />
+          {/* "Bewerten nach: Wert ▾" – a setting, so a menu (CLAUDE.md "Einstellungen als Menü rechts"). */}
+          <AdminSort<AnalysisMeasure> label={t("measure.label")} value={measure} onChange={setMeasure} options={ANALYSIS_MEASURES.map((value) => ({ value, label: t(`measure.${value}`) }))} />
         </>
+        )
       }
     >
-      {shown === "overview" ? <Overview dims={dims} measure={measure} onOpen={setTab} /> : <Detail key={shown} dimension={shown} measure={measure} />}
+      {shown === "overview" ? <Overview dims={dims} measure={measure} onOpen={setTab} /> : shown === "value" ? <ValueCheckView /> : <Detail key={shown} dimension={shown} measure={measure} />}
     </AdminShell>
   );
 }
@@ -94,7 +110,7 @@ function measureText(measure: AnalysisMeasure, value: number | null): string {
  * weakest) · the best topic by each of the four measures · Pro vollem House (monthly, like the overview) · Houses in 12 months · groups with
  * too few data. Every tile opens its tab.
  */
-function Overview({ dims, measure, onOpen }: { dims: readonly AnalysisDimension[]; measure: AnalysisMeasure; onOpen: (tab: AnalysisDimension) => void }) {
+function Overview({ dims, measure, onOpen }: { dims: readonly AnalysisDimension[]; measure: AnalysisMeasure; onOpen: (tab: Exclude<Tab, "overview">) => void }) {
   const t = useTranslations("admin.analysis");
   const tt = useTranslations("admin.pageTiles.analysis");
   const tc = useTranslations("admin.cockpit");
@@ -103,15 +119,34 @@ function Overview({ dims, measure, onOpen }: { dims: readonly AnalysisDimension[
   const spot = sweetSpot(inputs, WINDOW, measure);
   const rowsOf = (dim: AnalysisDimension) => analysisRows(inputs, dim, WINDOW);
   const enough = (dim: AnalysisDimension, m: AnalysisMeasure) => rankByMeasure(rowsOf(dim), m).filter((r) => !r.tooFew && measureOf(r, m) !== null);
-  const topics = rowsOf("topic");
   const month = cockpit(inputs, "month");
   const perHouse = month.areas.find((a) => a.number.key === "perHouse")!.number;
   const fullMonth = month.areas.find((a) => a.key === "supply")!.number;
-  const allGroups = dims.flatMap((d) => rowsOf(d));
-  const lengths = rowsOf("length");
-  const lengthOf = (key: string) => num(lengths.find((r) => r.key === key)?.houses ?? 0);
-  const biggestTopic = topics.toSorted((a, b) => b.houses - a.houses)[0];
+  const vc = valueCheck(inputs);
+  const tv = useTranslations("admin.analysis.value");
+  // More detail lines where the tile has room (CLAUDE.md "fester Kachel-Bauplan"): a group's other numbers, most telling first; empty ones out.
+  const keep = (...lines: (string | null | undefined | false)[]) => lines.filter((l): l is string => Boolean(l) && !/–$/.test(l as string));
+  const facts = (row: AnalysisRow, ...skips: AnalysisMeasure[]) => {
+    const skip = (m: AnalysisMeasure) => skips.includes(m);
+    return [
+    !skip("value") && row.valuePerPersonYear !== null ? tt("d.valueYear", { value: eur(row.valuePerPersonYear) }) : null,
+    row.fillRate !== null ? tt("d.fill", { fill: share(row.fillRate) }) : null,
+    !skip("speed") && row.daysToFull !== null ? tt("d.toFull", { days: num(Math.round(row.daysToFull)) }) : null,
+    !skip("repeat") && row.repeat12 !== null ? tt("d.repeat", { repeat: share(row.repeat12) }) : null,
+    row.perBooking !== null ? tt("d.perBooking", { value: eur(row.perBooking) }) : null,
+    ];
+  };
+  const vcLine = (c: ValueCheck) => tt(`d.vc.${c.key}`, { value: c.key === "perFee" ? dec(c.value) : pct(c.value), mark: c.status === "good" ? "✓" : "!" });
   const tiles: TileSpec[] = [
+    // Wert-Check first: "3 von 3 im grünen Bereich" – the warning in red when revenue rises while a value falls.
+    {
+      key: "valueCheck",
+      label: tv("tile"),
+      info: tv("tileInfo"),
+      value: vc ? tv("tileValue", { green: vc.green, total: vc.checks.length }) : "–",
+      details: vc ? keep(vc.warning ? tv("warning") : tv("tileGreen"), ...vc.checks.map(vcLine)) : [tv("noData")],
+      onOpen: () => onOpen("value"),
+    },
     {
       key: "sweetSpot",
       label: tt("sweetSpot.label"),
@@ -119,7 +154,7 @@ function Overview({ dims, measure, onOpen }: { dims: readonly AnalysisDimension[
       value: spot ? [label("topic", spot.topic), t(`lengthShort.${spot.length}`), label("crew", spot.crew), label("tier", spot.tier)].join(" · ") : tt("none"),
       small: true,
       details: spot
-        ? [tt("sweetLine", { main: measureText(measure, measureOf(spot.row, measure)), repeat: share(spot.row.repeat12) }), tt("d.housesBooking", { houses: num(spot.row.houses), perBooking: spot.row.perBooking === null ? "–" : eur(spot.row.perBooking) })]
+        ? keep(tt("sweetLine", { main: measureText(measure, measureOf(spot.row, measure)), repeat: share(spot.row.repeat12) }), tt("d.houses", { houses: num(spot.row.houses) }), ...facts(spot.row, measure, "repeat"))
         : [tt("none")],
       onOpen: () => onOpen("topic"),
     },
@@ -134,25 +169,33 @@ function Overview({ dims, measure, onOpen }: { dims: readonly AnalysisDimension[
         value: best ? label(dim, best.key) : t("tooFew"),
         small: true,
         details: best
-          ? [
+          ? keep(
               tt("d.bestValue", { value: measureText(measure, measureOf(best, measure)), houses: num(best.houses) }),
               worst ? tt("d.worst", { name: label(dim, worst.key), value: measureText(measure, measureOf(worst, measure)) }) : tt("d.onlyOne"),
+              ...facts(best, measure),
               tt("d.groups", { count: num(rowsOf(dim).length), few: num(rowsOf(dim).filter((r) => r.tooFew).length) }),
-            ]
+            )
           : [tt("d.groups", { count: num(rowsOf(dim).length), few: num(rowsOf(dim).filter((r) => r.tooFew).length) })],
         onOpen: () => onOpen(dim),
       };
     }),
     // The other three measures (the chosen one is already the Thema tile).
     ...ANALYSIS_MEASURES.filter((m) => m !== measure).map((m): TileSpec => {
-      const [best, second] = enough("topic", m);
+      const [best, second, third] = enough("topic", m);
       return {
         key: `leader-${m}`,
         label: tt(`leader.${m}.label`),
         info: tt(`leader.${m}.info`),
         value: best ? label("topic", best.key) : tt("none"),
         small: true,
-        details: best ? [tt("d.leaderValue", { value: measureText(m, measureOf(best, m)), houses: num(best.houses) }), second ? tt("d.second", { name: label("topic", second.key), value: measureText(m, measureOf(second, m)) }) : tt("d.onlyOne")] : [tt("none")],
+        details: best
+          ? keep(
+              tt("d.leaderValue", { value: measureText(m, measureOf(best, m)), houses: num(best.houses) }),
+              second ? tt("d.second", { name: label("topic", second.key), value: measureText(m, measureOf(second, m)) }) : tt("d.onlyOne"),
+              third ? tt("d.third", { name: label("topic", third.key), value: measureText(m, measureOf(third, m)) }) : null,
+              ...facts(best, m),
+            )
+          : [tt("none")],
         onOpen: () => onOpen("topic"),
       };
     }),
@@ -162,19 +205,83 @@ function Overview({ dims, measure, onOpen }: { dims: readonly AnalysisDimension[
       info: `${tt("perHouse.info")} (${tc("against.month", { month: monthLong(cockpit(inputs, "month").compareDate) })})`,
       value: perHouse.value === null ? tt("none") : eur(perHouse.value),
       change: perHouse.change,
-      details: [tt("d.fullMonth", { count: fullMonth.value === null ? "–" : num(fullMonth.value) }), tt("d.profitMonth", { profit: eur(month.profit.current) })],
+      details: keep(
+        tt("d.fullMonth", { count: fullMonth.value === null ? "–" : num(fullMonth.value) }),
+        tt("d.profitMonth", { profit: eur(month.profit.current) }),
+        perHouse.value !== null && perHouse.change ? tt("d.monthBefore", { value: eur(perHouse.value - perHouse.change.delta) }) : null,
+        // No money targets in the admin (CLAUDE.md "Keine Geldziele"): "Pro vollem House" shows its number and change only.
+        month.nights.current ? tt("d.nightsMonth", { nights: num(month.nights.current) }) : null,
+      ),
       onOpen: () => onOpen("topic"),
     },
-    {
-      key: "houses",
-      label: tt("houses.label"),
-      info: tt("houses.info"),
-      value: num(topics.reduce((n, r) => n + r.houses, 0)),
-      details: [tt("d.lengths", { short: lengthOf("short"), mid: lengthOf("mid"), long: lengthOf("long") }), biggestTopic ? tt("d.biggest", { name: label("topic", biggestTopic.key), count: num(biggestTopic.houses) }) : tt("none"), tt("d.sparse", { few: num(allGroups.filter((r) => r.tooFew).length), count: num(allGroups.length) })],
-      onOpen: () => onOpen("length"),
-    },
   ];
-  return <TileBoard label={t("dimension.overview")} columns={4} rows={chunkRows(tiles, "numbers", 4)} />;
+  return <TileBoard label={t("dimension.overview")} columns={4} rows={chunkRows(routeTiles("analysis", tiles), "numbers", 4)} />;
+}
+
+// ── Wert-Check ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Analyse › Wert-Check (Wert statt Abschöpfen, CLAUDE.md): three cards – Entsteht Verbindung? · Bleiben Hosts freiwillig? · Wächst der Wert
+ * schneller als die Gebühr? – each with its number, the last 6 full months as bars (only bars) and a traffic light; red with "Umsatz steigt,
+ * Wert sinkt – prüfen." when revenue rose while that value fell (then also a task in Aufgaben, kind Geld). Below, small, the three
+ * principles. One screen at 1440 × 900. Numbers from lib/admin/metrics.ts valueCheck, thresholds config/policies.ts VALUE_CHECK.
+ */
+function ValueCheckView() {
+  const tv = useTranslations("admin.analysis.value");
+  const inputs = useAdminInputs();
+  const vc = valueCheck(inputs);
+  if (!vc) return <p className="text-body text-muted">{tv("noData")}</p>;
+  const main = (c: ValueCheck) => (c.key === "perFee" ? dec(c.value) : pct(c.value));
+  const second = (c: ValueCheck) =>
+    c.key === "connection" ? tv("check.connection.second", { value: pct(c.second ?? 0) }) : c.key === "hosts" ? tv("check.hosts.second", { months: VALUE_CHECK.secondHouseWithinMonths }) : tv("check.perFee.second", { value: dec(c.second ?? 0) });
+  const info = (c: ValueCheck) =>
+    c.key === "connection"
+      ? tv("check.connection.info", { good: VALUE_CHECK.connectionRate.good, touch: VALUE_CHECK.stillInTouch.good })
+      : c.key === "hosts"
+        ? tv("check.hosts.info", { months: VALUE_CHECK.secondHouseWithinMonths, good: VALUE_CHECK.secondHouse.good })
+        : tv("check.perFee.info", { months: VALUE_CHECK.perHundred.trendMonths, drop: Math.abs(VALUE_CHECK.perHundred.good) });
+  return (
+    <div data-value-check className="flex flex-col gap-(--adm-inner)">
+      <div className="grid gap-(--adm-grid-gap) lg:grid-cols-3">
+        {vc.checks.map((c) => (
+          <section key={c.key} aria-label={tv(`check.${c.key}.title`)} data-value-card={c.key} data-focus-key={c.key} data-status={c.status} className={cn("adm-tile flex min-w-0 flex-col rounded-xl border p-5", c.status === "critical" && "border-adm-critical/60")}>
+            <h2 className="flex items-center gap-1.5 text-body font-semibold text-ink">
+              {tv(`check.${c.key}.title`)}
+              <InfoTip text={info(c)} />
+            </h2>
+            <p className="mt-2 flex items-center gap-2 text-small font-semibold text-ink">
+              <StatusDot status={c.status} />
+              {tv(`status.${c.status}`)}
+            </p>
+            <div className="mt-3 flex min-w-0 items-baseline gap-2">
+              <TileValue value={main(c)} />
+            </div>
+            <p className="text-small text-muted">{tv(`check.${c.key}.value`)}</p>
+            <p className="mt-1 truncate text-small text-ink">{second(c)}</p>
+            <div className="mt-4">
+              <ColumnChart data={c.bars.map((b) => ({ label: monthShort(b.month).replace(".", ""), value: b.value, current: null }))} unit={c.key === "perFee" ? "" : "%"} height={170} label={tv("bars", { months: VALUE_CHECK.months })} />
+            </div>
+            <p className="mt-1 text-small text-muted">{tv("bars", { months: VALUE_CHECK.months })}</p>
+            {c.falling && (
+              <p role="alert" data-value-warning className="mt-2 flex items-start gap-2 text-body font-semibold text-adm-critical" data-tooltip-info={tv("warningInfo", { months: VALUE_CHECK.risingMonths })}>
+                {tv("warning")}
+              </p>
+            )}
+          </section>
+        ))}
+      </div>
+      {/* The three principles, small. */}
+      <p data-value-principles className="flex flex-wrap items-center gap-x-3 gap-y-1 text-small text-muted">
+        <span className="font-semibold text-(--adm-label)">{tv("principles")}:</span>
+        {(["measure", "earn", "free"] as const).map((key, i) => (
+          <span key={key}>
+            {i > 0 && <span aria-hidden className="mr-3">·</span>}
+            {tv(`principle.${key}`)}
+          </span>
+        ))}
+      </p>
+    </div>
+  );
 }
 
 // ── Detail tabs ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────

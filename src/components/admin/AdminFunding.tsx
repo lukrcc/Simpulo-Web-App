@@ -7,7 +7,6 @@ import { AdminButton } from "./AdminButton";
 // note on top on every part. Deliberately no field for a company valuation. Graphics before text, no cards. First tab and the default:
 // Überblick – only tiles (TileBoard, group Planen): readiness and its four criteria, the thesis, the rounds, the documents, valuation (no
 // number – it lives only in its tab) and the company structure; each tile opens its tab.
-import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Check } from "lucide-react";
 import { useState } from "react";
@@ -37,9 +36,9 @@ import {
 import { useAdminActions } from "@/lib/admin/actions";
 import { download } from "@/lib/admin/exporters";
 import { kpiPdf } from "@/lib/admin/exporters/kpiPdf";
-import { algorithmMetrics, fullHousesPerMonth, fundingReadiness, money, profitPerMonth, revenueLast12, valuationRange, type AdminInputs } from "@/lib/admin/metrics";
+import { algorithmMetrics, fullHousesPerMonth, fundingReadiness, marketCap, money, placesEngine, profitPerMonth, revenueLast12, valuationRange, type AdminInputs } from "@/lib/admin/metrics";
 import { useAdminInputs } from "@/lib/admin/useAdminInputs";
-import { dec, eur, pct } from "@/lib/i18n/adminFormat";
+import { dec, eur, num, pct } from "@/lib/i18n/adminFormat";
 import { InfoTip } from "./AdminNumbers";
 import { cn } from "@/lib/utils";
 import { AdminSection, AdminShell } from "./AdminShell";
@@ -47,6 +46,10 @@ import { AdminTabs } from "./AdminLayout";
 import { CompanyStructure, CompanyStructureTabs } from "./finance/CompanyStructure";
 import { chunkRows, TileBoard, type TileSpec } from "./AdminTiles";
 import { STRUCTURE } from "@/lib/admin/finance/structure";
+import { AdminMarketCap } from "./AdminMarketCap";
+import { routeTiles, withUnits } from "./tileRoutes";
+import { setAdminSearch, useAdminSearch, useAdminTab } from "@/lib/admin/urlState";
+import { PHASES, PHASE_NOW } from "@/config/vision";
 import type { StructureView } from "@/lib/admin/finance/structure";
 
 const fill = (template: string, values: Record<string, string | number>) => template.replace(/\{(\w+)\}/g, (_, key: string) => String(values[key] ?? ""));
@@ -54,20 +57,26 @@ const fill = (template: string, values: Record<string, string | number>) => temp
 export function AdminFunding() {
   const inputs = useAdminInputs();
   // ?tab=structure opens Firmenstruktur (a link from Vision › Der Hof › Eigentum) – Next's search params are current on a client navigation too.
-  const opened = useSearchParams().get("tab") === "structure";
-  const [tab, setTab] = useState<FundingTab | "overview">(opened ? "structure" : "overview");
+  // The capsule in ?tab= (pushed – back works); Firmenstruktur's point in ?focus= (motors · group · farms · franchise · phases; old ?view=).
+  const url = useAdminTab<FundingTab | "overview">(["overview", ...FUNDING_TABS.map((x) => x.key)], "overview");
+  const tab = url.tab;
+  const setTab = (next: FundingTab | "overview") => url.open(next);
   const tOverview = useTranslations("admin.overviewBlock");
   // Firmenstruktur's second level: AdminSubTabs right under the head's row.
-  const [structure, setStructure] = useState<StructureView>("group");
+  // Its first point "Zwei Motoren" by default.
+  const search = useAdminSearch();
+  const structure: StructureView = STRUCTURE.views.find((v) => v.key === (url.focus ?? search.get("view")))?.key ?? "motors";
+  const setStructure = (next: StructureView) => setAdminSearch({ focus: next, view: null }, { replace: true });
   return (
     // The tabs in the head's one click row (Grundordnung); the note under it ("Bewertung & Anteile" its own, Firmenstruktur its own at the end).
     <AdminShell
       title={FUNDING_TITLE}
-      tabs={<AdminTabs<FundingTab | "overview"> label={FUNDING_TITLE} value={tab} onChange={setTab} tabs={[{ value: "overview" as const, label: tOverview("tab") }, ...FUNDING_TABS.map((t) => ({ value: t.key, label: t.label }))]} />}
+      tabs={<AdminTabs<FundingTab | "overview"> label={FUNDING_TITLE} value={tab} onChange={setTab} tabs={withUnits("funding", [{ value: "overview" as const, label: tOverview("tab") }, ...FUNDING_TABS.map((t) => ({ value: t.key, label: t.label }))])} />}
       subTabs={tab === "structure" ? <CompanyStructureTabs view={structure} onChange={setStructure} /> : undefined}
     >
-      {tab === "overview" && <FundingOverview inputs={inputs} onOpen={setTab} />}
-      {tab !== "structure" && tab !== "overview" && <p className="mb-(--adm-section) text-body text-muted">{tab === "valuation" ? VALUATION.note : FUNDING_NOTE}</p>}
+      {tab === "overview" && <FundingOverview inputs={inputs} onOpen={(next) => setTab(next)} />}
+      {tab === "marketcap" && <AdminMarketCap embedded />}
+      {tab !== "structure" && tab !== "overview" && tab !== "marketcap" && <p className="mb-(--adm-section) text-body text-muted">{tab === "valuation" ? VALUATION.note : FUNDING_NOTE}</p>}
       {tab === "readiness" && <Readiness inputs={inputs} />}
       {tab === "thesis" && <Thesis />}
       {tab === "rounds" && <Rounds />}
@@ -80,8 +89,8 @@ export function AdminFunding() {
 
 // ── Überblick ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-/** Only tiles (CLAUDE.md "Überblick zuerst"), group Planen: each opens its tab. No valuation number outside its own tab. */
-function FundingOverview({ inputs, onOpen }: { inputs: AdminInputs; onOpen: (tab: FundingTab) => void }) {
+/** Only tiles (CLAUDE.md "Überblick zuerst"), group Planen: each opens its tab. "Bewertung & Anteile" shows the Market Cap median (the one valuation function). */
+function FundingOverview({ inputs, onOpen }: { inputs: AdminInputs; onOpen: (tab: FundingTab, view?: StructureView) => void }) {
   const t = useTranslations("admin.pageTiles.funding");
   const r = fundingReadiness(inputs);
   const v = r.values;
@@ -95,10 +104,7 @@ function FundingOverview({ inputs, onOpen }: { inputs: AdminInputs; onOpen: (tab
   const growth = v.fullHousesGrowth.value;
   // Rich tiles: 2–3 detail lines each, only from the data above (never an invented number, no valuation number).
   const nameOf = { repeatRate: t("repeat.label"), fullHousesGrowth: t("growth.label"), hubsFill: t("hubs.label"), contribution: t("contribution.label") } as const;
-  const metNames = r.items.filter((i) => i.met).map((i) => nameOf[i.key]);
-  const openNames = r.items.filter((i) => !i.met).map((i) => nameOf[i.key]);
   const ranked = ALLOCATION.toSorted((x, y) => y.percent - x.percent);
-  const second = ranked[1];
   const zeroPosts = ALLOCATION.filter((x) => x.percent === 0).length;
   const after = ROUNDS[nowIndex + 2];
   const docStatus = (key: string) => inputs.admin.fundingDocs[key] ?? "missing";
@@ -107,13 +113,23 @@ function FundingOverview({ inputs, onOpen }: { inputs: AdminInputs; onOpen: (tab
   const nextDoc = DOCUMENTS.find((d) => docStatus(d.key) === "inProgress") ?? DOCUMENTS.find((d) => docStatus(d.key) === "missing");
   const proofLine = (x: (typeof ROUNDS)[number]) => (x.proof ? t("d.proof", { text: x.proof }) : t("d.proofOpen"));
   const structureNext = STRUCTURE.phases.steps[1];
+  // Bewertung & Anteile: the Market Cap's median (the same function as Übersicht › Market Cap), in thousand euros.
+  const mc = marketCap(inputs);
+  const engine = placesEngine(inputs);
+  const k = (eur: number) => num(Math.round(eur / 1000));
+  // Firmenstruktur: today's legal form, the next one and its condition – from Vision's phases (the lane "Struktur").
+  const phaseIndex = PHASES.findIndex((p) => p.key === PHASE_NOW);
+  const formNow = PHASES[phaseIndex]?.lanes.structure.items[0]?.label ?? "";
+  const formNextPhase = PHASES[phaseIndex + 1];
+  const formNext = formNextPhase?.lanes.structure.items[0]?.label ?? null;
   const tiles: TileSpec[] = [
     {
       key: "ready",
       label: t("ready.label"),
       info: t("ready.info"),
       value: t("ready.value", { met: String(r.met), total: String(r.total) }),
-      details: [metNames.length ? t("d.metNames", { names: metNames.join(" · ") }) : t("d.metNone"), openNames.length ? t("d.openNames", { names: openNames.join(" · ") }) : t("d.openNone")],
+      // One line per criterion (✓ met · ○ open), the open ones first – what's missing matters most.
+      details: [...r.items.filter((i) => !i.met), ...r.items.filter((i) => i.met)].map((i) => t(i.met ? "d.critMet" : "d.critOpen", { name: nameOf[i.key] })),
       onOpen: () => onOpen("readiness"),
     },
     {
@@ -121,7 +137,11 @@ function FundingOverview({ inputs, onOpen }: { inputs: AdminInputs; onOpen: (tab
       label: t("repeat.label"),
       info: t("repeat.info"),
       value: v.repeatRate.value === null ? "–" : pct(v.repeatRate.value),
-      details: [t("d.source"), v.repeatRate.value === null ? t("d.noData") : t("d.criterion", { value: pct(READINESS.repeatRatePercent) })],
+      details: [
+        t("d.source"),
+        v.repeatRate.value === null ? t("d.noData") : t("d.criterion", { value: pct(READINESS.repeatRatePercent) }),
+        v.repeatRate.value !== null && !v.repeatRate.met ? t("d.gapPoints", { points: String(READINESS.repeatRatePercent - v.repeatRate.value) }) : null,
+      ],
       target: { text: t("repeat.target"), status: status(v.repeatRate.met) },
       onOpen: () => onOpen("readiness"),
     },
@@ -131,7 +151,10 @@ function FundingOverview({ inputs, onOpen }: { inputs: AdminInputs; onOpen: (tab
       info: t("growth.info"),
       value: growth === null ? "–" : `${(growth * 100).toLocaleString("de-DE", { maximumFractionDigits: 1 })} %`,
       extra: t("growth.extra", { from: String(v.fullHousesGrowth.from), to: String(v.fullHousesGrowth.to) }),
-      details: [t("d.window", { months: String(READINESS.fullHousesGrowth.months) })],
+      details: [
+        t("d.window", { months: String(READINESS.fullHousesGrowth.months) }),
+        growth !== null && !v.fullHousesGrowth.met ? t("d.gapPoints", { points: (READINESS.fullHousesGrowth.percentPerMonth - growth * 100).toLocaleString("de-DE", { maximumFractionDigits: 1 }) }) : null,
+      ],
       target: { text: t("growth.target"), status: status(v.fullHousesGrowth.met) },
       onOpen: () => onOpen("readiness"),
     },
@@ -140,8 +163,10 @@ function FundingOverview({ inputs, onOpen }: { inputs: AdminInputs; onOpen: (tab
       label: t("hubs.label"),
       info: t("hubs.info"),
       value: String(v.hubsFill.hubs.length),
-      extra: v.hubsFill.hubs.length ? v.hubsFill.hubs.map((h) => `${h.hub} ${pct(Math.round(h.fill * 100))}`).join(" · ") : t("d.hubsNone"),
-      details: [t("d.hubRule", { houses: String(READINESS.hubs.minHouses), fill: String(READINESS.hubs.fillPercent) })],
+      details: [
+        ...(v.hubsFill.hubs.length ? v.hubsFill.hubs.map((h) => t("d.hubLine", { hub: h.hub, fill: pct(Math.round(h.fill * 100)) })) : [t("d.hubsNone")]),
+        t("d.hubRule", { houses: String(READINESS.hubs.minHouses), fill: String(READINESS.hubs.fillPercent) }),
+      ],
       target: { text: t("hubs.target"), status: status(v.hubsFill.met) },
       onOpen: () => onOpen("readiness"),
     },
@@ -151,7 +176,7 @@ function FundingOverview({ inputs, onOpen }: { inputs: AdminInputs; onOpen: (tab
       info: t("contribution.info"),
       value: v.contribution.value === null ? "–" : eur(v.contribution.value),
       extra: t("contribution.extra"),
-      details: inputs.ledger ? [t("d.window12"), t("d.afterCosts")] : [t("d.noLedger")],
+      details: inputs.ledger ? [t("d.window12"), t("d.afterCostsShort")] : [t("d.noLedger")],
       target: { text: t("contribution.target"), status: status(v.contribution.met) },
       onOpen: () => onOpen("readiness"),
     },
@@ -162,16 +187,13 @@ function FundingOverview({ inputs, onOpen }: { inputs: AdminInputs; onOpen: (tab
       value: biggest.label,
       small: true,
       extra: t("allocation.extra", { percent: String(biggest.percent) }),
-      details: [second ? t("d.second", { label: second.label, percent: String(second.percent) }) : null, biggest.reason ? t("d.reason", { reason: biggest.reason }) : t("d.reasonOpen")],
-      onOpen: () => onOpen("thesis"),
-    },
-    {
-      key: "allocated",
-      label: t("allocated.label"),
-      info: t("allocated.info"),
-      value: `${allocated} %`,
-      details: [t("d.posts", { count: ALLOCATION.length, zero: String(zeroPosts) }), allocated === 100 ? t("d.sumOk") : t("d.sumOff", { diff: String(Math.abs(allocated - 100)) })],
-      target: { text: t("allocated.target"), status: status(allocated === 100) },
+      details: [
+        // "Verteilt" lives on here as its first line (its tile made room for "Zwei Motoren").
+        allocated === 100 ? t("d.sumHundred") : t("d.sumOff", { diff: String(Math.abs(allocated - 100)) }),
+        ...ranked.slice(1, 4).filter((x) => x.percent > 0).map((x) => t("d.second", { label: x.label, percent: String(x.percent) })),
+        biggest.reason ? t("d.reason", { reason: biggest.reason }) : t("d.reasonOpen"),
+        t("d.posts", { count: ALLOCATION.length, zero: String(zeroPosts) }),
+      ],
       onOpen: () => onOpen("thesis"),
     },
     {
@@ -180,7 +202,12 @@ function FundingOverview({ inputs, onOpen }: { inputs: AdminInputs; onOpen: (tab
       info: t("round.info"),
       value: round.label,
       small: true,
-      details: [t("d.roundStep", { no: String(nowIndex + 1), total: String(ROUNDS.length) }), round.dilutes ? (round.amount ?? t("next.amountOpen")) : t("d.dilutes")],
+      details: [
+        t("d.roundStep", { no: String(nowIndex + 1), total: String(ROUNDS.length) }),
+        round.dilutes ? (round.amount ?? t("next.amountOpen")) : t("d.dilutes"),
+        next ? t("d.after", { label: next.label }) : null,
+        t("d.readyShort", { met: String(r.met), total: String(r.total) }),
+      ],
       onOpen: () => onOpen("rounds"),
     },
     {
@@ -190,7 +217,13 @@ function FundingOverview({ inputs, onOpen }: { inputs: AdminInputs; onOpen: (tab
       value: next ? next.label : "–",
       small: true,
       extra: next ? (next.amount ?? t("next.amountOpen")) : undefined,
-      details: next ? [next.optional ? `${proofLine(next)} · ${t("d.optional")}` : proofLine(next), after ? t("d.after", { label: after.label }) : null] : [],
+      details: next
+        ? [
+            next.optional ? `${proofLine(next)} · ${t("d.optional")}` : proofLine(next),
+            next.use ? t("d.use", { text: next.use }) : t("d.useOpen"),
+            after ? t("d.afterAmount", { label: after.label, amount: after.amount ?? t("next.amountOpen") }) : null,
+          ]
+        : [],
       onOpen: () => onOpen("rounds"),
     },
     {
@@ -198,31 +231,52 @@ function FundingOverview({ inputs, onOpen }: { inputs: AdminInputs; onOpen: (tab
       label: t("documents.label"),
       info: t("documents.info"),
       value: t("documents.value", { done: String(docsDone), total: String(DOCUMENTS.length) }),
-      details: [`${t("d.inProgress", { value: String(docsInProgress) })} · ${t("d.missing", { value: String(docsMissing) })}`, nextDoc ? t("d.nextDoc", { label: nextDoc.label }) : t("d.allDone")],
+      details: [
+        `${t("d.inProgress", { value: String(docsInProgress) })} · ${t("d.missing", { value: String(docsMissing) })}`,
+        nextDoc ? t("d.nextDoc", { label: nextDoc.label }) : t("d.allDone"),
+        // Then the other open documents by name (short ones fit a line; long ones end in "…" with the tooltip).
+        ...DOCUMENTS.filter((d) => docStatus(d.key) !== "done" && d.key !== nextDoc?.key).slice(0, 3).map((d) => t("d.openDoc", { label: d.label })),
+      ],
       onOpen: () => onOpen("documents"),
     },
     {
       key: "valuation",
       label: t("valuation.label"),
       info: t("valuation.info"),
-      value: t("valuation.value"),
-      small: true,
-      extra: t("valuation.extra"),
-      details: [t("d.calculator"), t("d.notShared")],
+      value: t("valuation.value", { value: k(mc.estimate) }),
+      change: mc.change,
+      details: [t("d.mcSpan", { low: k(mc.span.low), high: k(mc.span.high) }), t("d.calculator"), t("d.mcLink"), t("d.notShared")],
       onOpen: () => onOpen("valuation"),
+    },
+    // Zwei Motoren: growth (Tech) and return (Places) – opens Firmenstruktur › Zwei Motoren.
+    {
+      key: "motors",
+      label: t("motors.label"),
+      info: t("motors.info"),
+      value: t("motors.value"),
+      small: true,
+      details: [t("d.motorGrowth"), t("d.motorReturn"), t("d.motorNumbers", { running: num(engine.running), payout: eur(engine.payoutPerYear) }), t("d.motorRelease", { met: num(engine.release.met), of: num(engine.release.of), percent: num(engine.release.percent) })],
+      onOpen: () => onOpen("structure", "motors"),
     },
     {
       key: "structure",
       label: t("structure.label"),
       info: t("structure.info"),
-      value: STRUCTURE.phases.steps[0].when,
+      value: formNow,
       small: true,
-      extra: STRUCTURE.phases.steps[0].what.join(" · "),
-      details: [structureNext ? t("d.nextStructure", { when: structureNext.what.join(", ") }) : null, t("d.gate", { gate: STRUCTURE.phases.gate })],
-      onOpen: () => onOpen("structure"),
+      details: [
+        formNext ? t("d.formNext", { form: formNext }) : null,
+        formNextPhase ? t("d.formWhen", { phase: formNextPhase.title }) : null,
+        PHASES[phaseIndex]?.unlock ? t("d.formCondition", { condition: PHASES[phaseIndex]!.unlock!.label }) : t("d.formConditionOpen"),
+        structureNext ? t("d.nextStructure", { when: structureNext.what[0] }) : null,
+      ],
+      onOpen: () => onOpen("structure", "group"),
     },
   ];
-  return <TileBoard label={FUNDING_TITLE} rows={chunkRows(tiles, "plan", 4)} columns={4} />;
+  // Only lines short enough for the 275px tile (≈ 34 characters) – never a cut line (CLAUDE.md "fester Kachel-Bauplan").
+  // A target in the bottom-right corner leaves the lines less room (≈ 26 characters).
+  const fitted = tiles.map((tile) => ({ ...tile, details: tile.details?.filter((l) => typeof l !== "string" || l.length <= (tile.target ? 26 : 34)) }));
+  return <TileBoard label={FUNDING_TITLE} rows={chunkRows(routeTiles("funding", fitted), "plan", 4)} columns={4} />;
 }
 
 // ── Bereitschaft ────────────────────────────────────────────────────────────────────────────────────────────────────────────────

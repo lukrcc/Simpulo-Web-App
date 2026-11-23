@@ -1,12 +1,6 @@
-import type { Metadata } from "next";
-import { AdminMarketCap } from "@/components/admin/AdminMarketCap";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = { title: "Market Cap · Admin", robots: { index: false, follow: false } };
-
-/** The admin areas render only in the browser, after the admin check (AdminFrame) – nothing to prerender for instant navigation. */
-export const instant = false;
-
-/** Admins only (app/admin/layout.tsx): a rough value of Simpulo, three methods, its drivers and its course (components/admin/AdminMarketCap). */
+/** Market Cap is a capsule of Finanzierung now (CLAUDE.md "Jede Kachel → eine Kapsel"): the old address leads there. */
 export default function Page() {
-  return <AdminMarketCap />;
+  redirect("/admin/funding?tab=marketcap");
 }

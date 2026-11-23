@@ -9,7 +9,7 @@ import { Check, Copy, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useMemo, useState, type ReactNode } from "react";
-import { AdminListDetail, AdminSort, AdminSubTabs, BackToList, PeriodTabs } from "@/components/admin/AdminLayout";
+import { AdminListDetail, AdminSort, AdminSubTabs, BackToList, PeriodMenu } from "@/components/admin/AdminLayout";
 import { InfoTip, KeyNumbers } from "@/components/admin/AdminNumbers";
 import { CapsuleGroup } from "@/components/ui/CapsuleGroup";
 import { Input, Textarea } from "@/components/ui/Input";
@@ -333,7 +333,7 @@ function Effect({ partner }: { partner: MarketingPartner }) {
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-small text-muted">{t("effect.info")}</p>
-        <PeriodTabs level="sub" />
+        <PeriodMenu />
       </div>
       <KeyNumbers
         items={[

@@ -392,6 +392,8 @@ export interface Stay {
   priorityUntil?: string;
   /** Taken down by Simpulo after a report (Admin › Posteingang): gone from Explore and its page for everyone but the host; an appeal can bring it back */
   takenDownAt?: string;
+  /** ISO. When the host cancelled it ("Cancel this House", status closed) – Admin › Houses › Abgesagt */
+  cancelledAt?: string;
   slug: string;
   title: string;
   /** Short name for small places, at most 14 characters ("Surf Bali"); without it, shortNameOf derives one */

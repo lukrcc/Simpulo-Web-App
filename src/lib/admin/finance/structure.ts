@@ -2,7 +2,7 @@
 // diagrams (boxes and lines) are drawn by the BlockMap like the flows in Algorithmus; this file only says what is in them.
 // Strategic orientation, no financial or legal advice (the page says so).
 
-export type StructureView = "group" | "farms" | "franchise" | "phases";
+export type StructureView = "motors" | "group" | "farms" | "franchise" | "phases";
 
 export interface StructureBox {
   id: string;
@@ -16,11 +16,49 @@ export interface StructureBox {
 export const STRUCTURE = {
   tab: "Firmenstruktur",
   views: [
+    { key: "motors", label: "Zwei Motoren" },
     { key: "group", label: "Gruppe" },
     { key: "farms", label: "Höfe" },
     { key: "franchise", label: "Franchise" },
     { key: "phases", label: "Phasen" },
   ] as const satisfies readonly { key: StructureView; label: string }[],
+
+  /** 0 Zwei Motoren: growth (Tech) and return (Places), how they feed each other, who invests where, own or decide, the engine's numbers. */
+  motors: {
+    growth: { eyebrow: "WACHSTUMS-MOTOR", title: "Simpulo (Tech)", parts: ["Marktplatz", "Infrastruktur", "Marke"], text: "wächst, investiert zurück" },
+    return: { eyebrow: "RENDITE-MOTOR", title: "Simpulo Places", parts: ["Anteile an Orten nach Simpulo-Muster"], text: "stabile Mieten, planbare Ausschüttungen" },
+    fills: "füllt die Orte",
+    flowsBack: "Rendite fließt zurück, finanziert Wachstum ohne Anteile abzugeben",
+    investors: [
+      { who: "Wachstums-Investoren", what: "Anteile an Tech" },
+      { who: "Rendite-Investoren", what: "Places / Fonds" },
+    ],
+    product: "Fertiges Produkt: Muster + Betrieb + Gäste. Investoren bringen nur Kapital.",
+    compare: {
+      title: "Besitzen oder bestimmen",
+      ways: ["Alles selbst besitzen", "Bestimmen und betreiben, Besitz teilen"],
+      rows: [
+        { label: "Kapital", values: ["sehr viel – jedes Haus kauft oder baut Simpulo selbst", "wenig – Partner, Fonds und Places bringen das Kapital"] },
+        { label: "Risiko", values: ["hoch – Leerstand und Kredite liegen bei Simpulo", "geteilt – das Immobilienrisiko tragen die Besitzer"] },
+        { label: "Kontrolle über das Erlebnis", values: ["voll", "voll – Muster, Betrieb und Gäste kommen von Simpulo"] },
+        { label: "Bewertung", values: ["wie ein Immobilienunternehmen", "wie eine Plattform – Tech bleibt leicht"] },
+      ],
+      recommended: 1,
+      recommendation: "Empfehlung",
+    },
+    numbers: {
+      title: "Rendite-Motor in Zahlen",
+      prepared: "vorbereitet",
+      running: "Places in Betrieb",
+      occupancy: "Ø Auslastung",
+      payout: "Ausschüttung je Jahr",
+      backflow: "Rückfluss an Tech",
+      none: "noch keine Places",
+      release: "Freigabe heute: {met} von {of} Monaten über {percent} %",
+      gate: "Ausschüttungen erst nach Freigabe (12 Monate über 80 %).",
+    },
+    note: "Strategische Einordnung, keine Finanz- oder Rechtsberatung. Beteiligungen für Anleger sind reguliert.",
+  },
 
   /** 1 Gruppe */
   group: {

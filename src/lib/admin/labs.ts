@@ -34,8 +34,8 @@ export interface Lab {
   moments: readonly Moment[];
   /** Where the lab stands – "idea" for all until a decision says otherwise (no lab has been started or tested yet). */
   status: LabStatus;
-  /** The next step – only where it has been named; null = "noch offen". */
-  next: string | null;
+  /** The next step – a short proposal for every lab (never "noch offen") */
+  next: string;
 }
 
 export type TestKey = "uniqueData" | "strengthensCore" | "littleCapital" | "littlePersonalData" | "payingBuyer";
@@ -43,15 +43,15 @@ export const TEST_KEYS: readonly TestKey[] = ["uniqueData", "strengthensCore", "
 const OPEN_TEST: Record<TestKey, TestValue> = { uniqueData: "open", strengthensCore: "open", littleCapital: "open", littlePersonalData: "open", payingBuyer: "open" };
 
 export const LABS: readonly Lab[] = [
-  { id: "marketplace", number: 0, name: "Marktplatz", level: "foundation", question: "Wann wird ein House schnell voll?", data: "Preise, Orte, Themen, Anfragen, Vormerkungen", internal: "Preisvorschlag, Vorhersage, Frühwarnung, Explore-Reihenfolge", external: "Werkzeuge für Gruppenreisen", physical: "–", from: "ab dem ersten House", ceiling: "10–25 Mrd. €", test: OPEN_TEST, moments: ["search", "create", "request"], status: "idea", next: null },
-  { id: "crew", number: 1, name: "Crew", level: "core", question: "Wer passt zusammen?", data: "–", internal: "Crew Engine, Houses aus Nachfrage", external: "Matching als Dienst (Unis, Coliving, Firmen, Senioren-WGs)", physical: "–", from: null, ceiling: "1–5 Mrd. €", test: OPEN_TEST, moments: ["onboarding", "request", "afterTheStay"], status: "idea", next: null },
-  { id: "arc", number: 2, name: "Bogen", level: "core", question: "Wie entsteht Verbindung?", data: "–", internal: "Bogen passt sich an", external: "Protokoll für Verbindung (Offsites, Einarbeitung, Konferenzen, Retreats, Klassen 18+)", physical: "Fragenkarten, Welcome-Box, Album", from: null, ceiling: "0,5–3 Mrd. €", test: OPEN_TEST, moments: ["inTheHouse", "afterTheStay"], status: "idea", next: null },
-  { id: "space", number: 3, name: "Raum", level: "core", question: "Welcher Raum verbindet?", data: "–", internal: "Hinweise für Hosts", external: "Musterbuch, Entwurfssoftware 2D/3D, Planung gegen Beteiligung", physical: "Tisch, Möbel, Simpulo-Räume, Hof", from: null, ceiling: "2–20 Mrd. €", test: OPEN_TEST, moments: ["create", "inTheHouse"], status: "idea", next: null },
-  { id: "places", number: 4, name: "Orte", level: "extended", question: "Wo wollen Menschen zusammen sein?", data: "–", internal: "Landkarte der Nachfrage, Partnerhäuser", external: "Daten-Berichte für Regionen, leere Dörfer", physical: "Certified Places, Bus/Van, Boot", from: null, ceiling: "0,3–2 Mrd. €", test: OPEN_TEST, moments: ["search", "create"], status: "idea", next: null },
-  { id: "trust", number: 5, name: "Vertrauen", level: "extended", question: "Wem kann man vertrauen?", data: "–", internal: "Frühwarnung, Sicherheit", external: "Ruf als Mitbewohner als Dienst", physical: "–", from: null, ceiling: "0,2–1 Mrd. €", test: OPEN_TEST, moments: ["request", "afterTheStay", "support"], status: "idea", next: null },
-  { id: "phases", number: 6, name: "Lebensphasen", level: "extended", question: "Wer braucht Menschen in einem Übergang?", data: "–", internal: "Houses für Neu in der Stadt, Ausland, Sprache, Ruhestand, Longevity", external: "Programme für Arbeitgeber, Unis, Sprachschulen", physical: "–", from: null, ceiling: "1–10 Mrd. €", test: OPEN_TEST, moments: ["onboarding", "search"], status: "idea", next: null },
-  { id: "community", number: 7, name: "Gemeinschaft", level: "top", question: "Wie wird aus einer Crew ein Zuhause?", data: "–", internal: "Werkzeuge für Langzeit-Crews", external: "Genossenschaft, Betrieb", physical: "Festival, Stadthof, Dorf", from: null, ceiling: "5–50 Mrd. €", test: OPEN_TEST, moments: ["afterTheStay"], status: "idea", next: null },
-  { id: "impact", number: 8, name: "Wirkung", level: "band", question: "Was bewirkt Simpulo?", data: "Verbindungsrate", internal: "–", external: "State of Connection, Forschung mit Universitäten", physical: "Album", from: null, ceiling: "unter 0,1 Mrd. € direkt", test: OPEN_TEST, moments: ["afterTheStay"], status: "idea", next: null },
+  { id: "marketplace", number: 0, name: "Marktplatz", level: "foundation", question: "Wann wird ein House schnell voll?", data: "Preise, Orte, Themen, Anfragen, Vormerkungen", internal: "Preisvorschlag, Vorhersage, Frühwarnung, Explore-Reihenfolge", external: "Werkzeuge für Gruppenreisen", physical: "–", from: "ab dem ersten House", ceiling: "10–25 Mrd. €", test: OPEN_TEST, moments: ["search", "create", "request"], status: "running", next: "Frühwarnung an den ersten 50 Houses prüfen" },
+  { id: "crew", number: 1, name: "Crew", level: "core", question: "Wer passt zusammen?", data: "–", internal: "Crew Engine, Houses aus Nachfrage", external: "Matching als Dienst (Unis, Coliving, Firmen, Senioren-WGs)", physical: "–", from: null, ceiling: "1–5 Mrd. €", test: OPEN_TEST, moments: ["onboarding", "request", "afterTheStay"], status: "idea", next: "Verbindungsrate je Crew-Mischung auswerten" },
+  { id: "arc", number: 2, name: "Bogen", level: "core", question: "Wie entsteht Verbindung?", data: "–", internal: "Bogen passt sich an", external: "Protokoll für Verbindung (Offsites, Einarbeitung, Konferenzen, Retreats, Klassen 18+)", physical: "Fragenkarten, Welcome-Box, Album", from: null, ceiling: "0,5–3 Mrd. €", test: OPEN_TEST, moments: ["inTheHouse", "afterTheStay"], status: "idea", next: "„Absicht erreicht“ nach 10 Houses auswerten" },
+  { id: "space", number: 3, name: "Raum", level: "core", question: "Welcher Raum verbindet?", data: "–", internal: "Hinweise für Hosts", external: "Musterbuch, Entwurfssoftware 2D/3D, Planung gegen Beteiligung", physical: "Tisch, Möbel, Simpulo-Räume, Hof", from: null, ceiling: "2–20 Mrd. €", test: OPEN_TEST, moments: ["create", "inTheHouse"], status: "idea", next: "Raum-Angaben von 20 Houses sammeln" },
+  { id: "places", number: 4, name: "Orte", level: "extended", question: "Wo wollen Menschen zusammen sein?", data: "–", internal: "Landkarte der Nachfrage, Partnerhäuser", external: "Daten-Berichte für Regionen, leere Dörfer", physical: "Certified Places, Bus/Van, Boot", from: null, ceiling: "0,3–2 Mrd. €", test: OPEN_TEST, moments: ["search", "create"], status: "idea", next: "Nachfrage je Stadt mit der Warteliste abgleichen" },
+  { id: "trust", number: 5, name: "Vertrauen", level: "extended", question: "Wem kann man vertrauen?", data: "–", internal: "Frühwarnung, Sicherheit", external: "Ruf als Mitbewohner als Dienst", physical: "–", from: null, ceiling: "0,2–1 Mrd. €", test: OPEN_TEST, moments: ["request", "afterTheStay", "support"], status: "idea", next: "Meldegründe der ersten 3 Monate sichten" },
+  { id: "phases", number: 6, name: "Lebensphasen", level: "extended", question: "Wer braucht Menschen in einem Übergang?", data: "–", internal: "Houses für Neu in der Stadt, Ausland, Sprache, Ruhestand, Longevity", external: "Programme für Arbeitgeber, Unis, Sprachschulen", physical: "–", from: null, ceiling: "1–10 Mrd. €", test: OPEN_TEST, moments: ["onboarding", "search"], status: "idea", next: "Ein House „Neu in der Stadt“ testen" },
+  { id: "community", number: 7, name: "Gemeinschaft", level: "top", question: "Wie wird aus einer Crew ein Zuhause?", data: "–", internal: "Werkzeuge für Langzeit-Crews", external: "Genossenschaft, Betrieb", physical: "Festival, Stadthof, Dorf", from: null, ceiling: "5–50 Mrd. €", test: OPEN_TEST, moments: ["afterTheStay"], status: "idea", next: "Crews mit 2+ gemeinsamen Houses befragen" },
+  { id: "impact", number: 8, name: "Wirkung", level: "band", question: "Was bewirkt Simpulo?", data: "Verbindungsrate", internal: "–", external: "State of Connection, Forschung mit Universitäten", physical: "Album", from: null, ceiling: "unter 0,1 Mrd. € direkt", test: OPEN_TEST, moments: ["afterTheStay"], status: "idea", next: "30-Tage-Frage „noch in Kontakt“ auswerten" },
 ];
 
 export const labOf = (id: LabId) => LABS.find((l) => l.id === id)!;
@@ -63,7 +63,6 @@ export const LABS_TEXT = {
   test: { uniqueData: "einzigartige Daten?", strengthensCore: "stärkt den Kern?", littleCapital: "wenig Kapital?", littlePersonalData: "wenig persönliche Daten?", payingBuyer: "zahlender Käufer?" },
   testValue: { yes: "ja", no: "nein", open: "offen" },
   status: { idea: "Idee", running: "läuft", confirmed: "bestätigt", dropped: "verworfen" } satisfies Record<LabStatus, string>,
-  nextOpen: "noch offen",
   pick: "Wähle links ein Labor.",
   /** Tab Pyramide */
   pyramid: {

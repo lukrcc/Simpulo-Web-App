@@ -4,16 +4,24 @@
 // Labore · Fluss · Potenzial. Drawn like Algorithmus: SVG for the pyramid and the map, AdminListDetail for the labs, the BlockMap with lines
 // for the flow, a table with log bars for the potential. Every text and value from lib/admin/labs.ts (estimates, not measurements).
 import { ArrowRight } from "lucide-react";
+import { withUnits } from "./tileRoutes";
 import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { MOMENTS } from "@/config/data-points";
 import { ADMIN_DE } from "@/lib/i18n/admin.de";
 import { LAB_MAP, LABS, LABS_TEXT, labOf, PHYSICAL_TREE, POTENTIAL, TEST_KEYS, type Lab, type LabId, type LabStatus, type TestValue } from "@/lib/admin/labs";
 import { cn } from "@/lib/utils";
+import { labNumbers } from "@/lib/admin/metrics";
+import { useAdminInputs } from "@/lib/admin/useAdminInputs";
+import { setAdminSearch, useAdminSearch, useAdminTab } from "@/lib/admin/urlState";
+import { ARCHITECTURE, type ArchitectureView } from "@/lib/admin/labs/architecture";
+import { DATA_POINTS, type DataPointStatus } from "@/config/data-points";
+import Link from "next/link";
+import { num, pct, share } from "@/lib/i18n/adminFormat";
 import { StatusDot } from "./AdminCharts";
-import { AdminShell, AREA_TEXT, AREA_TILE } from "./AdminShell";
+import { AdminShell, AREA_TILE } from "./AdminShell";
 import { TileValue } from "./AdminTiles";
 import { InfoTip } from "./AdminNumbers";
-import { AdminListDetail, AdminTabs, BackToList } from "./AdminLayout";
+import { AdminListDetail, AdminSubTabs, AdminTabs, BackToList } from "./AdminLayout";
 import { BlockMap, type MapLink } from "./BlockMap";
 import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/Badge";
@@ -25,15 +33,17 @@ const TABS: readonly Tab[] = ["overview", "pyramid", "map", "labs", "flow", "pot
 const T = LABS_TEXT;
 
 export function AdminLabs() {
-  const [tab, setTab] = useState<Tab>("overview");
+  // The capsule in ?tab= and the chosen lab in ?focus= (CLAUDE.md "Jede Kachel → eine Kapsel"): a card, the pyramid, the map and the flow
+  // open "Labore" with that lab; back works.
+  const url = useAdminTab<Tab>(TABS, "overview");
+  const tab = url.tab;
+  const setTab = (next: Tab) => url.open(next);
   const tOverview = useTranslations("admin.overviewBlock");
-  const [lab, setLab] = useState<LabId | null>(null);
-  const open = (id: LabId) => {
-    setLab(id);
-    setTab("labs");
-  };
+  const lab = (LABS.some((l) => l.id === url.focus) ? url.focus : null) as LabId | null;
+  const setLab = (id: LabId | null) => setAdminSearch({ focus: id }, { replace: true });
+  const open = (id: LabId) => url.open("labs", id);
   return (
-    <AdminShell title={ADMIN_DE.nav.labs} tabs={<AdminTabs label={ADMIN_DE.nav.labs} value={tab} onChange={setTab} tabs={TABS.map((key) => ({ value: key, label: key === "overview" ? tOverview("tab") : T.tabs[key] }))} />}>
+    <AdminShell title={ADMIN_DE.nav.labs} tabs={<AdminTabs label={ADMIN_DE.nav.labs} value={tab} onChange={setTab} tabs={withUnits("labs", TABS.map((key) => ({ value: key, label: key === "overview" ? tOverview("tab") : T.tabs[key] })))} />}>
       {tab === "overview" && <LabsOverview onLab={open} />}
       {tab === "pyramid" && <Pyramid onOpen={open} />}
       {tab === "map" && <LabMap onOpen={open} />}
@@ -52,12 +62,8 @@ export function AdminLabs() {
  * bound per year, an estimate) and the next step. The grid fills the height left under the bar (no scrolling at ≥ 1280 × 720); a click
  * opens the lab in the tab Labore. Every value from lib/admin/labs.ts.
  */
-const LAB_STATUS_TONE: Record<LabStatus, string> = {
-  idea: "border-ink/20 text-muted",
-  running: "border-adm-warning/60 text-adm-warning",
-  confirmed: "border-adm-good/60 text-adm-good",
-  dropped: "border-adm-critical/60 text-adm-critical",
-};
+/** The status as the card's value: idea muted, running amber, confirmed sage, dropped ember (status colours – the statement itself). */
+const LAB_STATUS_TEXT: Record<LabStatus, string> = { idea: "text-muted!", running: "text-adm-warning!", confirmed: "text-adm-good!", dropped: "text-adm-critical!" };
 /** Room under the grid (the page's bottom padding) and the card height's bounds. */
 const LAB_BOTTOM = 40;
 const LAB_CARD_MIN = 132;
@@ -72,7 +78,7 @@ function LabsOverview({ onLab }: { onLab: (id: LabId) => void }) {
     const measure = () => {
       const top = box.current?.getBoundingClientRect().top;
       if (top === undefined || window.innerWidth < 1024) return setCardH(null);
-      const gap = Math.min(20, Math.max(10, Math.round(window.innerHeight * 0.015)));
+      const gap = box.current ? parseFloat(getComputedStyle(box.current).rowGap) || 0 : 0; // --adm-grid-gap, as rendered
       const room = window.innerHeight - (top + window.scrollY) - LAB_BOTTOM;
       setCardH(Math.round(Math.min(LAB_CARD_MAX, Math.max(LAB_CARD_MIN, (room - gap * (rows - 1)) / rows))));
     };
@@ -82,6 +88,14 @@ function LabsOverview({ onLab }: { onLab: (id: LabId) => void }) {
   }, [rows]);
   // Compact cards (short windows): a smaller number and tighter gaps, so a two-line question never pushes it out.
   const compact = cardH !== null && cardH < 200;
+  // One real number of today per lab – from the function its page uses (lib/admin/metrics.ts labNumbers).
+  const numbers = labNumbers(useAdminInputs());
+  const metricLine = (id: LabId) => {
+    const n = numbers[id];
+    if (n.kind === "none" || n.value === null) return t(`card.metricNone.${id}`);
+    const value = n.kind === "share" ? share(n.value) : n.kind === "pct" ? pct(n.value) : num(n.value);
+    return t(`card.metric.${id}`, { value });
+  };
   return (
     <div
       ref={box}
@@ -89,29 +103,29 @@ function LabsOverview({ onLab }: { onLab: (id: LabId) => void }) {
       aria-label={ADMIN_DE.nav.labs}
       role="list"
       className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
-      style={{ gap: "clamp(10px, 1.5dvh, 20px)", ...(cardH ? { gridAutoRows: `${cardH}px` } : {}) } as CSSProperties}
+      style={{ gap: "var(--adm-grid-gap)", ...(cardH ? { gridAutoRows: `${cardH}px` } : {}) } as CSSProperties}
     >
       {LABS.map((lab) => (
         // The same build as every admin tile (CLAUDE.md "Admin: Kacheln einheitlich"): title (number · name, the status right) on top, the
         // ceiling in the one value size right under it, then the detail lines – free room stays at the bottom.
         <div key={lab.id} role="listitem" data-cockpit-tile data-lab-card={lab.id} className={cn("relative flex min-h-0 min-w-0 flex-col justify-start overflow-hidden rounded-xl border px-4 pt-3 pb-3", AREA_TILE.plan)}>
           <button type="button" data-card-link aria-label={t("card.open", { name: lab.name })} onClick={() => onLab(lab.id)} className="absolute inset-0 rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)" />
-          <div className="flex min-w-0 shrink-0 items-center justify-between gap-2">
-            <span className={cn("truncate text-eyebrow uppercase", AREA_TEXT.plan)}>{t("card.title", { no: String(lab.number), name: lab.name })}</span>
-            <span data-lab-status={lab.status} className={cn("shrink-0 rounded-full border px-2 py-0.5 text-small font-semibold leading-none", LAB_STATUS_TONE[lab.status])}>
-              {T.status[lab.status]}
-            </span>
+          <div className="flex min-w-0 shrink-0 items-center gap-2">
+            <span className="truncate text-eyebrow uppercase text-(--adm-label)">{t("card.title", { no: String(lab.number), name: lab.name })}</span>
           </div>
-          <div className="mt-0.5 flex min-w-0 shrink-0 items-center">
-            <TileValue value={lab.ceiling} />
+          {/* The status large (Idee · läuft · bestätigt · verworfen) – the one thing a lab card says first; its colour is the statement. */}
+          <div data-lab-status={lab.status} className="mt-0.5 flex min-w-0 shrink-0 items-center">
+            <TileValue value={T.status[lab.status]} className={LAB_STATUS_TEXT[lab.status]} />
           </div>
-          <div className="mt-0.5 flex min-h-0 min-w-0 flex-col gap-0.5 overflow-hidden text-small leading-snug text-muted">
-            <span className="flex shrink-0 items-center gap-1">
-              {t("card.ceiling")}
+          {/* The details at the bottom, the last line flush with the edge (the one tile plan): today's real number, the ceiling, the next step. */}
+          <div className="mt-auto flex min-h-0 min-w-0 flex-col justify-end gap-0.5 overflow-hidden pt-1 text-small leading-snug text-muted">
+            <p data-lab-metric className="truncate text-ink">{metricLine(lab.id)}</p>
+            {!compact && <p className="truncate">{lab.question}</p>}
+            <span className="flex min-w-0 shrink-0 items-center gap-1">
+              <span className="truncate">{t("card.ceilingLine", { value: lab.ceiling })}</span>
               <InfoTip text={t("card.ceilingInfo")} />
             </span>
-            <p className={cn("text-ink", compact ? "truncate" : "line-clamp-2")}>{lab.question}</p>
-            <p className="truncate">{t("card.next", { step: lab.next ?? T.nextOpen })}</p>
+            <p className="truncate">{t("card.next", { step: lab.next })}</p>
           </div>
         </div>
       ))}
@@ -285,6 +299,17 @@ function LabList({ selected, onSelect }: { selected: LabId | null; onSelect: (id
 }
 
 function LabDetail({ lab, onBack }: { lab: Lab; onBack: () => void }) {
+  // Raum has a second level: Überblick · Architektur · Datenplan (?view=, Vision › Schichten links to Architektur).
+  const view = useAdminSearch().get("view");
+  const spaceView: ArchitectureView = lab.id === "space" && (view === "architecture" || view === "plan") ? view : "overview";
+  if (lab.id === "space" && spaceView !== "overview")
+    return (
+      <article data-lab-detail>
+        <BackToList onBack={onBack} />
+        <LabHead lab={lab} view={spaceView} />
+        {spaceView === "architecture" ? <Architecture /> : <DataPlan />}
+      </article>
+    );
   const fields = [
     { label: T.fields.level, value: T.level[lab.level] },
     { label: T.fields.question, value: lab.question },
@@ -298,9 +323,7 @@ function LabDetail({ lab, onBack }: { lab: Lab; onBack: () => void }) {
   return (
     <article data-lab-detail>
       <BackToList onBack={onBack} />
-      <p className="text-h3 text-ink">
-        {lab.number} {lab.name}
-      </p>
+      <LabHead lab={lab} view="overview" />
       <dl className="mt-(--adm-inner) grid gap-x-6 gap-y-(--adm-inner) sm:grid-cols-2">
         {fields.map((f) => (
           <div key={f.label} className="min-w-0">
@@ -425,3 +448,154 @@ function Potential() {
   );
 }
 
+
+// ── Labor Raum: Simpulo-Architektur and the data plan (lib/admin/labs/architecture.ts) ─────────────────────────────────────────────
+
+/** The lab's title; for Raum the second level (AdminSubTabs) right under it. */
+function LabHead({ lab, view }: { lab: Lab; view: ArchitectureView }) {
+  const A = ARCHITECTURE;
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+      <p className="text-h3 text-ink">
+        {lab.number} {lab.name}
+      </p>
+      {lab.id === "space" && (
+        <AdminSubTabs<ArchitectureView>
+          label={A.views.label}
+          value={view}
+          onChange={(next) => setAdminSearch({ view: next === "overview" ? null : next }, { replace: true })}
+          tabs={(["overview", "architecture", "plan"] as const).map((value) => ({ value, label: A.views[value] }))}
+        />
+      )}
+    </div>
+  );
+}
+
+/** Architektur: the sentence, the five rules, the climate zones, the pattern book, the tools – Planen's orange and neutral only. */
+function Architecture() {
+  const A = ARCHITECTURE;
+  const label = "mb-2 text-eyebrow uppercase text-(--adm-label)";
+  return (
+    <div data-architecture className="mt-(--adm-inner) flex flex-col gap-(--adm-section)">
+      <section>
+        <p className="text-h2 text-ink">{A.sentence}</p>
+        <p className="mt-1 max-w-160 text-body text-muted">{A.sentenceNote}</p>
+      </section>
+      <section aria-labelledby="arch-rules">
+        <h3 id="arch-rules" className={label}>
+          {A.rulesTitle}
+        </h3>
+        <ol className="grid grid-cols-[repeat(auto-fill,minmax(min(180px,100%),1fr))] gap-2">
+          {A.rules.map((r) => (
+            <li key={r.no} className="rounded-xl border border-(--adm-tile-edge) bg-(--adm-tile-bg) px-3 py-2.5">
+              <p className="flex items-baseline gap-2">
+                <span className="text-small font-semibold text-(--adm-group-plan)">{r.no}</span>
+                <span className="text-adm-block font-semibold text-ink">{r.title}</span>
+              </p>
+              <p className="mt-0.5 text-small text-ink">{r.text}</p>
+            </li>
+          ))}
+        </ol>
+        <Link href="/admin/data?tab=theses" className="mt-2 inline-block text-small font-semibold text-ink hover:underline">
+          {A.rulesLink}
+        </Link>
+      </section>
+      <section aria-labelledby="arch-climate">
+        <h3 id="arch-climate" className={label}>
+          {A.climateTitle}
+        </h3>
+        <div className="max-w-full overflow-x-auto overscroll-x-contain">
+          <table className="w-full min-w-[520px] text-left text-small">
+            <thead className="text-(--adm-label)">
+              <tr className="border-b border-ink/8">
+                {A.climateHead.map((h) => (
+                  <th key={h} className="h-9 pr-4 font-medium">
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {A.climate.map((c) => (
+                <tr key={c.zone} className="border-b border-ink/8">
+                  <td className="h-9 pr-4 font-semibold text-ink">{c.zone}</td>
+                  <td className="h-9 pr-4 text-ink">{c.middle}</td>
+                  <td className="h-9 pr-4 text-muted">{c.typical}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <div className="grid gap-x-12 gap-y-(--adm-section) lg:grid-cols-2">
+        <section aria-labelledby="arch-book">
+          <h3 id="arch-book" className={label}>
+            {A.patternBookTitle}
+          </h3>
+          <p className="max-w-160 text-body text-ink">{A.patternBook}</p>
+        </section>
+        <section aria-labelledby="arch-tools">
+          <h3 id="arch-tools" className={label}>
+            {A.toolsTitle}
+          </h3>
+          <ul className="divide-y divide-ink/8 border-y border-ink/8">
+            {A.tools.map((tool) => (
+              <li key={tool.name} className="flex min-h-10 items-center gap-3 py-1.5 text-small">
+                <span className={cn("w-14 shrink-0 font-semibold", tool.when === "jetzt" ? "text-(--adm-group-plan)" : "text-muted")}>{tool.when}</span>
+                <span className="w-40 shrink-0 font-semibold text-ink">{tool.name}</span>
+                <span className="min-w-0 text-ink">{tool.use}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+/** Datenplan: three columns Nachfrage · Raum · Wirkung – each data point's name and status from config/data-points.ts; the method as a chain. */
+function DataPlan() {
+  const A = ARCHITECTURE;
+  const dot: Record<DataPointStatus, string> = { used: "bg-adm-good", collecting: "bg-adm-warning", planned: "border border-ink/40" };
+  return (
+    <div data-data-plan className="mt-(--adm-inner) flex flex-col gap-(--adm-section)">
+      <div className="grid gap-x-8 gap-y-(--adm-section) lg:grid-cols-3">
+        {A.planColumns.map((col) => {
+          const points = col.ids.map((id) => DATA_POINTS.find((d) => d.id === id)).filter((d): d is (typeof DATA_POINTS)[number] => Boolean(d));
+          return (
+            <section key={col.key} aria-labelledby={`plan-${col.key}`}>
+              <h3 id={`plan-${col.key}`} className="text-eyebrow uppercase text-(--adm-group-plan)">
+                {col.title} <span className="text-(--adm-label)">· {points.length}</span>
+              </h3>
+              <p className="mb-2 text-small text-muted">{col.text}</p>
+              <ul className="divide-y divide-ink/8 border-y border-ink/8">
+                {points.map((d) => (
+                  <li key={d.id} data-tooltip-info={d.captures} className="flex h-8 items-center justify-between gap-3 text-small">
+                    <span className="min-w-0 truncate text-ink">{d.short}</span>
+                    <span className="inline-flex shrink-0 items-center gap-1.5 text-muted">
+                      <span aria-hidden className={cn("size-2 rounded-full", dot[d.status])} />
+                      {A.status[d.status]}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          );
+        })}
+      </div>
+      <section aria-labelledby="plan-method">
+        <h3 id="plan-method" className="mb-2 text-eyebrow uppercase text-(--adm-label)">
+          {A.methodTitle}
+        </h3>
+        <ol className="flex flex-wrap items-center gap-x-2 gap-y-2">
+          {A.method.map((step, i) => (
+            <li key={step} className="flex items-center gap-2">
+              <span className="rounded-full border border-(--adm-tile-edge) bg-(--adm-tile-bg) px-3 py-1 text-small text-ink">{step}</span>
+              {i < A.method.length - 1 && <span aria-hidden className="text-small text-(--adm-group-plan)">→</span>}
+            </li>
+          ))}
+        </ol>
+      </section>
+    </div>
+  );
+}

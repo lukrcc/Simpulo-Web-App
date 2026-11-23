@@ -38,7 +38,7 @@ import {
   SHOT_LIST,
 } from "@/config/marketing";
 import { useAdminActions } from "@/lib/admin/actions";
-import { againstAssumption, compareDate, getChange, launchCountdown, marketingFunnel, marketingFunnelBy, marketingLoops, mondayOf, partnerHouses, partnerStepDue, shortsInWeek, strategyDates, type Status, isRunningSpan } from "@/lib/admin/metrics";
+import { againstAssumption, compareDate, getChange, growthRows, originGroupOf, periodRanges, launchCountdown, marketingFunnel, marketingFunnelBy, marketingLoops, mondayOf, partnerHouses, partnerStepDue, shortsInWeek, strategyDates, type Status, isRunningSpan } from "@/lib/admin/metrics";
 import { download } from "@/lib/admin/exporters";
 import { tableCsv } from "@/lib/admin/exporters/csv";
 import { useAdminData } from "@/lib/admin/store";
@@ -49,6 +49,8 @@ import { linkBase } from "@/lib/links";
 import { cn, housePhotos } from "@/lib/utils";
 import { isOpenTodo, roadmapTodos } from "@/lib/roadmap";
 import { usePlanTodos } from "./AdminZeitplan";
+import { routeTiles, withUnits } from "./tileRoutes";
+import { setAdminSearch, useAdminTab } from "@/lib/admin/urlState";
 import { TileBoard, chunkRows, type TileSpec } from "./AdminTiles";
 import { findUser, useStore } from "@/lib/store";
 import { memoriesStats } from "@/lib/memories";
@@ -69,7 +71,10 @@ const demoLinkOf = (id: string) => `${linkBase()}/?ref=${encodeURIComponent(id)}
 export function AdminMarketing() {
   const t = useTranslations("admin.marketing");
   const tc = useTranslations("admin.marketing.contacts");
-  const [tab, setTab] = useState<Tab>("overview");
+  // The capsule in ?tab= (pushed – back works; old ?tab=contacts → Pipeline). A tile's ?focus=due shows only the partners whose step is due.
+  const url = useAdminTab<Tab>(TABS, "overview", { contacts: "pipeline" });
+  const tab = url.tab;
+  const setTab = (next: Tab) => url.open(next);
   const data = useAdminData();
   const contacts = data.marketingContacts;
   const partners = data.marketingPartners;
@@ -86,21 +91,16 @@ export function AdminMarketing() {
     due: "all",
   });
   const [partnerId, setPartnerId] = useState<string | null>(null);
+  const shownFilters: PartnerFilters = url.focus === "due" ? { ...partnerFilters, due: "due" } : partnerFilters;
   // Links from the Posteingang, Bewerbungen and between the tabs: ?tab=partners&partner=… · ?tab=contacts&contact=… (now the Pipeline) – read once.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const wanted = params.get("tab");
-    if (wanted !== "partners" && wanted !== "contacts" && wanted !== "pipeline" && wanted !== "content" && wanted !== "countdown") return;
+    // The capsule itself comes from the URL (useAdminTab); here only the partner or contact a link names.
+    if (wanted !== "partners" && wanted !== "contacts" && wanted !== "pipeline") return;
     requestAnimationFrame(() => {
-      if (wanted === "countdown") setTab("countdown");
-      else if (wanted === "partners") {
-        setTab("partners");
-        setPartnerId(params.get("partner"));
-      } else if (wanted === "content") setTab("content");
-      else {
-        setTab("pipeline");
-        setContactId(params.get("contact"));
-      }
+      if (wanted === "partners") setPartnerId(params.get("partner"));
+      else setContactId(params.get("contact"));
     });
   }, []);
   const toPartner = (contact: MarketingContact) => {
@@ -165,12 +165,12 @@ export function AdminMarketing() {
   };
 
   const tOverview = useTranslations("admin.overviewBlock");
-  const tabs: AdminTab<Tab>[] = TABS.map((value) => ({
+  const tabs: AdminTab<Tab>[] = withUnits("marketing", TABS.map((value) => ({
     value,
     label: value === "overview" ? tOverview("tab") : t(`tabs.${value}`),
     tooltip: value === "overview" ? undefined : t(`tabInfo.${value}`),
     count: value === "pipeline" ? contacts.length : value === "partners" ? partners.length : undefined,
-  }));
+  })));
   const { start: marketingStart, launch: launchDate } = strategyDates();
   const controls =
     tab === "countdown" ? (
@@ -217,7 +217,7 @@ export function AdminMarketing() {
         </AdminButton>
       </div>
     ) : tab === "partners" && !partnerId ? (
-      <PartnerControls filters={partnerFilters} onFilters={setPartnerFilters} partners={partners} onAdd={addPartner} />
+      <PartnerControls filters={shownFilters} onFilters={(next) => (setPartnerFilters(next), url.focus === "due" && setAdminSearch({ focus: null }, { replace: true }))} partners={partners} onAdd={addPartner} />
     ) : undefined;
 
   const openContact = contacts.find((c) => c.id === contactId) ?? null;
@@ -240,16 +240,15 @@ export function AdminMarketing() {
     >
       {tab === "overview" && (
         <MarketingOverview
-          onOpen={(next, opts) => {
+          onOpen={(next) => {
             setTab(next);
             setPartnerId(null);
-            if (opts?.dueOnly) setPartnerFilters({ kind: "all", ladder: "all", due: "due" });
           }}
         />
       )}
       {tab === "countdown" && <Countdown />}
       {tab === "pipeline" && <Pipeline contacts={contacts} filter={{ niche, motivation, kind }} onOpen={setContactId} />}
-      {tab === "partners" && (openPartner ? <PartnerDetail key={openPartner.id} partner={openPartner} onBack={() => setPartnerId(null)} onDeleted={() => setPartnerId(null)} /> : <PartnerCards partners={partners} filters={partnerFilters} onOpen={setPartnerId} />)}
+      {tab === "partners" && (openPartner ? <PartnerDetail key={openPartner.id} partner={openPartner} onBack={() => setPartnerId(null)} onDeleted={() => setPartnerId(null)} /> : <PartnerCards partners={partners} filters={shownFilters} onOpen={setPartnerId} />)}
       {tab === "content" && <Content clips={data.marketingClips} />}
       <Sheet variant="panel" open={tab === "pipeline" && openContact !== null} onClose={() => setContactId(null)} title={openContact?.name ?? tc("list")}>
         {openContact && (
@@ -281,6 +280,7 @@ function MarketingOverview({ onOpen }: { onOpen: (tab: Exclude<Tab, "overview">,
   const phase = c.phases.find((p) => p.key === c.phase) ?? c.phases[0];
   const funnel = marketingFunnel(data.marketingContacts, compareDate(inputs.today, "month"));
   const partners = data.marketingPartners;
+  const contacts = data.marketingContacts;
   const posts = data.contentPosts ?? [];
   const shorts = shortsInWeek(posts, mondayOf(inputs.today));
   const nextShort = posts.filter((p) => p.status === "planned" && p.date >= inputs.today).toSorted((a, b) => a.date.localeCompare(b.date))[0];
@@ -289,7 +289,6 @@ function MarketingOverview({ onOpen }: { onOpen: (tab: Exclude<Tab, "overview">,
       {num(value)} <span className="text-body text-muted">/ {num(total)}</span>
     </>
   );
-  const tk = useTranslations("admin.marketing.partners");
   const phaseLabel = (key: string) => c.phases.find((p) => p.key === key)?.label ?? key;
   const nextPhase = c.phases.find((p) => p.no === phase.no + 1);
   const all = funnel.all;
@@ -299,11 +298,12 @@ function MarketingOverview({ onOpen }: { onOpen: (tab: Exclude<Tab, "overview">,
     const b = bestBy(rate);
     return b ? t("d.bestNiche", { niche: b.key, rate: share(b[rate]) }) : t("d.bestNicheNone");
   };
-  const kinds = (["creator", "streamer", "community", "connector", "brand"] as const)
+  // The kinds, short words, two per line (a tile is narrow).
+  const kindParts = (["creator", "streamer", "community", "connector", "brand"] as const)
     .map((k) => ({ k, n: partners.filter((p) => p.kind === k).length }))
     .filter((x) => x.n > 0)
-    .map((x) => `${tk(`kinds.${x.k}`)} ${num(x.n)}`)
-    .join(" · ");
+    .map((x) => `${t(`d.kind.${x.k}`)} ${num(x.n)}`);
+  const kindLines = Array.from({ length: Math.ceil(kindParts.length / 2) }, (_, i) => (kindParts[2 * i + 1] ? t("d.kindPair", { a: kindParts[2 * i], b: kindParts[2 * i + 1] }) : kindParts[2 * i]));
   const active = partners.filter((p) => p.agreement.status === "active");
   const avgShare = active.length ? Math.round(active.reduce((n, p) => n + p.agreement.sharePercent, 0) / active.length) : null;
   const nextStep = partners
@@ -311,6 +311,18 @@ function MarketingOverview({ onOpen }: { onOpen: (tab: Exclude<Tab, "overview">,
     .toSorted((a, b) => (a.nextStep!.due ?? "9999").localeCompare(b.nextStep!.due ?? "9999"))[0];
   const weekFrom = mondayOf(inputs.today);
   const plannedWeek = posts.filter((p) => p.status === "planned" && p.date >= weekFrom && p.date <= addDaysIso(weekFrom, 6)).length;
+  // Content's reach: visitors through the posts' channels in the running month (the growth events, Wachstum's own count).
+  const { events } = useStore();
+  const postRows = growthRows(events, (e) => e.utmSource ?? "", "month", inputs.today, periodRanges(inputs.today, "month")).filter((r) => originGroupOf(r.key) === "posts");
+  const postVisits = postRows.reduce((n, r) => n + r.visits, 0);
+  const bestPostChannel = postRows.toSorted((a, b) => b.visits - a.visits)[0] ?? null;
+  // The most due open step: partners' next steps and the plan's open marketing to-dos.
+  const plan = usePlanTodos();
+  const steps = [
+    ...partners.filter((p) => p.nextStep?.due).map((p) => ({ title: p.nextStep!.text, who: p.name, due: p.nextStep!.due!, partner: true })),
+    ...plan.filter((x) => x.source === "marketing" && x.status !== "done" && x.status !== "later" && x.due).map((x) => ({ title: x.title, who: t("d.stepPlan"), due: x.due!, partner: false })),
+  ].toSorted((a, b) => a.due.localeCompare(b.due));
+  const next = steps[0] ?? null;
   const ring = (metric: (typeof c.rings)[number]["metric"]): TileSpec => {
     const r = c.rings.find((x) => x.metric === metric)!;
     return {
@@ -320,30 +332,31 @@ function MarketingOverview({ onOpen }: { onOpen: (tab: Exclude<Tab, "overview">,
       value: num(r.value),
       change: r.change ?? undefined,
       target: r.status ? { text: t("due", { value: num(r.due) }), status: r.status } : undefined,
-      details: [t("d.ringGoal", { value: num(r.goal) }), t("d.ringNext", { label: phaseLabel(r.next.key), value: num(r.next.target) })],
+      details: [
+        t("d.ringGoal", { value: num(r.goal) }),
+        t("d.ringNext", { label: phaseLabel(r.next.key), value: num(r.next.target) }),
+        t("d.ringDue", { value: num(r.due) }),
+        r.goal > r.value ? t("d.ringMissing", { value: num(r.goal - r.value) }) : null,
+        r.goal > 0 ? t("d.ringShare", { value: share(r.value / r.goal) }) : null,
+      ].filter((l): l is string => l !== null),
       onOpen: () => onOpen("countdown"),
     };
   };
   const tiles: TileSpec[] = [
+    // Launch and phase in one tile (CLAUDE.md "Planen"): the days to the launch, the marketing start, the phase, the plan's size.
     {
       key: "launch",
       label: t("launch.label"),
       info: t("launch.info"),
       value: c.state === "launched" ? t("launched") : t("d.days", { days: c.daysLeft }),
       small: true,
-      details: [c.state === "launched" ? t("d.launchDate", { date: day(c.launchDate) }) : t("d.untilLaunch", { date: day(c.launchDate) }), t("d.marketingStart", { date: day(c.start) }), t("d.weeks", { phases: num(c.phases.length), weeks: num(c.weeks) })],
-      onOpen: () => onOpen("countdown"),
-    },
-    {
-      key: "phase",
-      label: t("phase.label"),
-      info: t("phase.info"),
-      value: c.state === "before" ? t("d.days", { days: c.daysToStart }) : t("phaseValue", { no: String(phase.no) }),
-      small: true,
-      details:
-        c.state === "before"
-          ? [t("d.untilStart", { date: day(c.start) }), t("d.firstPhase", { label: c.phases[0].label })]
-          : [t("phaseWeek", { week: String(c.weekNo), label: phase.label }), t("d.phaseEnds", { date: day(phase.to) }), nextPhase ? t("d.nextPhase", { label: nextPhase.label }) : t("d.lastPhase")],
+      details: [
+        c.state === "before" ? t("d.startInDays", { days: num(c.daysToStart) }) : t("d.marketingStart", { date: day(c.start) }),
+        c.state === "before" ? t("d.phaseNow", { label: t("d.phaseBefore") }) : t("d.phaseNow", { label: t("phaseWeek", { week: String(c.weekNo), label: phase.label }) }),
+        t("d.weeks", { phases: num(c.phases.length), weeks: num(c.weeks) }),
+        c.state === "launched" ? t("d.launchDate", { date: day(c.launchDate) }) : t("d.untilLaunch", { date: day(c.launchDate) }),
+        c.state === "running" && nextPhase ? t("d.nextPhase", { label: nextPhase.label }) : null,
+      ].filter((l): l is string => l !== null),
       onOpen: () => onOpen("countdown"),
     },
     ring("housesOpened"),
@@ -356,18 +369,25 @@ function MarketingOverview({ onOpen }: { onOpen: (tab: Exclude<Tab, "overview">,
       info: t("contacted.info"),
       value: num(all.contacted),
       change: getChange("mktContacted", all.contacted, funnel.contactedBefore),
-      details: [t("d.contactedBefore", { value: num(funnel.contactedBefore) }), funnel.best ? t("d.niches", { count: funnel.perNiche.length, best: funnel.best }) : t("d.nichesNone", { count: funnel.perNiche.length })],
+      details: [
+        t("d.contactedBefore", { value: num(funnel.contactedBefore) }),
+        funnel.best ? t("d.niches", { count: funnel.perNiche.length, best: funnel.best }) : t("d.nichesNone", { count: funnel.perNiche.length }),
+        t("d.flow", { replied: num(all.replied), demo: num(all.demo) }),
+        t("d.housesFrom", { value: num(all.house) }),
+        t("d.followUps", { value: num(contacts.filter((x) => x.followUps > 0).length) }),
+        t("d.notYet", { value: num(contacts.filter((x) => !x.firstMessageAt).length) }),
+      ],
       onOpen: () => onOpen("pipeline"),
     },
-    { key: "replyRate", label: t("replyRate.label"), info: t("replyRate.info"), value: share(all.replyRate), target: { text: "10–15 %", status: againstAssumption(all.replyRate, FUNNEL_ASSUMPTIONS.replied) }, details: [t("d.replied", { part: num(all.replied), all: num(all.contacted) }), bestLine("replyRate")], onOpen: () => onOpen("pipeline") },
-    { key: "demoRate", label: t("demoRate.label"), info: t("demoRate.info"), value: share(all.demoRate), target: { text: "5–8 %", status: againstAssumption(all.demoRate, FUNNEL_ASSUMPTIONS.demo) }, details: [t("d.demo", { part: num(all.demo), all: num(all.contacted) }), bestLine("demoRate")], onOpen: () => onOpen("pipeline") },
+    { key: "replyRate", label: t("replyRate.label"), info: t("replyRate.info"), value: share(all.replyRate), target: { text: "10–15 %", status: againstAssumption(all.replyRate, FUNNEL_ASSUMPTIONS.replied) }, details: [t("d.replied", { part: num(all.replied), all: num(all.contacted) }), bestLine("replyRate"), t("d.assumption", { range: "10–15 %" }), t("d.silent", { value: num(Math.max(0, all.contacted - all.replied)) }), t("d.followUps", { value: num(contacts.filter((x) => x.followUps > 0).length) })], onOpen: () => onOpen("pipeline") },
+    { key: "demoRate", label: t("demoRate.label"), info: t("demoRate.info"), value: share(all.demoRate), target: { text: "5–8 %", status: againstAssumption(all.demoRate, FUNNEL_ASSUMPTIONS.demo) }, details: [t("d.demo", { part: num(all.demo), all: num(all.contacted) }), bestLine("demoRate"), t("d.assumption", { range: "5–8 %" }), all.demo > 0 ? t("d.demoToHouse", { rate: share(all.house / all.demo) }) : null].filter((l): l is string => l !== null), onOpen: () => onOpen("pipeline") },
     {
       key: "houses",
       label: t("houses.label"),
       info: t("houses.info"),
       value: num(all.house),
       target: { text: "2–4 %", status: againstAssumption(all.houseRate, FUNNEL_ASSUMPTIONS.house) },
-      details: [t("houseRate", { rate: share(all.houseRate) }), t("d.house", { part: num(all.house), all: num(all.contacted) }), bestLine("houseRate")],
+      details: [t("houseRate", { rate: share(all.houseRate) }), t("d.house", { part: num(all.house), all: num(all.contacted) }), bestLine("houseRate"), t("d.assumption", { range: "2–4 %" }), t("d.housesNow", { value: num(c.rings.find((x) => x.metric === "housesOpened")?.value ?? 0) })],
       onOpen: () => onOpen("pipeline"),
     },
     {
@@ -379,16 +399,24 @@ function MarketingOverview({ onOpen }: { onOpen: (tab: Exclude<Tab, "overview">,
       details: [
         ...(funnel.projection.current === null ? [] : [t("d.atRate", { rate: share(all.houseRate) })]),
         funnel.projection.assumed.from !== null && funnel.projection.assumed.to !== null ? t("d.assumed", { from: num(funnel.projection.assumed.from), to: num(funnel.projection.assumed.to) }) : t("d.assumption", { range: "2–4 %" }),
+        t("d.contactedSoFar", { value: num(all.contacted) }),
+        ...(funnel.projection.current === null ? [] : [t("d.stillToWrite", { value: num(Math.max(0, funnel.projection.current - all.contacted)) })]),
       ],
       onOpen: () => onOpen("pipeline"),
     },
-    { key: "partners", label: t("partners.label"), info: t("partners.info"), value: num(partners.length), details: [kinds || t("d.noPartners"), t("d.reach", { value: num(partners.reduce((n, p) => n + p.reach, 0)) })], onOpen: () => onOpen("partners") },
+    // All partners and the active ones in one tile: the active as the value against all.
     {
-      key: "partnersActive",
-      label: t("partnersActive.label"),
-      info: t("partnersActive.info"),
-      value: num(active.length),
-      details: [t("d.agreements", { draft: num(partners.filter((p) => p.agreement.status === "draft").length), ended: num(partners.filter((p) => p.agreement.status === "ended").length) }), avgShare === null ? t("d.avgShareNone") : t("d.avgShare", { value: num(avgShare) })],
+      key: "partners",
+      label: t("partners.label"),
+      info: t("partners.info"),
+      value: of(active.length, partners.length),
+      details: [
+        partners.length ? t("d.activeOfAll", { active: num(active.length), all: num(partners.length) }) : t("d.noPartners"),
+        t("d.agreements", { draft: num(partners.filter((p) => p.agreement.status === "draft").length), ended: num(partners.filter((p) => p.agreement.status === "ended").length) }),
+        avgShare === null ? t("d.avgShareNone") : t("d.avgShare", { value: num(avgShare) }),
+        t("d.reach", { value: compact(partners.reduce((n, p) => n + p.reach, 0)) }),
+        ...kindLines,
+      ],
       onOpen: () => onOpen("partners"),
     },
     {
@@ -396,7 +424,11 @@ function MarketingOverview({ onOpen }: { onOpen: (tab: Exclude<Tab, "overview">,
       label: t("partnerSteps.label"),
       info: t("partnerSteps.info"),
       value: num(partners.filter((p) => partnerStepDue(p, inputs.today)).length),
-      details: nextStep ? [t("d.nextStep", { name: nextStep.name }), t("d.nextStepText", { text: nextStep.nextStep!.text, date: nextStep.nextStep!.due ? day(nextStep.nextStep!.due) : "–" })] : [t("d.noStep")],
+      details: [
+        ...(nextStep ? [t("d.nextStep", { name: nextStep.name }), ...(nextStep.nextStep!.due ? [t("d.nextStepText", { date: day(nextStep.nextStep!.due) })] : [])] : [t("d.noStep")]),
+        t("d.stepsPlanned", { value: num(partners.filter((p) => p.nextStep).length) }),
+        t("d.stepsLate", { value: num(partners.filter((p) => p.nextStep?.due && p.nextStep.due < inputs.today).length) }),
+      ],
       onOpen: () => onOpen("partners", { dueOnly: true }),
     },
     {
@@ -404,11 +436,42 @@ function MarketingOverview({ onOpen }: { onOpen: (tab: Exclude<Tab, "overview">,
       label: t("shorts.label"),
       info: t("shorts.info"),
       value: of(shorts, CONTENT_WEEKLY_TARGET),
-      details: [nextShort ? `${t("nextShort.label")}: ${day(nextShort.date)}` : `${t("nextShort.label")}: ${t("nextShortNone")}`, t("d.plannedWeek", { value: num(plannedWeek) }), t("d.publishedAll", { value: num(posts.filter((p) => p.status === "published").length) })],
+      details: [
+        nextShort ? `${t("nextShort.label")}: ${day(nextShort.date)}` : `${t("nextShort.label")}: ${t("nextShortNone")}`,
+        t("d.plannedWeek", { value: num(plannedWeek) }),
+        t("d.publishedAll", { value: num(posts.filter((p) => p.status === "published").length) }),
+        t("d.plannedAll", { value: num(posts.filter((p) => p.status === "planned" && p.date >= inputs.today).length) }),
+        t("d.weeklyGoal", { value: num(CONTENT_WEEKLY_TARGET) }),
+      ],
       onOpen: () => onOpen("content"),
     },
+    // Content: all shorts so far, their reach (visitors through the posts' channels in the running month – Wachstum › Herkunft "Deine
+    // Posts") and the best channel. The calendar keeps no views per short – the best single one is not measurable yet.
+    {
+      key: "content",
+      label: t("content.label"),
+      info: t("content.info"),
+      value: num(posts.filter((p) => p.status === "published").length),
+      details: [
+        t("d.contentReach", { value: num(postVisits) }),
+        bestPostChannel ? t("d.contentBest", { channel: bestPostChannel.key }) : t("d.contentBestNone"),
+        t("d.plannedAll", { value: num(posts.filter((p) => p.status === "planned" && p.date >= inputs.today).length) }),
+        t("d.contentPerShort"),
+      ],
+      onOpen: () => onOpen("content"),
+    },
+    // Nächster Schritt: the most due open one – a partner's next step or a marketing to-do of the plan (Zeitplan).
+    {
+      key: "nextStep",
+      label: t("nextStepTile.label"),
+      info: t("nextStepTile.info"),
+      // The step itself as a word value (two lines, never cut), who and when as the first line.
+      value: next ? next.title : t("nextStepTile.none"),
+      details: next ? [t("d.stepWho", { who: next.who, date: day(next.due) }), next.due < inputs.today ? t("d.overdue") : t("d.dueIn", { days: num(Math.round((Date.parse(next.due) - Date.parse(inputs.today)) / 86_400_000)) }), t("d.openSteps", { value: num(steps.length) })] : [t("d.noStep")],
+      onOpen: () => (next?.partner ? onOpen("partners", { dueOnly: true }) : onOpen("countdown")),
+    },
   ];
-  return <TileBoard label={tm("title")} rows={chunkRows(tiles, "plan", 5)} />;
+  return <TileBoard label={tm("title")} rows={chunkRows(routeTiles("marketing", tiles), "plan", 5)} />;
 }
 
 // ─── Countdown ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────

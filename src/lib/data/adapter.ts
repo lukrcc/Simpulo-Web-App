@@ -334,6 +334,12 @@ export interface MetricsHistory {
     repeatRate: readonly number[];
     /** Guests with at least one mutual choice after their House (percent; lib/admin/metrics.ts afterMetrics computes it from the records) */
     connectionRate?: readonly number[];
+    /** Wert-Check: guests still in touch with someone of their crew 30 days after (percent, data point after.inTouch30) */
+    stillInTouch?: readonly number[];
+    /** Wert-Check: hosts whose second House over Simpulo followed within VALUE_CHECK.secondHouseWithinMonths (percent of the month's hosts) */
+    secondHouse?: readonly number[];
+    /** Wert-Check: new mutual connections (pairs who chose each other, after.mutual) per month */
+    mutualPairs?: readonly number[];
   };
   /**
    * Admin › Wachstum: per month (0 = this month so far) the guests with a booking (paid their share) and how many of them have Simpulo

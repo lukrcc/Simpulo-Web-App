@@ -26,6 +26,8 @@ import { AdminShell } from "./AdminShell";
 import { AdminSort, AdminTabs, BackToList } from "./AdminLayout";
 import { BlockMap, type MapLink } from "./BlockMap";
 import { TileBoard, chunkRows, type TileSpec } from "./AdminTiles";
+import { routeTiles, withUnits } from "./tileRoutes";
+import { setAdminSearch, useAdminTab } from "@/lib/admin/urlState";
 
 const STAGES: readonly ModelStage[] = ["idea", "rules", "trained"];
 const MODEL_NAME = Object.fromEntries(MODELS.map((m) => [m.id, m.name])) as Record<ModelId, string>;
@@ -42,9 +44,15 @@ export function AdminData() {
   const t = useTranslations("admin.data");
   const tOverview = useTranslations("admin.overviewBlock");
   // Überblick first and by default (CLAUDE.md "Überblick zuerst").
-  const [tab, setTab] = useState<Tab>("overview");
+  // The capsule in ?tab= (pushed – back works); a tile's ?focus= naming a status (used · collecting · planned) sets "Status ▾".
+  const url = useAdminTab<Tab>(["overview", "flow", "theses", "points"], "overview");
+  const tab = url.tab;
+  const setTab = (next: Tab) => url.open(next);
   const [highlight, setHighlight] = useState<"all" | ModelId>("all");
-  const [status, setStatus] = useState<"all" | DataPointStatus>("all");
+  const [chosenStatus, setChosenStatus] = useState<"all" | DataPointStatus>("all");
+  const focusStatus = (DATA_POINT_STATUSES as readonly string[]).includes(url.focus ?? "") ? (url.focus as DataPointStatus) : null;
+  const status = focusStatus ?? chosenStatus;
+  const setStatus = (next: "all" | DataPointStatus) => (setChosenStatus(next), focusStatus && setAdminSearch({ focus: null }, { replace: true }));
   return (
     <AdminShell
       title={t("title")}
@@ -53,12 +61,12 @@ export function AdminData() {
           label={t("title")}
           value={tab}
           onChange={setTab}
-          tabs={[
+          tabs={withUnits<Tab>("data", [
             { value: "overview", label: tOverview("tab") },
             { value: "flow", label: t("tab.flow") },
             { value: "theses", label: t("tab.theses") },
             { value: "points", label: t("tab.points"), tooltip: t("never") },
-          ]}
+          ])}
         />
       }
       aside={
@@ -75,13 +83,7 @@ export function AdminData() {
     >
       {tab === "overview" && (
         <DataOverview
-          onOpen={(next, filter) => {
-            setTab(next);
-            if (next === "points") {
-              setHighlight("all");
-              setStatus(filter ?? "all");
-            }
-          }}
+          onOpen={(next) => setTab(next)}
         />
       )}
       {tab === "flow" && <Flow />}
@@ -106,25 +108,59 @@ function DataOverview({ onOpen }: { onOpen: (tab: Exclude<Tab, "overview">, filt
   const stage = (v: ModelStage) => MODELS.filter((m) => m.stage === v).length;
   const dp = (v: DataPointStatus) => DATA_POINTS.filter((d) => d.status === v).length;
   const of = (total: number) => t("ofAll", { total: String(total) });
-  const tile = (key: TileKey, value: number, open: () => void, extra?: string): TileSpec => ({ key, label: t(`${key}.label`), info: t(`${key}.info`), value: String(value), extra, onOpen: open });
+  // Detail lines (CLAUDE.md "fester Kachel-Bauplan"): ordered by importance, as many as fit; only lines short enough for the 217px tile
+  // (≈ 26 characters), so none is ever cut.
+  const FIT = 26;
+  const fits = (line: string | null) => (line && line.length <= FIT ? line : null);
+  const keep = (...lines: (string | null)[]) => lines.map(fits).filter((l): l is string => l !== null);
+  const momentName = (m: Moment) => tData(`moment.${m}`);
+  // Moments by how many points (of a status, or all) they hold, the largest first.
+  const byMoment = (points: readonly DataPoint[]) =>
+    MOMENTS.map((m) => ({ m, n: points.filter((d) => d.moment === m).length }))
+      .filter((x) => x.n > 0)
+      .toSorted((x, y) => y.n - x.n)
+      .map((x) => t("momentCount", { moment: momentName(x.m), count: String(x.n) }));
+  const bases = (points: readonly DataPoint[]) =>
+    (["contract", "consent", "none", "review"] as const).filter((b) => points.some((d) => d.legalBasis === b)).map((b) => t("basisCount", { basis: tData(`basis.${b}`), count: String(points.filter((d) => d.legalBasis === b).length) }));
+  const ofStatus = (v: DataPointStatus) => DATA_POINTS.filter((d) => d.status === v);
+  const modelsIn = (v: ModelStage) => MODELS.filter((m) => m.stage === v).map((m) => m.name);
+  const thesesIn = (v: "supported" | "open" | "rejected") => HYPOTHESES.filter((h) => (results[h.id]?.status ?? "open") === v);
+  // A thesis as a line: its short sentence when it fits, else its measured value ("jetzt 41 % schneller").
+  const thesisLine = (h: (typeof HYPOTHESES)[number]) => (h.short.length <= FIT ? h.short : results[h.id]?.current ? t("thesisNow", { value: results[h.id]!.current! }) : null);
+  const readByModels = DATA_POINTS.filter((d) => d.models.length > 0).length;
+  const tile = (key: TileKey, value: number, open: () => void, details: (string | null)[] = []): TileSpec => ({ key, label: t(`${key}.label`), info: t(`${key}.info`), value: String(value), details: keep(...details), onOpen: open });
   const tiles: TileSpec[] = [
-    tile("points", DATA_POINTS.length, () => onOpen("points")),
-    tile("used", dp("used"), () => onOpen("points", "used"), of(DATA_POINTS.length)),
-    tile("collecting", dp("collecting"), () => onOpen("points", "collecting"), of(DATA_POINTS.length)),
-    tile("planned", dp("planned"), () => onOpen("points", "planned"), of(DATA_POINTS.length)),
-    tile("moments", MOMENTS.length, () => onOpen("flow")),
-    tile("models", MODELS.length, () => onOpen("flow")),
-    tile("idea", stage("idea"), () => onOpen("flow"), of(MODELS.length)),
-    tile("rules", stage("rules"), () => onOpen("flow"), of(MODELS.length)),
-    tile("trained", stage("trained"), () => onOpen("flow"), of(MODELS.length)),
-    tile("decisions", DECISIONS.length, () => onOpen("flow")),
-    tile("theses", HYPOTHESES.length, () => onOpen("theses")),
-    tile("supported", verdict("supported"), () => onOpen("theses"), of(HYPOTHESES.length)),
-    tile("open", verdict("open"), () => onOpen("theses"), of(HYPOTHESES.length)),
-    tile("rejected", verdict("rejected"), () => onOpen("theses"), of(HYPOTHESES.length)),
-    tile("never", NEVER_COLLECTED.length, () => onOpen("points")),
+    tile("points", DATA_POINTS.length, () => onOpen("points"), [
+      t("statusSplit", { used: String(dp("used")), collecting: String(dp("collecting")) }),
+      t("plannedCount", { count: String(dp("planned")) }),
+      t("readBy", { count: String(readByModels) }),
+      ...bases(DATA_POINTS).slice(0, 2),
+    ]),
+    tile("used", dp("used"), () => onOpen("points", "used"), [of(DATA_POINTS.length), ...byMoment(ofStatus("used")).slice(0, 3), ...bases(ofStatus("used")).slice(0, 1)]),
+    tile("collecting", dp("collecting"), () => onOpen("points", "collecting"), [of(DATA_POINTS.length), ...byMoment(ofStatus("collecting")).slice(0, 3), ...bases(ofStatus("collecting")).slice(0, 1)]),
+    tile("planned", dp("planned"), () => onOpen("points", "planned"), [of(DATA_POINTS.length), ...byMoment(ofStatus("planned")).slice(0, 3), ...bases(ofStatus("planned")).slice(0, 1)]),
+    tile("moments", MOMENTS.length, () => onOpen("flow"), [...byMoment(DATA_POINTS).slice(0, 4), t("avgPerMoment", { count: String(Math.round(DATA_POINTS.length / MOMENTS.length)) })]),
+    tile("models", MODELS.length, () => onOpen("flow"), [
+      t("stageSplit", { idea: String(stage("idea")), rules: String(stage("rules")) }),
+      t("trainedCount", { count: String(stage("trained")) }),
+      t("decisionsCount", { count: String(DECISIONS.length) }),
+      t("readBy", { count: String(readByModels) }),
+    ]),
+    tile("idea", stage("idea"), () => onOpen("flow"), [of(MODELS.length), ...modelsIn("idea").slice(0, 4)]),
+    tile("rules", stage("rules"), () => onOpen("flow"), [of(MODELS.length), ...modelsIn("rules").slice(0, 4)]),
+    tile("trained", stage("trained"), () => onOpen("flow"), [of(MODELS.length), ...(stage("trained") ? modelsIn("trained").slice(0, 4) : [t("noneYet")])]),
+    tile("decisions", DECISIONS.length, () => onOpen("flow"), DECISIONS.slice(0, 5)),
+    tile("theses", HYPOTHESES.length, () => onOpen("theses"), [
+      t("verdictSplit", { supported: String(verdict("supported")), open: String(verdict("open")) }),
+      t("rejectedCount", { count: String(verdict("rejected")) }),
+      t("measured", { count: String(HYPOTHESES.filter((h) => results[h.id]?.current).length) }),
+    ]),
+    tile("supported", verdict("supported"), () => onOpen("theses"), [of(HYPOTHESES.length), ...thesesIn("supported").map(thesisLine).slice(0, 4)]),
+    tile("open", verdict("open"), () => onOpen("theses"), [of(HYPOTHESES.length), t("measuredOf", { count: String(thesesIn("open").filter((h) => results[h.id]?.current).length) }), ...thesesIn("open").map(thesisLine).slice(0, 6)]),
+    tile("rejected", verdict("rejected"), () => onOpen("theses"), [of(HYPOTHESES.length), ...thesesIn("rejected").map(thesisLine).slice(0, 4)]),
+    tile("never", NEVER_COLLECTED.length, () => onOpen("points"), [...NEVER_COLLECTED]),
   ];
-  return <TileBoard label={tData("title")} rows={chunkRows(tiles, "plan", 5)} />;
+  return <TileBoard label={tData("title")} rows={chunkRows(routeTiles("data", tiles), "plan", 5)} />;
 }
 /** The overview's tiles (their words in admin.pageTiles.data). */
 type TileKey = "points" | "used" | "collecting" | "planned" | "moments" | "models" | "idea" | "rules" | "trained" | "decisions" | "theses" | "supported" | "open" | "rejected" | "never";

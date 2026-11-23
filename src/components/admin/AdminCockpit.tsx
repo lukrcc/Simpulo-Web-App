@@ -15,28 +15,25 @@ import { useToast } from "@/components/ui/Toast";
 import { useFormat } from "@/i18n/format";
 import { OVERVIEW_GOALS } from "@/config/policies";
 import { OVERVIEW_TARGETS } from "@/config/admin";
-import { useAdminPeriod } from "@/lib/admin/period";
-import { algorithmMetrics, fastestFull, partnerStepDue, waitlistMetrics, periodEnd, periodStart, growthFunnel, growthRows, installRates, needsHelp, needsHelpChange, openHouses, connectionOverview, statusAgainst, getChange, moneyPeriod, cockpit, companyBalance, getStatus, launchProgress, type CockpitNumber } from "@/lib/admin/metrics";
+import { useAdminDay, useAdminFocus, useAdminPeriod } from "@/lib/admin/period";
+import { algorithmMetrics, fastestFull, waitlistMetrics, growthFunnel, growthRows, installRates, installRateOver, needsHelp, needsHelpChange, openHouses, moneyTotals, marketCap, bookingTotals, alignRows, periodEnd, rangesFor, rankByMeasure, analysisRows, connectionOverview, statusAgainst, getChange, moneyPeriod, cockpit, companyBalance, getStatus, launchProgress, type CockpitNumber } from "@/lib/admin/metrics";
 import { useAdminActions } from "@/lib/admin/actions";
 import { useAdminInputs } from "@/lib/admin/useAdminInputs";
 import { useAdminTasks } from "@/lib/admin/useAdminTasks";
 import { taskArea, taskCounts } from "@/lib/admin/tasks";
-import { daysToLaunch, isOpenTodo, nextMilestone } from "@/lib/roadmap";
+import { daysToLaunch, nextMilestone } from "@/lib/roadmap";
 import { LAUNCH, MARKETING_START } from "@/config/roadmap";
-import { usePlanTodos } from "./AdminZeitplan";
-import { HYPOTHESES } from "@/config/hypotheses";
-import { CONTENT_WEEKLY_TARGET } from "@/config/marketing";
-import { getHypothesisResults, getLiveVisitors, getPlatformPayouts } from "@/lib/data";
+import { getLiveVisitors, getPlatformPayouts } from "@/lib/data";
 import { useStore } from "@/lib/store";
 import { ProgressBar, StatusDot } from "./AdminCharts";
-import { AdminButton, AdminDialogFooter, adminButtonStyles } from "./AdminButton";
-import Link from "next/link";
-import { TrendingUp } from "lucide-react";
+import { AdminButton, AdminDialogFooter } from "./AdminButton";
 import { KeyNumbers } from "./AdminNumbers";
 import { AdminSection, AdminShell, StatRow } from "./AdminShell";
 import { TileBoard, type TileRow } from "./AdminTiles";
+import { routeTiles } from "./tileRoutes";
+import { OVERVIEW_ROWS } from "@/config/admin/overview";
 import { useMilestoneName } from "./AdminRoadmap";
-import { day as dayLabel, eur, monthLong, num, pct } from "@/lib/i18n/adminFormat";
+import { day as dayLabel, dec, eur, monthLong, num, pct } from "@/lib/i18n/adminFormat";
 
 function valueText(value: number | null, format: CockpitNumber["format"]): string {
   if (value === null) return "–";
@@ -54,19 +51,32 @@ export function AdminCockpit() {
   const tasks = useAdminTasks();
   const milestoneName = useMilestoneName();
   // Woche · Monat · Quartal · Jahr – the admin's one period (lib/admin/period.ts); every tile counts by it.
-  const [period] = useAdminPeriod();
-  const c = cockpit(inputs, period);
-  const m = moneyPeriod(inputs, period);
+  const [period, setPeriod] = useAdminPeriod();
+  // Opening the overview: Woche and "Ganze Woche" (CLAUDE.md) – days can be picked one by one from there.
+  const [, setDay] = useAdminDay();
+  useEffect(() => {
+    setPeriod("week");
+    setDay(null);
+  }, [setPeriod, setDay]);
+  // "Woche" with a day chosen: every tile shows that day, compared with the same weekday a week before (lib/admin/period.ts).
+  const focus = useAdminFocus(inputs.today);
+  const c = cockpit(inputs, period, focus);
+  const m = moneyPeriod(inputs, period, focus);
   const { profit, nights } = c;
   const against = c.level === "month" ? t("against.month", { month: monthLong(c.compareDate) }) : c.level === "year" ? t("against.year", { year: c.compareDate.slice(0, 4) }) : t(`against.${c.level}`);
   const full = c.areas.find((a) => a.key === "supply")!.number;
   const repeat = c.areas.find((a) => a.key === "quality")!.number;
   const connection = connectionOverview(inputs, c.ranges, c.level);
   const open = openHouses(inputs, c.ranges, period);
-  const funnel = growthFunnel(events, period, inputs.today, c.ranges);
-  const best = growthRows(events, (e) => e.utmSource ?? "", period, inputs.today, c.ranges).find((r) => r.paid > 0);
+  // ONE source: bookings and revenue from the day rows (the same as Geld); the events only split them by channel.
+  const source = bookingTotals(inputs, c.ranges);
+  const funnel = growthFunnel(events, period, inputs.today, c.ranges, source);
+  const channelRows = alignRows(growthRows(events, (e) => e.utmSource ?? "", period, inputs.today, c.ranges), { paid: source.paid.now, revenue: source.revenue.now }, true);
+  const best = channelRows.find((r) => r.paid > 0);
   const bestName = best ? (best.key === "" ? tg("channel.direct") : tg.has(`channel.${best.key}` as Parameters<typeof tg>[0]) ? tg(`channel.${best.key}` as Parameters<typeof tg>[0]) : best.key) : null;
   const installs = installRates(inputs);
+  // Web-App installiert follows the period: the last full months it covers, against as many before.
+  const webApp = installRateOver(inputs, c.level);
   const helpCount = needsHelp(inputs).length;
   const launch = launchProgress(inputs);
   const openApplications = inputs.admin.applications.filter((a) => a.status === "new" || a.status === "maybe").length;
@@ -76,26 +86,16 @@ export function AdminCockpit() {
   // Planen: the launch countdown, the pipeline (contacts → Houses opened), active partners, shorts published this week, theses supported.
   const contacts = inputs.admin.marketingContacts ?? [];
   const partnersActive = (inputs.admin.marketingPartners ?? []).filter((p) => p.agreement.status === "active").length;
-  const weekFrom = periodStart(inputs.today, "week");
-  const weekTo = periodEnd(weekFrom, "week");
-  const shorts = (inputs.admin.contentPosts ?? []).filter((p) => p.status === "published" && p.date >= weekFrom && p.date <= weekTo).length;
-  const results = getHypothesisResults();
-  const supported = HYPOTHESES.filter((h) => results[h.id]?.status === "supported").length;
   const toLaunch = daysToLaunch(inputs.today);
   // Detail lines (CLAUDE.md "Überblick je Seitentyp"): two small lines per tile; on a short window one (the tiles are compact there).
   const td = useTranslations("admin.pageTiles.cockpit");
   const tall = useTallScreen();
-  const lines = (...all: (ReactNode | null | undefined | false)[]) => all.filter((l): l is ReactNode => l !== null && l !== undefined && l !== false).slice(0, 2);
-  // A tile whose number carries two lines beside it (change + target) or a composite value has room for one detail line only.
-  const line = (...all: (ReactNode | null | undefined | false)[]) => lines(...all).slice(0, 1);
+  // 3–4 small lines under the number (CLAUDE.md "Zeitraum mit Tagen"); a line whose value is empty ("Host –") is left out.
+  const lines = (...all: (ReactNode | null | undefined | false)[]) => all.filter((l): l is ReactNode => l !== null && l !== undefined && l !== false && !(typeof l === "string" && /–$/.test(l.trim())));
   const money = (n: number | null) => (n === null ? td("none") : eur(n));
   const share = (part: number, all: number) => (all > 0 ? pct(Math.round((part / all) * 100)) : td("none"));
   const areaCount = (area: ReturnType<typeof taskArea>) => tasks.filter((task) => taskArea(task) === area).length;
   const help = needsHelp(inputs);
-  const appsOpen = inputs.admin.applications.filter((a) => a.status === "new" || a.status === "maybe");
-  const oldestApp = appsOpen.map((a) => a.createdAt).toSorted()[0];
-  const todos = usePlanTodos();
-  const channelRows = growthRows(events, (e) => e.utmSource ?? "", period, inputs.today, c.ranges);
   const channelLabel = (key: string) => (key === "" ? tg("channel.direct") : tg.has(`channel.${key}` as Parameters<typeof tg>[0]) ? tg(`channel.${key}` as Parameters<typeof tg>[0]) : key);
   const byVisits = channelRows.toSorted((a, b) => b.visits - a.visits);
   const secondBest = channelRows.filter((r) => r.paid > 0)[1];
@@ -106,8 +106,41 @@ export function AdminCockpit() {
   const reserved = c.areas.find((a) => a.key === "demand")?.number;
   const network = algorithmMetrics(inputs);
   const partners = inputs.admin.marketingPartners ?? [];
-  const plannedShorts = (inputs.admin.contentPosts ?? []).filter((p) => p.status === "planned" && p.date >= weekFrom && p.date <= weekTo).length;
   const info = (text: string) => `${text} (${against})`;
+  // Days: the stretch shown, today, the average per day and the forecast to the period's end (not for a single day).
+  const DAY = 86_400_000;
+  const dayMs = (d: string) => Date.parse(`${d}T00:00:00Z`);
+  const isoOf = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+  const from = c.ranges.current.from;
+  const to = c.ranges.current.to;
+  const daysSoFar = Math.max(1, Math.round((dayMs(to) - dayMs(from)) / DAY) + 1);
+  const daysInPeriod = focus ? 1 : Math.round((dayMs(periodEnd(from, period)) - dayMs(from)) / DAY) + 1;
+  const todayMoney = moneyTotals(inputs, inputs.today, inputs.today);
+  const forecast = (n: number) => (focus || daysInPeriod <= daysSoFar ? null : Math.round((n / daysSoFar) * daysInPeriod));
+  const perDay = (n: number) => n / daysSoFar;
+  // The strongest day of the stretch (paying guests).
+  const strongest = (() => {
+    if (focus) return null;
+    let best: { date: string; guests: number } | null = null;
+    for (let ms = dayMs(from); ms <= dayMs(to); ms += DAY) {
+      const date = isoOf(ms);
+      const g = moneyTotals(inputs, date, date).guests;
+      if (!best || g > best.guests) best = { date, guests: g };
+    }
+    return best && best.guests > 0 ? best : null;
+  })();
+  const visitorsToday = growthFunnel(events, period, inputs.today, rangesFor("day", inputs.today, inputs.today, inputs.today)).visitors.value;
+  const requestsToday = growthFunnel(events, period, inputs.today, rangesFor("day", inputs.today, inputs.today, inputs.today)).requests.value;
+  const startsSoon = openStays.filter((st) => dayMs(st.startDate) - dayMs(inputs.today) <= 7 * DAY).length;
+  const bestHub = rankByMeasure(analysisRows(inputs, "hub", "12m"), "connection").find((r) => !r.tooFew && r.againMutual !== null);
+  const vsTarget = (value: number | null, target: number) => (value === null ? null : value >= target ? td("aboveTarget", { points: num(value - target) }) : td("belowTarget", { points: num(target - value) }));
+  // Short euros for the small lines: from 10.000 € in thousands.
+  const short = (n: number) => (Math.abs(n) >= 10_000 ? td("thousandEur", { value: dec(Math.round(n / 100) / 10) }) : eur(n));
+  const isToday = !focus;
+  const mc = useMemo(() => marketCap(inputs), [inputs]);
+  // "Gäste 130 € · Hosts 13 €" – with large amounts both in thousands ("Gäste 30,6 · Hosts 3,1 Tsd. €"), so it stays one line.
+  const split = (guests: number, hosts: number) =>
+    Math.max(guests, hosts) >= 10_000 ? td("splitK", { guests: dec(Math.round(guests / 100) / 10), hosts: dec(Math.round(hosts / 100) / 10) }) : td("revenueSplitShort", { guests: eur(guests), hosts: eur(hosts) });
   const pct0 = (v: number | null) => (v === null ? "–" : pct(Math.round(v)));
   const of = (value: number, total: number) => (
     <>
@@ -116,17 +149,17 @@ export function AdminCockpit() {
   );
 
   const allRows: readonly TileRow[] = [
+    // R1 – Heute and Planen: what needs doing and what's next (no row headings: the group shows in each tile's tint and title).
     {
       key: "today",
       group: "today",
-      title: t("rows.today"),
       tiles: [
         {
           key: "inbox",
           label: t("tiles.inbox"),
           info: t("tiles.info.inbox"),
           value: num(taskCounts(tasks).total),
-          details: lines(td("inboxKinds", { safety: num(areaCount("safety")), money: num(areaCount("money")), houses: num(areaCount("houses")) }), td("inboxMore", { hosts: num(areaCount("hosts")), questions: num(areaCount("questions")) })),
+          details: lines(td("inboxSplitA", { safety: num(areaCount("safety")), reports: num(openReports) }), td("inboxSplitB", { applications: num(openApplications), questions: num(areaCount("questions")) }), td("inboxSplitC", { houses: num(areaCount("houses")), money: num(areaCount("money")) })),
           href: "/admin/aufgaben",
         },
         {
@@ -135,46 +168,47 @@ export function AdminCockpit() {
           info: t("tiles.info.needsHelp"),
           value: num(helpCount),
           change: c.level === "month" ? needsHelpChange(inputs, helpCount) : undefined,
-          details: help[0] ? lines(td("helpTop", { title: shortNameOf(help[0].stay) }), td("helpTopLine", { days: help[0].daysToStart, missing: help[0].missing })) : lines(td("helpNone")),
+          details: help[0] ? lines(td("helpTop", { title: shortNameOf(help[0].stay) }), td("helpTopLine", { days: help[0].daysToStart, missing: help[0].missing }), help[1] ? td("helpNext", { title: shortNameOf(help[1].stay) }) : null) : lines(td("helpNone")),
           href: "/admin/aufgaben?tab=houses",
         },
+        // Market Cap instead of the next milestone: the estimate (median of three methods), its change against a month ago, the span and the
+        // growth per month; Planen's colour in the title; a click opens Market Cap.
         {
-          key: "applications",
-          label: t("tiles.applications"),
-          info: t("tiles.info.applications"),
-          value: num(openApplications),
+          key: "marketCap",
+          group: "plan",
+          label: t("tiles.marketCap"),
+          info: t("tiles.info.marketCap"),
+          // In thousands ("228 Tsd. €"), so the number stays whole beside its change.
+          value: td("thousandEurValue", { value: num(Math.round(mc.estimate / 1000)) }),
+          change: mc.change,
           details: lines(
-            td("applicationsSplit", { fresh: num(appsOpen.filter((a) => a.status === "new").length), question: num(appsOpen.filter((a) => a.status === "maybe").length) }),
-            oldestApp ? td("applicationsOldest", { days: Math.max(0, Math.round((Date.parse(inputs.today) - Date.parse(oldestApp.slice(0, 10))) / 86_400_000)) }) : null,
+            td("mcSpanK", { low: num(Math.round(mc.span.low / 1000)), high: num(Math.round(mc.span.high / 1000)) }),
+            mc.drivers.growth === null ? null : td("mcGrowth", { value: `${dec(mc.drivers.growth)} %` }),
+            td("mcMean", { value: short(mc.mean) }),
+            next ? td("milestoneShort", { name: milestoneName(next), days: String(next.days) }) : null,
           ),
-          href: "/admin/aufgaben?tab=hosts",
+          href: "/admin/market-cap",
         },
+        { key: "launch", group: "plan", label: t("tiles.launch"), info: t("tiles.info.launch"), value: toLaunch >= 0 ? t("tiles.inDays", { days: toLaunch }) : t("tiles.launched"), small: true, details: lines(td("launchOn", { date: dayLabel(LAUNCH.date) }), td("marketingOn", { date: dayLabel(MARKETING_START.date) }), td("criteriaMet", { met: num([launch.houses, launch.hubs, launch.reservedShare, launch.waitlist].filter((x) => x.value >= x.target).length), total: num(4) })), href: "/admin/marketing" },
         {
-          key: "reports",
-          label: t("tiles.reports"),
-          info: t("tiles.info.reports"),
-          value: num(openReports),
-          details: lines(
-            td("reportsSplit", { tickets: num(inputs.admin.tickets.filter((tk) => tk.category === "safety" && !tk.mergedInto && (tk.status === "new" || tk.status === "open")).length) }),
-            td("reportsAppeals", { appeals: num(inputs.notices.filter((n) => n.appeal && !n.appeal.decision).length) }),
+          key: "pipeline",
+          group: "plan",
+          label: t("tiles.pipeline"),
+          info: t("tiles.info.pipeline"),
+          value: (
+            <>
+              {num(contacts.length)} <span className="text-muted">→</span> {num(contacts.filter((x) => x.status === "house").length)}
+            </>
           ),
-          href: "/admin/aufgaben?tab=safety",
-        },
-        {
-          key: "milestone",
-          label: t("tiles.milestone"),
-          info: t("tiles.info.milestone"),
-          value: next ? milestoneName(next) : t("tiles.none"),
-          small: true,
-          details: next ? lines(td("milestoneDate", { inDays: t("tiles.inDays", { days: next.days }), date: dayLabel(next.date) }), td("milestoneTodos", { open: todos.filter((x) => x.milestone === next.id && isOpenTodo(x)).length })) : undefined,
-          href: "/admin/zeitplan",
+          details: lines(td("partnersActive", { active: num(partnersActive), all: num(partners.length) }), td("pipelineSplit", { replied: num(contacts.filter((x) => x.status === "replied").length), demo: num(contacts.filter((x) => x.status === "demo").length) }), contacts.length ? td("pipelineRate", { rate: share(contacts.filter((x) => x.status === "house").length, contacts.length) }) : null),
+          href: "/admin/marketing?tab=pipeline",
         },
       ],
     },
+    // R2 – Zahlen: money in the chosen period.
     {
       key: "money",
       group: "numbers",
-      title: t("rows.numbers"),
       tiles: [
         {
           key: "revenue",
@@ -182,7 +216,7 @@ export function AdminCockpit() {
           info: info(tm("terms.revenue.info")),
           value: eur(m.now.revenue),
           change: m.changes.revenue,
-          details: lines(td("revenueSplit", { guests: eur(m.now.serviceFees), hosts: eur(m.now.hostFeeShare) }), td("revenuePer", { per: money(m.now.perGuest), rate: m.now.takeRate === null ? td("none") : pct(Math.round(m.now.takeRate)) })),
+          details: lines(split(m.now.serviceFees, m.now.hostFeeShare), isToday ? td("todayPerDay", { today: eur(todayMoney.revenue), perDay: eur(Math.round(perDay(m.now.revenue))) }) : null, forecast(m.now.revenue) !== null ? td("forecast", { value: short(forecast(m.now.revenue)!) }) : null),
           href: "/admin/money",
         },
         {
@@ -191,7 +225,7 @@ export function AdminCockpit() {
           info: info(tm("terms.profit.info")),
           value: eur(profit.current),
           change: profit.change,
-          details: lines(td("profitSum", { revenue: eur(m.now.revenue), costs: eur(m.now.costs) }), td("profitMargin", { margin: share(m.now.profit, m.now.revenue) })),
+          details: lines(td("profitCosts", { costs: short(m.now.costs) }), td("profitMargin", { margin: share(m.now.profit, m.now.revenue) }), forecast(m.now.profit) !== null ? td("forecast", { value: short(forecast(m.now.profit)!) }) : null),
           href: "/admin/money?tab=costs",
         },
         {
@@ -200,7 +234,7 @@ export function AdminCockpit() {
           info: info(tm("terms.bookingVolume.info")),
           value: eur(m.now.bookingVolume),
           change: m.changes.bookingVolume,
-          details: lines(td("volumeBookings", { count: m.now.guests, avg: money(m.now.bookingPerGuest) }), td("volumeRefunds", { refunds: eur(m.now.refunds) })),
+          details: lines(td("volumeAvg", { avg: money(m.now.bookingPerGuest) }), isToday ? td("todayValue", { value: short(todayMoney.bookingVolume) }) : null, forecast(m.now.bookingVolume) !== null ? td("forecast", { value: short(forecast(m.now.bookingVolume)!) }) : null, td("volumeRefunds", { refunds: short(m.now.refunds) })),
           href: "/admin/money?tab=guests",
         },
         {
@@ -208,18 +242,18 @@ export function AdminCockpit() {
           label: tm("terms.perBooking.label"),
           info: info(tm("terms.perBooking.info")),
           value: m.now.perGuest === null ? "–" : eur(m.now.perGuest),
-          details: line(t("tiles.host", { value: m.now.perHost === null ? "–" : eur(m.now.perHost) }), td("perBookingFees", { fees: eur(m.now.serviceFees) })),
+          details: lines(m.now.perHost === null ? null : t("tiles.host", { value: eur(m.now.perHost) }), td("perBookingFeesShort", { fees: short(m.now.serviceFees) }), m.valuePerGuestYear === null ? null : td("guestYear", { value: eur(m.valuePerGuestYear) }), td("perBookingCountShort", { count: num(m.now.guests) })),
           change: m.changes.perGuest,
           target: { text: t("target", { target: eur(OVERVIEW_GOALS.perBookingGuest) }), status: statusAgainst(m.now.perGuest, OVERVIEW_GOALS.perBookingGuest) },
           href: "/admin/money?tab=guests",
         },
-        { key: "bookings", label: t("tiles.bookings"), info: info(t("tiles.info.bookings")), value: num(m.now.guests), change: getChange("paidBookings", m.now.guests, m.prev.guests), details: lines(td("bookingsFull", { full: num(m.now.full) }), td("bookingsPro", { pro: num(m.now.proHosts) })), href: "/admin/money?tab=guests" },
+        { key: "bookings", label: t("tiles.bookings"), info: info(t("tiles.info.bookings")), value: num(m.now.guests), change: getChange("paidBookings", m.now.guests, m.prev.guests), details: lines(td("bookingsFull", { full: num(m.now.full) }), isToday ? td("todayCount", { count: num(Math.round(todayMoney.guests)) }) : null, strongest ? td("strongestDay", { day: dayLabel(strongest.date), count: num(Math.round(strongest.guests)) }) : null, td("bookingsPro", { pro: num(m.now.proHosts) })), href: "/admin/money?tab=guests" },
       ],
     },
+    // R3 – Zahlen: growth in the chosen period.
     {
       key: "growth",
       group: "numbers",
-      title: "",
       tiles: [
         {
           key: "visitors",
@@ -230,57 +264,59 @@ export function AdminCockpit() {
           details: lines(
             <span key="live">
               <span aria-hidden className="mr-1.5 inline-block size-1.5 rounded-full bg-adm-good align-middle" />
-              {td("visitorsLive", { live: live === null ? td("none") : num(live), requests: num(funnel.requests.value), rate: share(funnel.requests.value, funnel.visitors.value) })}
+              {isToday ? td("liveToday", { live: live === null ? td("none") : num(live), today: num(visitorsToday) }) : td("visitorsLiveShort", { live: live === null ? td("none") : num(live) })}
             </span>,
-            byVisits.length > 0 ? td("visitorsTop", { first: channelLabel(byVisits[0].key), second: byVisits[1] ? channelLabel(byVisits[1].key) : td("none") }) : null,
+            byVisits.length > 0 ? td("topChannel", { name: channelLabel(byVisits[0].key) }) : null,
+            td("requestRate", { rate: share(funnel.requests.value, funnel.visitors.value) }),
           ),
           href: "/admin/growth",
         },
-        { key: "requests", label: t("tiles.requests"), info: info(t("tiles.info.requests")), value: num(funnel.requests.value), change: funnel.requests.change, details: lines(t("tiles.requestRate", { rate: share(funnel.requests.value, funnel.visitors.value) }), td("requestsPaid", { paid: num(funnel.paid.value), rate: share(funnel.paid.value, funnel.requests.value) })), href: "/admin/growth" },
-        { key: "bestChannel", label: t("tiles.bestChannel"), info: info(t("tiles.info.bestChannel")), value: bestName ?? t("tiles.none"), small: true, details: best ? lines(td("channelLine", { paid: best.paid, revenue: eur(best.revenue) }), secondBest ? td("channelNext", { name: channelLabel(secondBest.key), paid: num(secondBest.paid) }) : null) : undefined, href: "/admin/growth?tab=origin" },
-        { key: "webApp", label: t("tiles.webApp"), info: t("tiles.info.webApp"), value: pct0(installs.all.value), change: installs.all.change, details: lines(td("webAppSplit", { ios: pct0(installs.ios.value), android: pct0(installs.android.value) }), installs.ios.booked !== null || installs.android.booked !== null ? td("webAppOf", { count: num((installs.ios.booked ?? 0) + (installs.android.booked ?? 0)) }) : null), href: "/admin/growth?tab=usage" },
-        { key: "waitlist", label: t("tiles.waitlist"), info: t("tiles.info.waitlist"), value: of(launch.waitlist.value, launch.waitlist.target), details: line(td("waitlistSplit", { pending: num(wl.pending), unsubscribed: num(wl.unsubscribed) }), td("waitlistHost", { count: num(wl.wantsToHost) })), href: "/admin/growth?tab=waitlist" },
+        { key: "requests", label: t("tiles.requests"), info: info(t("tiles.info.requests")), value: num(funnel.requests.value), change: funnel.requests.change, details: lines(t("tiles.requestRate", { rate: share(funnel.requests.value, funnel.visitors.value) }), td("requestsPaidShort", { paid: num(funnel.paid.value), rate: share(funnel.paid.value, funnel.requests.value) }), isToday ? td("todayCount", { count: num(requestsToday) }) : null), href: "/admin/growth" },
+        {
+          key: "bestChannel",
+          label: t("tiles.bestChannel"),
+          info: info(t("tiles.info.bestChannel")),
+          // Without a booking in the stretch: the channel with the most visitors and "noch keine Buchung" – never "–".
+          value: bestName ?? (byVisits[0] ? channelLabel(byVisits[0].key) : t("tiles.none")),
+          small: true,
+          details: best
+            ? lines(td("channelLine", { paid: best.paid, revenue: eur(best.revenue) }), td("channelVisits", { visits: num(best.visits) }), secondBest ? td("channelNext", { name: channelLabel(secondBest.key), paid: num(secondBest.paid) }) : null)
+            : byVisits[0]
+              ? lines(td("noBooking"), td("mostVisitors", { visits: num(byVisits[0].visits) }))
+              : undefined,
+          href: "/admin/growth?tab=origin",
+        },
+        { key: "webApp", label: t("tiles.webApp"), info: info(t("tiles.info.webApp")), value: pct0(webApp.value), change: webApp.change, details: lines(td("webAppSplit", { ios: pct0(installs.ios.value), android: pct0(installs.android.value) }), installs.ios.booked !== null || installs.android.booked !== null ? td("webAppOf", { count: num((installs.ios.booked ?? 0) + (installs.android.booked ?? 0)) }) : null, td("webAppMonth")), href: "/admin/growth?tab=usage" },
+        { key: "waitlist", label: t("tiles.waitlist"), info: t("tiles.info.waitlist"), value: of(launch.waitlist.value, launch.waitlist.target), details: lines(td("waitlistLeft", { left: num(Math.max(0, launch.waitlist.target - launch.waitlist.value)) }), td("waitlistSplit", { pending: num(wl.pending), unsubscribed: num(wl.unsubscribed) }), td("waitlistHost", { count: num(wl.wantsToHost) })), href: "/admin/growth?tab=waitlist" },
       ],
     },
+    // R4 – Plattform.
     {
       key: "platform",
       group: "platform",
-      title: t("rows.platform"),
       tiles: [
-        { key: "openHouses", label: t("growthRow.openHouses"), info: info(t("growthRow.info.openHouses")), value: num(open.value), change: open.change, details: lines(td("openHelp", { count: num(helpCount) }), avgFill === null ? null : td("openFill", { fill: pct(avgFill) })), href: "/admin/houses" },
-        { key: "fullHouses", label: t("metric.fullHouses"), info: info(t("info.fullHouses")), value: valueText(full.value, full.format), change: full.change, target: { text: t("target", { target: valueText(full.target, full.format) }), status: full.status }, details: line(fastest ? td("fullFastest", { days: fastest.days }) : null, reserved ? td("fullReserved", { share: valueText(reserved.value, reserved.format) }) : null), href: "/admin/houses" },
-        { key: "nights", label: t("northStar"), info: info(t("info.northStar")), value: num(nights.current), change: nights.change, details: lines(full.value ? td("nightsPer", { per: num(Math.round(nights.current / full.value)) }) : null, td("nightsFull", { full: valueText(full.value, full.format) })), href: "/admin/topics" },
-        { key: "connection", label: t("metric.connectionRate"), info: info(t("info.connectionRate")), value: connection.value === null ? "–" : pct(connection.value), change: connection.change, target: { text: t("target", { target: pct(OVERVIEW_TARGETS.connectionRate) }), status: getStatus("connectionRate", connection.value) }, details: network.allPairs ? lines(td("connectionPairs", { mutual: num(network.mutualPairs), all: num(network.allPairs) })) : undefined, href: "/admin/data" },
-        { key: "repeat", label: t("metric.repeatRate"), info: info(t("info.repeatRate")), value: valueText(repeat.value, repeat.format), change: repeat.change, target: { text: t("target", { target: valueText(repeat.target, repeat.format) }), status: repeat.status }, details: network.guests ? lines(td("repeatGuests", { repeat: num(network.repeatGuests), guests: num(network.guests) })) : undefined, href: "/admin/topics" },
-      ],
-    },
-    {
-      key: "plan",
-      group: "plan",
-      title: t("rows.plan"),
-      tiles: [
-        { key: "launch", label: t("tiles.launch"), info: t("tiles.info.launch"), value: toLaunch >= 0 ? t("tiles.inDays", { days: toLaunch }) : t("tiles.launched"), small: true, details: lines(td("launchDate", { date: dayLabel(LAUNCH.date), start: dayLabel(MARKETING_START.date) })), href: "/admin/marketing" },
-        {
-          key: "pipeline",
-          label: t("tiles.pipeline"),
-          info: t("tiles.info.pipeline"),
-          value: (
-            <>
-              {num(contacts.length)} <span className="text-muted">→</span> {num(contacts.filter((x) => x.status === "house").length)}
-            </>
-          ),
-          details: lines(t("tiles.pipelineLine"), td("pipelineSplit", { replied: num(contacts.filter((x) => x.status === "replied").length), demo: num(contacts.filter((x) => x.status === "demo").length) })),
-          href: "/admin/marketing?tab=pipeline",
-        },
-        { key: "partners", label: t("tiles.partners"), info: t("tiles.info.partners"), value: num(partnersActive), details: lines(td("partnersOf", { all: num(partners.length) }), td("partnersDue", { due: num(partners.filter((p) => partnerStepDue(p, inputs.today)).length) })), href: "/admin/marketing?tab=partners" },
-        { key: "shorts", label: t("tiles.shorts"), info: t("tiles.info.shorts"), value: of(shorts, CONTENT_WEEKLY_TARGET), details: lines(td("shortsPlanned", { planned: num(plannedShorts) })), href: "/admin/marketing?tab=content" },
-        { key: "theses", label: t("tiles.theses"), info: t("tiles.info.theses"), value: of(supported, HYPOTHESES.length), details: lines(td("thesesSplit", { open: num(HYPOTHESES.filter((h) => (results[h.id]?.status ?? "open") === "open").length), rejected: num(HYPOTHESES.filter((h) => results[h.id]?.status === "rejected").length) })), href: "/admin/data" },
+        { key: "openHouses", label: t("growthRow.openHouses"), info: info(t("growthRow.info.openHouses")), value: num(open.value), change: open.change, details: lines(td("openHelp", { count: num(helpCount) }), td("startsSoon", { count: num(startsSoon) }), avgFill === null ? null : td("openFill", { fill: pct(avgFill) })), href: "/admin/houses" },
+        { key: "fullHouses", label: t("metric.fullHouses"), info: info(t("info.fullHouses")), value: valueText(full.value, full.format), change: full.change, target: { text: t("target", { target: valueText(full.target, full.format) }), status: full.status }, details: lines(fastest ? td("fullFastest", { days: fastest.days }) : null, reserved ? td("fullReserved", { share: valueText(reserved.value, reserved.format) }) : null, forecast(full.value ?? 0) !== null && full.value ? td("forecastCount", { value: num(forecast(full.value)!) }) : null), href: "/admin/houses" },
+        { key: "nights", group: "numbers", label: t("northStar"), info: info(t("info.northStar")), value: num(nights.current), change: nights.change, details: lines(full.value ? td("nightsPer", { per: num(Math.round(nights.current / full.value)) }) : null, td("perDayValue", { value: num(Math.round(perDay(nights.current))) }), forecast(nights.current) !== null ? td("forecastCount", { value: num(forecast(nights.current)!) }) : null), href: "/admin/topics" },
+        { key: "connection", group: "plan", label: t("metric.connectionRate"), info: info(t("info.connectionRate")), value: connection.value === null ? "–" : pct(connection.value), change: connection.change, target: { text: t("target", { target: pct(OVERVIEW_TARGETS.connectionRate) }), status: getStatus("connectionRate", connection.value) }, details: lines(network.allPairs ? td("connectionPairsShort", { mutual: num(network.mutualPairs), all: num(network.allPairs) }) : null, bestHub ? td("bestHub", { hub: bestHub.key }) : null, vsTarget(connection.value, OVERVIEW_TARGETS.connectionRate)), href: "/admin/data" },
+        { key: "repeat", group: "numbers", label: t("metric.repeatRate"), info: info(t("info.repeatRate")), value: valueText(repeat.value, repeat.format), change: repeat.change, target: { text: t("target", { target: valueText(repeat.target, repeat.format) }), status: repeat.status }, details: lines(network.guests ? td("repeatGuests", { repeat: num(network.repeatGuests), guests: num(network.guests) }) : null, td("payingGuests", { count: num(Math.round(m.now.guests)) }), vsTarget(repeat.value, repeat.target ?? 0)), href: "/admin/topics" },
       ],
     },
   ];
 
-  // On a short window (1280 × 720) the 25 tiles are compact: no room for detail lines – the first one stays as the tile's one small line.
-  const rows: readonly TileRow[] = tall ? allRows : allRows.map((row) => ({ ...row, tiles: row.tiles.map((tile) => ({ ...tile, extra: tile.extra ?? tile.details?.[0], details: undefined })) }));
+  // The order and each title's colour from config/admin/overview.ts (the row's colour, not the target page's); a tile the config doesn't name
+  // is left out. On a short window (1280 × 720) the tiles are compact: no room for detail lines – the first one stays as the one small line.
+  const byKey = new Map(allRows.flatMap((r) => r.tiles.map((tile) => [tile.key, tile] as const)));
+  const ordered: TileRow[] = OVERVIEW_ROWS.map((r) => ({
+    key: r.key,
+    group: r.tiles[0].group,
+    gaps: r.gapAfter ? [r.gapAfter] : undefined,
+    tiles: r.tiles.flatMap((c) => {
+      const tile = byKey.get(c.key);
+      return tile ? [{ ...tile, group: c.group }] : [];
+    }),
+  }));
+  const rows: readonly TileRow[] = tall ? ordered : ordered.map((row) => ({ ...row, tiles: row.tiles.map((tile) => ({ ...tile, extra: tile.extra ?? tile.details?.[0], details: undefined })) }));
 
   return (
     // Only tiles (CLAUDE.md "Übersicht"): no sentence, no chart (the profit chart lives in Geld › Verlauf). Rows by the side list's groups –
@@ -289,14 +325,9 @@ export function AdminCockpit() {
     <AdminShell
       title={t("title")}
       period="center"
-      aside={
-        <Link href="/admin/market-cap" className={adminButtonStyles("secondary")}>
-          <TrendingUp aria-hidden />
-          {t("marketCap")}
-        </Link>
-      }
     >
-      <TileBoard label={t("title")} rows={rows} />
+      {/* Every tile leads to a capsule of the page it belongs to (config/admin-tiles.ts, "overview"). */}
+      <TileBoard label={t("title")} rows={rows.map((row) => ({ ...row, tiles: routeTiles("overview", row.tiles) }))} spacious colorTitles />
     </AdminShell>
   );
 }

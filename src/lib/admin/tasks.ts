@@ -7,10 +7,10 @@ import type { MarketingPartner, PaymentIssue } from "@/lib/data";
 import type { HostApplication, ModerationNotice, Report, Stay, SupportTicket } from "@/lib/types";
 import { TAX_DEADLINES } from "@/config/admin";
 import { taxDeadlines, type TaxDeadline } from "./ledger";
-import { hostOverview, hostRows, isOpenTicket, needsHelp, type HostRow, launchCriteriaMet, partnerStepDue, type AdminInputs, type HostOverview, type NeedsYou, type RiskReason } from "./metrics";
+import { hostOverview, hostRows, isOpenTicket, needsHelp, valueCheck, type ValueCheckKey, type HostRow, launchCriteriaMet, partnerStepDue, type AdminInputs, type HostOverview, type NeedsYou, type RiskReason } from "./metrics";
 import type { HouseLever } from "@/config/admin";
 
-export const TASK_KINDS = ["report", "appeal", "safety", "money", "deadline", "atRisk", "application", "anchor", "hostWarning", "partnerStep", "support"] as const;
+export const TASK_KINDS = ["report", "appeal", "safety", "money", "deadline", "valueWarning", "atRisk", "application", "anchor", "hostWarning", "partnerStep", "support"] as const;
 export type TaskKind = (typeof TASK_KINDS)[number];
 
 export type AdminTask =
@@ -20,6 +20,8 @@ export type AdminTask =
   | { id: string; kind: "safety" | "support"; createdAt: string; ticket: SupportTicket }
   | { id: string; kind: "money"; createdAt: string; issue: PaymentIssue; stay: Stay | undefined }
   | { id: string; kind: "deadline"; createdAt: string; deadline: TaxDeadline }
+  /** Wert-Check's warning: revenue rose two months in a row while a value number fell (Analyse › Wert-Check) – once per month */
+  | { id: string; kind: "valueWarning"; createdAt: string; month: string; checks: readonly ValueCheckKey[] }
   /** A House that needs help (Houses › Braucht Hilfe): its reasons and the recommended lever (one click in Aufgaben) */
   | { id: string; kind: "atRisk"; createdAt: string; stay: Stay; reasons: readonly RiskReason[]; lever: HouseLever; daysToStart: number; missing: number }
   /** The rules suggest Anchor for a host whose tier isn't Anchor yet (followers) – confirm or decline */
@@ -42,6 +44,10 @@ function buildTasks(inputs: AdminInputs, paymentIssues: readonly PaymentIssue[],
     // A tax deadline shows up `showInTodayDays` (7) days before it (Geld › Steuern › Fristen).
     ...taxDeadlines(inputs.today, TAX_DEADLINES.showInTodayDays).map((deadline): AdminTask => ({ id: `deadline:${deadline.id}`, kind: "deadline", createdAt: deadline.date, deadline })),
     // A House that needs help (needsHelp: "✓ Erledigt" keeps it away for a few days) is as old as it has been quiet (or today).
+    ...(() => {
+      const warning = valueCheck(inputs)?.warning;
+      return warning ? [{ id: `value:${warning.month}`, kind: "valueWarning", createdAt: `${inputs.today}T08:00:00.000Z`, month: warning.month, checks: warning.checks } satisfies AdminTask] : [];
+    })(),
     ...needsHelp(inputs).map(({ stay, reasons, lever, daysToStart, missing }): AdminTask => {
       const quiet = reasons.find((r) => r.key === "quiet");
       return { id: `house:${stay.id}`, kind: "atRisk", createdAt: daysBefore(inputs.today, quiet?.key === "quiet" ? quiet.days : 0), stay, reasons, lever, daysToStart, missing };
@@ -106,7 +112,7 @@ export function taskCounts(tasks: readonly AdminTask[]) {
 /** "Braucht dich": one capsule per kind with open tasks, in the list's order (0 left out); in pre-launch and beta then the launch criteria. */
 export function needsYou(tasks: readonly AdminTask[], inputs: Pick<AdminInputs, "stays" | "admin" | "phase">): NeedsYou[] {
   const { byKind } = taskCounts(tasks);
-  const keyOf = { report: "safety", appeal: "safety", safety: "safety", money: "money", deadline: "deadline", atRisk: "atRisk", application: "applications", anchor: "hostWarning", hostWarning: "hostWarning", partnerStep: "partners", support: "tickets" } as const;
+  const keyOf = { report: "safety", appeal: "safety", safety: "safety", money: "money", deadline: "deadline", valueWarning: "money", atRisk: "atRisk", application: "applications", anchor: "hostWarning", hostWarning: "hostWarning", partnerStep: "partners", support: "tickets" } as const;
   const needs: NeedsYou[] = TASK_KINDS.filter((k) => byKind[k] > 0).map((k) => ({ key: keyOf[k], count: byKind[k] }));
   if (inputs.phase !== "live") {
     const { met, total } = launchCriteriaMet(inputs);
@@ -128,6 +134,7 @@ export function taskArea(task: AdminTask): TaskArea {
       return "safety";
     case "money":
     case "deadline":
+    case "valueWarning":
       return "money";
     case "atRisk":
       return "houses";

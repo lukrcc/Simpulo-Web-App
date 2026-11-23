@@ -12,7 +12,7 @@
 //   Warteliste – the waitlist page as a tab (AdminNested: its own tabs and filters in the second row).
 // Every number from lib/admin/metrics.ts (later from the pre-computed statistics, see there).
 import { Link2, MessageCircle, MousePointerClick, Search, Globe, type LucideIcon, MessageSquare, Share, Ticket, QrCode, ImageIcon, Megaphone, UserPlus, Mail } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useMemo, useState, type ComponentType, type ReactNode } from "react";
 import { findUser, useStore } from "@/lib/store";
@@ -31,14 +31,15 @@ import type { LegalChecklist } from "@/lib/legal/status";
 import { AdminTabs } from "./AdminLayout";
 import { AdminButton, AdminDialogFooter } from "./AdminButton";
 import { TileBoard, chunkRows, type TileSpec } from "./AdminTiles";
+import { routeTiles, withUnits } from "./tileRoutes";
+import { useAdminTab } from "@/lib/admin/urlState";
 import { InfoTip, MetricCard } from "./AdminNumbers";
-import { askingHostMetrics, waitlistMetrics, getChange, growthCosts, growthFunnel, growthRows, installRates, launchProgress, lookedNotAsked, missedRequests, originGroupOf, valueToCost, type GrowthRow } from "@/lib/admin/metrics";
-import { useAdminPeriod } from "@/lib/admin/period";
+import { askingHostMetrics, waitlistMetrics, getChange, growthCosts, growthFunnel, growthRows, installRates, launchProgress, lookedNotAsked, missedRequests, originGroupOf, valueToCost, type GrowthRow, rangesFor, bookingTotals, alignRows, growthSignups, periodRanges } from "@/lib/admin/metrics";
+import { useAdminFocus, useAdminPeriod } from "@/lib/admin/period";
 import { useAdminInputs } from "@/lib/admin/useAdminInputs";
 import { dec, eur, num, pct } from "@/lib/i18n/adminFormat";
 import { shortNameOf } from "@/lib/shortName";
 import { useLiveVisitors } from "./AdminCockpit";
-import { useTallScreen } from "./useTallScreen";
 
 const DIRECT = "\u0000direct";
 const NO_REF = "\u0000none";
@@ -97,13 +98,11 @@ function ChannelIcon({ channel }: { channel: string }) {
 export function AdminGrowth({ legal }: { legal?: LegalChecklist }) {
   const t = useTranslations("admin.growthArea");
   const tAdmin = useTranslations("admin");
-  const router = useRouter();
-  const params = useSearchParams();
-  const raw = params.get("tab");
-  const tab: GrowthTab = (TABS as readonly string[]).includes(raw ?? "") ? (raw as GrowthTab) : "overview";
-  const setTab = (next: GrowthTab) => router.replace(next === "overview" ? "/admin/growth" : `/admin/growth?tab=${next}`, { scroll: false });
+  // The capsule in ?tab= (pushed – back works; a tile adds ?focus=, config/admin-tiles.ts).
+  const { tab, open } = useAdminTab<GrowthTab>(TABS, "overview");
+  const setTab = (next: GrowthTab) => open(next);
 
-  const tabs = <AdminTabs label={t("tabsLabel")} value={tab} onChange={setTab} tabs={TABS.map((key) => ({ value: key, label: t(`tab.${key}`), tooltip: key === "origin" ? t("channelsInfo") : undefined }))} />;
+  const tabs = <AdminTabs label={t("tabsLabel")} value={tab} onChange={setTab} tabs={withUnits("growth", TABS.map((key) => ({ value: key, label: t(`tab.${key}`), tooltip: key === "origin" ? t("channelsInfo") : undefined })))} />;
   // Warteliste: the whole page as a tab (its own tabs and filters in the second row).
   if (tab === "waitlist")
     return (
@@ -126,16 +125,35 @@ export function AdminGrowth({ legal }: { legal?: LegalChecklist }) {
 /** The period's rows by channel ("" → DIRECT), referrer and House – one place for all tabs. */
 function useGrowthData() {
   const { events } = useStore();
-  const { today, admin } = useAdminInputs();
+  const inputs = useAdminInputs();
+  const { today, admin } = inputs;
   const [period] = useAdminPeriod();
+  // "Woche" with a day chosen: that day against the same weekday a week before.
+  const focus = useAdminFocus(today);
+  const focusDay = focus?.from ?? null;
   return useMemo(() => {
-    const byChannel = growthRows(events, (e) => e.utmSource ?? DIRECT, period, today);
-    const byRef = growthRows(events, (e) => e.refUserId ?? NO_REF, period, today).filter((r) => r.key !== NO_REF);
-    const byHouse = growthRows(events, (e) => e.houseId, period, today);
-    const funnel = growthFunnel(events, period, today);
+    const within = focusDay ? rangesFor("day", focusDay, focusDay, today) : undefined;
+    const ranges = within ?? periodRanges(today, period);
+    // ONE source (CLAUDE.md "Admin: eine Datenquelle"): bookings and revenue from the day rows – the same as Geld and Übersicht; the events
+    // split them by channel (exact), referrer and House.
+    const source = bookingTotals(inputs, ranges);
+    const totals = { paid: source.paid.now, revenue: source.revenue.now };
+    const share = (rows: GrowthRow[]) => {
+      const all = growthRows(events, (e) => e.utmSource ?? DIRECT, period, today, within);
+      const eventPaid = all.reduce((n, r) => n + r.paid, 0);
+      const factor = eventPaid > 0 ? totals.paid / eventPaid : 0;
+      const eventRevenue = all.reduce((n, r) => n + r.revenue, 0);
+      const rFactor = eventRevenue > 0 ? totals.revenue / eventRevenue : 0;
+      return rows.map((r) => ({ ...r, paid: Math.round(r.paid * factor), revenue: r.revenue * rFactor }));
+    };
+    const byChannel = alignRows(growthRows(events, (e) => e.utmSource ?? DIRECT, period, today, within), totals, true, DIRECT);
+    const byRef = share(growthRows(events, (e) => e.refUserId ?? NO_REF, period, today, within).filter((r) => r.key !== NO_REF));
+    const byHouse = share(growthRows(events, (e) => e.houseId, period, today, within));
+    const funnel = growthFunnel(events, period, today, within, source);
+    const signups = growthSignups(events, period, today, within);
     const costs = growthCosts(admin.costEntries ?? [], period, today);
-    return { byChannel, byRef, byHouse, funnel, costs, period };
-  }, [events, period, today, admin.costEntries]);
+    return { byChannel, byRef, byHouse, funnel, signups, costs, period, source, ranges };
+  }, [events, period, today, admin.costEntries, focusDay, inputs]);
 }
 
 // ── Überblick ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -152,7 +170,7 @@ function Overview({ onOpen }: { onOpen: (tab: GrowthTab) => void }) {
   const store = useStore();
   const inputs = useAdminInputs();
   const channelName = useChannelName();
-  const { byChannel, byRef, byHouse, funnel, costs, period } = useGrowthData();
+  const { byChannel, byRef, byHouse, funnel, signups, costs, period, source, ranges } = useGrowthData();
   const against = tc(`compare.info.${period}`);
   const rate = (part: number, all: number) => (all > 0 ? pct(Math.round((part / all) * 100)) : tt("none"));
   const best = byChannel.find((r) => r.paid > 0);
@@ -168,77 +186,113 @@ function Overview({ onOpen }: { onOpen: (tab: GrowthTab) => void }) {
   const asking = askingHostMetrics(inputs);
   const waitlist = launchProgress(inputs).waitlist;
   const p0 = (v: number | null) => (v === null ? tt("none") : pct(Math.round(v)));
-  type Key = "visitors" | "requests" | "paid" | "valueToCost" | "bestChannel" | "topRef" | "costs" | "postsShare" | "directShare" | "foundShare" | "lookedNotAsked" | "topHouse" | "installs" | "askToRequest" | "askNote" | "waitlist";
+  type Key = "visitors" | "requests" | "paid" | "valueToCost" | "bestChannel" | "topRef" | "costs" | "origin" | "costPerBooking" | "signups" | "lookedNotAsked" | "topHouse" | "installs" | "askToRequest" | "askNote" | "waitlist";
   const tile = (key: Key, value: TileSpec["value"], tab: GrowthTab, extra: Partial<TileSpec> = {}, periodic = true): TileSpec => ({ key, label: tt(`${key}.label`), info: periodic ? `${tt(`${key}.info`)} ${against}` : tt(`${key}.info`), value, onOpen: () => onOpen(tab), ...extra });
-  // Two or three small lines under each number; on a short window two (the board stays static without scrolling).
-  const tall = useTallScreen();
-  const lines = (...all: (string | null)[]) => ({ details: all.filter((l): l is string => l !== null).slice(0, tall ? 3 : 2) });
+  // The detail lines, most important first – the tile shows as many as fit (measured, CLAUDE.md "fester Kachel-Bauplan").
+  const lines = (...all: (string | null)[]) => ({ details: all.filter((l): l is string => l !== null) });
+  const byRequests = byChannel.filter((r) => r.requests > 0).toSorted((a, b) => b.requests - a.requests);
+  const visitsIn = (group: "posts" | "shared" | "found") => byChannel.filter((r) => originGroupOf(r.key === DIRECT ? "" : r.key) === group).reduce((n, r) => n + r.visits, 0);
+  const refName = (key: string) => findUser(store, key)?.name ?? key;
+  const viewedHouses = byHouse.filter((r) => r.visits > 0).length;
   const live = useLiveVisitors();
   const byVisits = byChannel.filter((r) => r.visits > 0).toSorted((a, b) => b.visits - a.visits);
   const byPaid = byChannel.filter((r) => r.paid > 0);
   const runnerUp = byPaid[1];
   const topIn = (group: "posts" | "shared" | "found") => byPaid.find((r) => originGroupOf(r.key === DIRECT ? "" : r.key) === group);
   const costRows = [...costs.now.byChannel].filter(([, amount]) => amount > 0).toSorted((a, b) => b[1] - a[1]);
+  // Kosten pro Buchung: marketing costs ÷ bookings (the one source), now and before; the priciest channel per booking.
+  const days = Math.max(1, Math.round((Date.parse(`${ranges.current.to}T00:00:00Z`) - Date.parse(`${ranges.current.from}T00:00:00Z`)) / 86_400_000) + 1);
+  const perBooking = source.paid.now > 0 && costs.now.total > 0 ? costs.now.total / source.paid.now : null;
+  const perBookingBefore = source.paid.prev > 0 && costs.before.total > 0 ? costs.before.total / source.paid.prev : null;
+  const priciest = costRows
+    .map(([key, amount]) => ({ key, per: (byChannel.find((r) => r.key === (key === "" ? DIRECT : key))?.paid ?? 0) > 0 ? amount / byChannel.find((r) => r.key === (key === "" ? DIRECT : key))!.paid : null }))
+    .filter((x): x is { key: string; per: number } => x.per !== null)
+    .toSorted((a, b) => b.per - a.per)[0];
   const coldStay = cold[0] ? store.stays.find((s) => s.id === cold[0].key) : undefined;
   const wl = waitlistMetrics(inputs);
   const booked = (installs.ios.booked ?? 0) + (installs.android.booked ?? 0);
-  const shareLines = (group: "posts" | "shared" | "found") => {
-    const top = topIn(group);
-    return lines(tt("detail.shareCount", { count: paidIn(group), all: num(paidAll) }), top ? tt("detail.groupTop", { name: channelName(top.key) }) : null);
-  };
+
   const tiles: TileSpec[] = [
     tile("visitors", num(funnel.visitors.value), "origin", {
       change: funnel.visitors.change,
-      ...lines(live === null ? null : tt("detail.live", { live: num(live) }), byVisits[0] ? tt("detail.top", { first: channelName(byVisits[0].key), second: byVisits[1] ? channelName(byVisits[1].key) : tt("none") }) : null),
+      ...lines(live === null ? null : tt("detail.live", { live: num(live) }), byVisits[0] ? tt("detail.top", { first: channelName(byVisits[0].key), second: byVisits[1] ? channelName(byVisits[1].key) : tt("none") }) : null, tt("detail.toRequests", { count: num(funnel.requests.value), rate: rate(funnel.requests.value, funnel.visitors.value) })),
     }),
     tile("requests", num(funnel.requests.value), "origin", {
       change: funnel.requests.change,
-      ...lines(tt("requestRate", { rate: rate(funnel.requests.value, funnel.visitors.value) }), tt("detail.paidOf", { paid: num(funnel.paid.value), rate: rate(funnel.paid.value, funnel.requests.value) })),
+      ...lines(tt("requestRate", { rate: rate(funnel.requests.value, funnel.visitors.value) }), tt("detail.paidOf", { paid: num(funnel.paid.value), rate: rate(funnel.paid.value, funnel.requests.value) }), byRequests[0] ? tt("detail.topChannel", { name: channelName(byRequests[0].key), count: num(byRequests[0].requests) }) : null),
     }),
     tile("paid", num(funnel.paid.value), "origin", {
       change: funnel.paid.change,
       ...lines(tt("paidRate", { rate: rate(funnel.paid.value, funnel.requests.value) }), tt("detail.revenue", { revenue: eur(Math.round(funnel.revenue.now)), per: funnel.paid.value > 0 ? eur(Math.round(funnel.revenue.now / funnel.paid.value)) : tt("none") }), best ? tt("detail.topChannel", { name: channelName(best.key), count: num(best.paid) }) : null),
     }),
-    tile("valueToCost", ratio === null ? tt("none") : `${dec(ratio)} ×`, "origin", {
+    tile("valueToCost", ratio === null ? "–" : `${dec(ratio)} ×`, "origin", {
       change: getChange("valueToCost", ratio, ratioBefore),
-      ...lines(tt("detail.moneySplit", { revenue: eur(Math.round(funnel.revenue.now)), costs: eur(Math.round(costs.now.total)) }), tt("detail.before", { value: ratioBefore === null ? tt("none") : `${dec(ratioBefore)} ×` })),
+      ...lines(
+        ratio === null ? tt(costs.now.total > 0 ? "detail.noRevenue" : "detail.noCosts") : null,tt("detail.moneySplit", { revenue: eur(Math.round(funnel.revenue.now)), costs: eur(Math.round(costs.now.total)) }), funnel.paid.value > 0 && costs.now.total > 0 ? tt("detail.costPer", { per: eur(Math.round(costs.now.total / funnel.paid.value)) }) : null, ratioBefore === null ? null : tt("detail.before", { value: `${dec(ratioBefore)} ×` })),
     }),
-    tile("bestChannel", best ? channelName(best.key) : tt("none"), "origin", {
+    // Without a booking: the channel with the most visitors and "noch keine Buchung" – never a bare "–".
+    tile("bestChannel", best ? channelName(best.key) : byVisits[0] ? channelName(byVisits[0].key) : "–", "origin", {
       small: true,
-      ...(best ? lines(tt("bestLine", { count: best.paid, revenue: eur(Math.round(best.revenue)) }), tt("detail.channelVisits", { visits: num(best.visits), rate: rate(best.requests, best.visits) }), runnerUp ? tt("detail.next", { name: channelName(runnerUp.key), count: num(runnerUp.paid) }) : null) : {}),
+      ...(best
+        ? lines(tt("bestLine", { count: best.paid, revenue: eur(Math.round(best.revenue)) }), tt("detail.channelVisits", { visits: num(best.visits), rate: rate(best.requests, best.visits) }), runnerUp ? tt("detail.next", { name: channelName(runnerUp.key), count: num(runnerUp.paid) }) : null)
+        : lines(tt(byVisits[0] ? "detail.noBookingMostVisits" : "detail.noVisits"))),
     }),
-    tile("topRef", topRef ? (findUser(store, topRef.key)?.name ?? topRef.key) : tt("none"), "origin", {
+    tile("topRef", topRef ? (findUser(store, topRef.key)?.name ?? topRef.key) : "–", "origin", {
       small: true,
-      ...(topRef ? lines(tt("refLine", { count: topRef.paid }), tt("detail.refVisits", { visits: num(topRef.visits), revenue: eur(Math.round(topRef.revenue)) })) : {}),
+      ...(!topRef ? lines(tt("detail.noRefBooking")) : {}),
+      ...(topRef ? lines(tt("refLine", { count: topRef.paid }), tt("detail.refVisits", { visits: num(topRef.visits), revenue: eur(Math.round(topRef.revenue)) }), byRef.filter((r) => r.paid > 0)[1] ? tt("detail.next", { name: refName(byRef.filter((r) => r.paid > 0)[1].key), count: num(byRef.filter((r) => r.paid > 0)[1].paid) }) : null, tt("detail.refRequests", { count: topRef.requests })) : {}),
     }),
     tile("costs", eur(Math.round(costs.now.total)), "origin", {
       ...lines(costRows[0] ? tt("detail.costTop", { name: channelName(costRows[0][0] === "" ? DIRECT : costRows[0][0]), amount: eur(Math.round(costRows[0][1])) }) : null, funnel.paid.value > 0 && costs.now.total > 0 ? tt("detail.costPer", { per: eur(Math.round(costs.now.total / funnel.paid.value)) }) : null, tt("detail.before", { value: eur(Math.round(costs.before.total)) })),
     }),
-    tile("postsShare", rate(paidIn("posts"), paidAll), "origin", shareLines("posts")),
-    tile("directShare", rate(paidIn("shared"), paidAll), "origin", shareLines("shared")),
-    tile("foundShare", rate(paidIn("found"), paidAll), "origin", shareLines("found")),
+    // Herkunft: the three origin groups in one tile – bookings in all, then "Posts x · Empfohlen y · Gefunden z".
+    tile("origin", num(paidAll), "origin", {
+      ...lines(
+        tt("detail.originSplit", { posts: num(paidIn("posts")), shared: num(paidIn("shared")), found: num(paidIn("found")) }),
+        tt("detail.originShares", { posts: rate(paidIn("posts"), paidAll), shared: rate(paidIn("shared"), paidAll), found: rate(paidIn("found"), paidAll) }),
+        tt("detail.originVisits", { posts: num(visitsIn("posts")), shared: num(visitsIn("shared")), found: num(visitsIn("found")) }),
+        topIn("shared") ? tt("detail.originTopShared", { name: channelName(topIn("shared")!.key) }) : null,
+      ),
+    }),
+    tile("costPerBooking", perBooking === null ? "–" : eur(Math.round(perBooking)), "origin", {
+      change: getChange("costPerBooking", perBooking === null ? null : Math.round(perBooking), perBookingBefore === null ? null : Math.round(perBookingBefore)),
+      ...lines(
+        perBooking === null ? tt(costs.now.total > 0 ? "detail.noBookingYet" : "detail.noCosts") : null,
+        perBookingBefore === null ? null : tt("detail.before", { value: eur(Math.round(perBookingBefore)) }),
+        priciest ? tt("detail.priciest", { name: channelName(priciest.key === "" ? DIRECT : priciest.key), per: eur(Math.round(priciest.per)) }) : null,
+        tt("detail.moneySplit", { revenue: eur(Math.round(funnel.revenue.now)), costs: eur(Math.round(costs.now.total)) }),
+      ),
+    }),
+    tile("signups", num(signups.value), "origin", {
+      change: signups.change,
+      ...lines(
+        tt("detail.signupRate", { rate: rate(signups.value, funnel.visitors.value) }),
+        tt("detail.signupAsked", { count: num(signups.withRequest), rate: rate(signups.withRequest, signups.value) }),
+        tt("detail.signupPerDay", { value: dec(Math.round((signups.value / Math.max(1, days)) * 10) / 10) }),
+      ),
+    }),
     tile("lookedNotAsked", num(cold.length), "houses", {
-      ...lines(coldStay ? tt("detail.coldTop", { title: shortNameOf(coldStay) }) : null, tt("detail.coldRate", { rate: pct(Math.round(lookedNotAsked(byHouse).rate * 100)) })),
+      ...lines(coldStay ? tt("detail.coldTop", { title: shortNameOf(coldStay) }) : null, tt("detail.coldRate", { rate: pct(Math.round(lookedNotAsked(byHouse).rate * 100)) }), tt("detail.viewedHouses", { count: viewedHouses }), tt("detail.totalViews", { count: num(byHouse.reduce((n, r) => n + r.visits, 0)) })),
     }),
     tile("topHouse", topStay?.title ?? tt("none"), "houses", {
       small: true,
-      ...(topHouse ? lines(tt("viewsLine", { views: num(topHouse.visits), requests: num(topHouse.requests) }), tt("detail.houseRate", { rate: rate(topHouse.requests, topHouse.visits), paid: topHouse.paid })) : {}),
+      ...(topHouse ? lines(tt("viewsLine", { views: num(topHouse.visits), requests: num(topHouse.requests) }), tt("detail.houseRate", { rate: rate(topHouse.requests, topHouse.visits), paid: topHouse.paid }), topHouse.revenue > 0 ? tt("detail.houseRevenue", { revenue: eur(Math.round(topHouse.revenue)) }) : null, tt("detail.viewedHouses", { count: viewedHouses })) : {}),
     }),
-    tile("installs", p0(installs.all.value), "usage", { change: installs.all.change, ...lines(tt("installsLine", { ios: p0(installs.ios.value), android: p0(installs.android.value) }), booked > 0 ? tt("detail.installsOf", { count: num(booked) }) : null) }, false),
-    tile("askToRequest", p0(asking.askedToRequest), "usage", { change: asking.change.askToRequest, ...lines(tt("detail.chats", { count: asking.chats }), asking.messagesBeforeRequest === null ? null : tt("detail.messagesBefore", { count: dec(asking.messagesBeforeRequest) })) }, false),
-    tile("askNote", p0(asking.requestsWithNote), "usage", { change: asking.change.askNote, ...lines(tt("detail.requestsCount", { count: asking.requests })) }, false),
+    tile("installs", p0(installs.all.value), "usage", { change: installs.all.change, ...lines(tt("installsLine", { ios: p0(installs.ios.value), android: p0(installs.android.value) }), booked > 0 ? tt("detail.installsOf", { count: num(booked) }) : null, tt("detail.lastMonth")) }, false),
+    tile("askToRequest", p0(asking.askedToRequest), "usage", { change: asking.change.askToRequest, ...lines(tt("detail.chats", { count: asking.chats }), asking.askedToRequest === null ? null : tt("detail.askedCount", { count: Math.round((asking.chats * asking.askedToRequest) / 100) }), asking.messagesBeforeRequest === null ? null : tt("detail.messagesBefore", { count: dec(asking.messagesBeforeRequest) })) }, false),
+    tile("askNote", p0(asking.requestsWithNote), "usage", { change: asking.change.askNote, ...lines(tt("detail.requestsCount", { count: asking.requests }), asking.requestsWithNote === null ? null : tt("detail.noteCount", { count: Math.round((asking.requests * asking.requestsWithNote) / 100) }), tt("detail.lastMonth")) }, false),
     tile(
       "waitlist",
       <>
         {num(waitlist.value)} <span className="text-body text-muted">/ {num(waitlist.target)}</span>
       </>,
       "waitlist",
-      lines(tt("detail.waitSplit", { pending: num(wl.pending), unsubscribed: num(wl.unsubscribed) }), tt("detail.waitHost", { hosts: num(wl.wantsToHost), week: num(wl.lastWeek) })),
+      lines(tt("detail.waitSplit", { pending: num(wl.pending), unsubscribed: num(wl.unsubscribed) }), tt("detail.waitHost", { hosts: num(wl.wantsToHost), week: num(wl.lastWeek) }), waitlist.target > waitlist.value ? tt("detail.waitMissing", { count: num(waitlist.target - waitlist.value) }) : null),
       false,
     ),
   ];
   // Four columns × four rows: wide enough for the numbers beside their change.
-  return <TileBoard label={t("tab.overview")} columns={4} rows={chunkRows(tiles, "numbers", 4)} />;
+  return <TileBoard label={t("tab.overview")} columns={4} rows={chunkRows(routeTiles("growth", tiles), "numbers", 4)} />;
 }
 
 // ── Herkunft ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────

@@ -31,6 +31,7 @@ export const HYPOTHESES: readonly Hypothesis[] = [
   { id: "ownRooms", statement: "Eigene Zimmer verbinden mehr als geteilte", short: "Eigene Zimmer verbinden mehr als geteilte" },
   { id: "pathsMiddle", statement: "Wege durch die Mitte erhöhen die Verbindung, ohne das Wohlfühlen zu senken", short: "Wege durch die Mitte verbinden" },
   { id: "noRetreat", statement: "Ohne Rückzugsort sinkt das Wohlfühlen", short: "Ohne Rückzugsort sinkt das Wohlfühlen" },
+  { id: "levelCourtyard", statement: "Eine Ebene mit hohen Decken und Innenhof verbindet mehr als mehrere Etagen", short: "Eine Ebene mit Innenhof verbindet mehr" },
   { id: "spaceNull", statement: "Nullhypothese: Der Raum ist fast egal, nur Crew und Bogen zählen", short: "Nullhypothese: Der Raum ist fast egal", highlight: true },
   { id: "longevityFill", statement: "Longevity-Houses füllen sich so schnell wie Fitness-Houses", short: "Longevity-Houses füllen so schnell wie Fitness" },
 ];

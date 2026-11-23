@@ -16,7 +16,11 @@ import type { Status } from "@/lib/admin/metrics";
 import { cn } from "@/lib/utils";
 import { useTabScroll } from "@/components/ui/useTabScroll";
 import { COMPARE_PERIODS } from "@/config/admin";
-import { useAdminPeriod } from "@/lib/admin/period";
+import { useAdminDay, useAdminFocus, useAdminPeriod } from "@/lib/admin/period";
+import { periodEnd, periodStart } from "@/lib/admin/metrics";
+import { useAdminInputs } from "@/lib/admin/useAdminInputs";
+import { day as dayLabel } from "@/lib/i18n/adminFormat";
+import { InfoTip } from "./AdminNumbers";
 import { StatusDot } from "./AdminCharts";
 
 export interface AdminTab<T extends string> {
@@ -30,6 +34,10 @@ export interface AdminTab<T extends string> {
    * state in this colour instead of the page's group colour.
    */
   tone?: string;
+  /** Not choosable (a day still to come) – shown greyed */
+  disabled?: boolean;
+  /** Marked (today among the days): a small dot after the name */
+  marked?: boolean;
 }
 
 /**
@@ -74,8 +82,9 @@ export function AdminPageHeader({ title, badge, tabs, controls, center, subTabs 
       data-stuck={stuck || undefined}
       className={cn(
         sticky && "sticky top-(--header-total) z-20 -mx-4 -mt-(--adm-page-top) border-b border-transparent bg-(--bg) px-4 pt-(--adm-page-top) pb-2 transition-colors duration-150 data-stuck:border-ink/8 md:-mx-(--adm-page) md:px-(--adm-page)",
-        // Under a row with tabs (or a second level) the section gap; under a row with settings only, the content starts right under it.
-        sticky && (tabs || subTabs ? "mb-[calc(var(--adm-section)-0.5rem)]" : "mb-[calc(var(--adm-inner)-0.5rem)]"),
+        // ONE gap from the capsule rows to the content on every page (CLAUDE.md "Admin: einheitlicher Kopfbereich"): --adm-header-gap (the bar's
+        // own pb-2 counts in).
+        sticky && "mb-[calc(var(--adm-header-gap)-0.5rem)]",
       )}
     >
       <h1 className="sr-only">{title}</h1>
@@ -95,7 +104,8 @@ export function AdminPageHeader({ title, badge, tabs, controls, center, subTabs 
           {controls && <div className="flex shrink-0 flex-wrap items-center justify-end gap-(--adm-cap-gap)">{controls}</div>}
         </div>
       )}
-      {subTabs && <div className={cn(row && "mt-(--adm-cap-gap)", "pt-1")}>{subTabs}</div>}
+      {/* The second row (sub-tabs, the days of a week) the same distance under the first on every page. */}
+      {subTabs && <div data-admin-head-row2 className={cn(row && "mt-(--adm-header-row-gap)")}>{subTabs}</div>}
     </header>
   );
 }
@@ -128,7 +138,8 @@ export function AdminTabs<T extends string>({ label, tabs, value, onChange, leve
             role="tab"
             aria-selected={on}
             onClick={() => onChange(tab.value)}
-            className="adm-cap"
+            disabled={tab.disabled}
+            className="adm-cap disabled:opacity-35"
             data-on={on || undefined}
             data-tooltip-info={tab.tooltip}
             style={tab.tone ? ({ "--cap-tone": tab.tone } as CSSProperties) : undefined}
@@ -136,6 +147,7 @@ export function AdminTabs<T extends string>({ label, tabs, value, onChange, leve
           >
             {tab.tone && <span aria-hidden className="adm-cap-dot" />}
             {tab.label}
+            {tab.marked && <span aria-hidden data-today className="ml-0.5 inline-block size-1.5 rounded-full bg-current align-middle" />}
             {tab.count !== undefined && <span className="adm-cap-count tabular-nums">{tab.count}</span>}
             {tab.tooltip && <span className="sr-only">. {tab.tooltip}</span>}
           </button>
@@ -157,7 +169,167 @@ export function AdminSubTabs<T extends string>(props: { label: string; tabs: rea
 export function PeriodTabs({ level }: { level?: "main" | "sub" }) {
   const t = useTranslations("admin.cockpit.compare");
   const [period, setPeriod] = useAdminPeriod();
-  return <AdminTabs level={level} label={t("label")} value={period} onChange={setPeriod} tabs={COMPARE_PERIODS.map((value) => ({ value, label: t(value), tooltip: t(`info.${value}`) }))} />;
+  return (
+    <span className="flex items-center gap-3">
+      <AdminTabs level={level} label={t("label")} value={period} onChange={setPeriod} tabs={COMPARE_PERIODS.map((value) => ({ value, label: t(value), tooltip: t(`info.${value}`) }))} />
+      <PeriodRange />
+    </span>
+  );
+}
+
+/**
+ * The period as a menu button right in the click row (CLAUDE.md "Einstellungen als Menü rechts"): "Zeitraum: Woche ▾" – Woche · Monat ·
+ * Quartal · Jahr; with Woche the days follow in the same menu (Mo … So · Ganze Woche: today marked, days to come greyed). Beside it, small,
+ * what the period covers (PeriodRange). Übersicht keeps its centred capsules (PeriodTabs).
+ */
+export function PeriodMenu() {
+  const t = useTranslations("admin.cockpit.compare");
+  const [period, setPeriod] = useAdminPeriod();
+  const [day, setDay] = useAdminDay();
+  const { today } = useAdminInputs();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: PointerEvent) => !ref.current?.contains(e.target as Node) && setOpen(false);
+    const key = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("pointerdown", close);
+    window.addEventListener("keydown", key);
+    return () => {
+      document.removeEventListener("pointerdown", close);
+      window.removeEventListener("keydown", key);
+    };
+  }, [open]);
+  const todayIndex = (new Date(`${today}T00:00:00Z`).getUTCDay() + 6) % 7;
+  const chosenDay = period === "week" && day !== null && day <= todayIndex ? day : null;
+  const item = "flex h-9 w-full items-center justify-between gap-3 rounded-[10px] px-3 text-left text-nav-main text-ink hover:bg-ink/8 disabled:pointer-events-none disabled:opacity-40";
+  return (
+    <span className="flex shrink-0 items-center gap-3">
+      <div ref={ref} className="relative shrink-0">
+        <button type="button" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="adm-cap" data-open={open || undefined} data-period-menu>
+          <span className="adm-cap-count">{t("label")}:</span>
+          {t(period)}
+          {chosenDay !== null && ` · ${t(`days.d${chosenDay}` as "days.d0")}`}
+          <ChevronDown aria-hidden className={cn("size-4 transition-transform", open && "rotate-180")} />
+        </button>
+        {open && (
+          <div role="menu" aria-label={t("label")} className="bar-menu absolute right-0 top-full z-30 mt-2 w-60">
+            {COMPARE_PERIODS.map((value) => (
+              <button
+                key={value}
+                type="button"
+                role="menuitemradio"
+                aria-checked={value === period}
+                data-tooltip-info={t(`info.${value}`)}
+                onClick={() => {
+                  setPeriod(value);
+                  if (value !== "week") setOpen(false);
+                }}
+                className={item}
+              >
+                {t(value)}
+                {value === period && <Check aria-hidden className="size-4" />}
+              </button>
+            ))}
+            {period === "week" && (
+              <>
+                <p className="mt-2 border-t border-(--line) px-3 pb-1 pt-2 text-eyebrow uppercase text-muted">{t("days.label")}</p>
+                <div role="group" aria-label={t("days.label")} className="grid grid-cols-4 gap-1">
+                  {Array.from({ length: 7 }, (_, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={chosenDay === i}
+                      disabled={i > todayIndex}
+                      data-tooltip-info={i > todayIndex ? t("days.future") : i === todayIndex ? t("days.today") : undefined}
+                      onClick={() => {
+                        setDay(i);
+                        setOpen(false);
+                      }}
+                      className={cn("flex h-9 items-center justify-center gap-1 rounded-[10px] text-nav-main text-ink hover:bg-ink/8 disabled:pointer-events-none disabled:opacity-40", chosenDay === i && "bg-ink/12 font-semibold")}
+                    >
+                      {t(`days.d${i}` as "days.d0")}
+                      {i === todayIndex && <span aria-hidden className="inline-block size-1.5 rounded-full bg-current" />}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={chosenDay === null}
+                    onClick={() => {
+                      setDay(null);
+                      setOpen(false);
+                    }}
+                    className={cn("col-span-4 flex h-9 items-center justify-center rounded-[10px] text-nav-main text-ink hover:bg-ink/8", chosenDay === null && "bg-ink/12 font-semibold")}
+                  >
+                    {t("days.all")}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+      <PeriodRange />
+    </span>
+  );
+}
+
+/**
+ * Beside the period: what it covers, small – "KW 48 · 23.–29. Nov" (a day chosen: "Mo 23. Nov."), "1.–23. Nov", "Q4 · 1. Okt – 23. Nov",
+ * "1. Jan – 23. Nov"; its ⓘ says what it is compared with and that a missing comparison reads "neu".
+ */
+export function PeriodRange() {
+  const t = useTranslations("admin.cockpit.compare");
+  const [period] = useAdminPeriod();
+  const { today } = useAdminInputs();
+  const focus = useAdminFocus(today);
+  const d = (date: string) => dayLabel(date).replace(/\.$/, "");
+  const from = periodStart(today, period);
+  const text = focus
+    ? t("range.day", { weekday: t(`days.d${(new Date(`${focus.from}T00:00:00Z`).getUTCDay() + 6) % 7}` as "days.d0"), date: dayLabel(focus.from) })
+    : period === "week"
+      ? t("range.week", { kw: isoWeek(today), from: d(from).replace(/ .*/, ""), to: d(periodEnd(from, "week")) })
+      : period === "month"
+        ? t("range.month", { from: d(from).replace(/ .*/, ""), to: d(today) })
+        : period === "quarter"
+          ? t("range.quarter", { q: Math.floor(Number(today.slice(5, 7)) / 3.01) + 1, from: d(from), to: d(today) })
+          : t("range.year", { from: d(from), to: d(today) });
+  return (
+    <span data-period-range className="inline-flex items-center gap-1 text-small whitespace-nowrap text-muted tabular-nums">
+      {text}
+      <InfoTip text={`${t(`info.${focus ? "day" : period}`)} ${t("fresh")}`} />
+    </span>
+  );
+}
+
+/**
+ * "Woche" chosen: a second row of small capsules – Mo Di Mi Do Fr Sa So · Ganze Woche (the default). Today marked, days to come greyed; a day
+ * makes every tile show that day, compared with the same weekday a week before. Remembered like the period (lib/admin/period.ts).
+ */
+export function PeriodDays() {
+  const t = useTranslations("admin.cockpit.compare");
+  const [period] = useAdminPeriod();
+  const [day, setDay] = useAdminDay();
+  const { today } = useAdminInputs();
+  if (period !== "week") return null;
+  const todayIndex = (new Date(`${today}T00:00:00Z`).getUTCDay() + 6) % 7;
+  type V = "all" | `${number}`;
+  const tabs: AdminTab<V>[] = [
+    ...Array.from({ length: 7 }, (_, i): AdminTab<V> => ({ value: `${i}`, label: t(`days.d${i}` as "days.d0"), disabled: i > todayIndex, marked: i === todayIndex, tooltip: i > todayIndex ? t("days.future") : i === todayIndex ? t("days.today") : undefined })),
+    { value: "all", label: t("days.all") },
+  ];
+  const value: V = day === null || day > todayIndex ? "all" : `${day}`;
+  return <AdminSubTabs<V> label={t("days.label")} value={value} onChange={(v) => setDay(v === "all" ? null : Number(v))} tabs={tabs} />;
+}
+
+/** ISO calendar week of a date (Monday starts the week; the week with the year's first Thursday is week 1). */
+function isoWeek(date: string): number {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7) + 3);
+  const firstThursday = new Date(Date.UTC(d.getUTCFullYear(), 0, 4));
+  return 1 + Math.round(((d.getTime() - firstThursday.getTime()) / 86_400_000 - 3 + ((firstThursday.getUTCDay() + 6) % 7)) / 7);
 }
 
 /** Sort (or any choice from many): one capsule "Sortieren: Wert pro Jahr ▾" in the tabs' look, a small menu under it. */
@@ -280,7 +452,7 @@ export interface ListDetailRow {
  * The list left (about 40 %), the detail right (sticky under the header). A row: dot · (image) · title · one meta line · on the right only
  * ✓ (Erledigt) – or nothing. Everything else in the detail. Phones: the list, then the detail with "‹ Liste".
  */
-export function AdminListDetail({ rows, selectedId, onSelect, onDone, doneLabel, detail, empty, label, head, rowHeight = "min-h-(--adm-row-h)" }: {
+export function AdminListDetail({ rows, selectedId, onSelect, onDone, doneLabel, detail, empty, label, head, rowHeight = "min-h-(--adm-row-h)", listScroll = false }: {
   rows: readonly ListDetailRow[];
   selectedId: string | null;
   onSelect: (id: string) => void;
@@ -294,12 +466,14 @@ export function AdminListDetail({ rows, selectedId, onSelect, onDone, doneLabel,
   rowHeight?: string;
   /** Column heads over the list (Hosts) */
   head?: ReactNode;
+  /** The list scrolls in its own column (from 1024px) and the page stays put – Aufgaben: only the list moves, the detail stands */
+  listScroll?: boolean;
 }) {
   const t = useTranslations("admin.layout");
   if (rows.length === 0) return <div className="py-6">{empty}</div>;
   return (
     <div className="grid gap-x-10 gap-y-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-      <div className={cn("min-w-0", selectedId && "max-lg:hidden")}>
+      <div data-list-column className={cn("min-w-0", selectedId && "max-lg:hidden", listScroll && "scroll-pane lg:max-h-[calc(100dvh-var(--header-total)-var(--adm-bar-h,0px)-var(--adm-header-gap)-2rem)] lg:overflow-y-auto lg:overscroll-contain")}>
       {head}
       <ul aria-label={label} className="divide-y divide-ink/8 border-y border-ink/8">
         {rows.map((row) => {

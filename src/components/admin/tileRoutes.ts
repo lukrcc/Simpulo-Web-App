@@ -1,0 +1,49 @@
+"use client";
+
+// The one way a tile opens (CLAUDE.md "Jede Kachel → eine Kapsel"): its route from config/admin-tiles.ts – on its own page the capsule and
+// focus in the URL (?tab=&focus=, setAdminSearch: back works, links can be shared), on another page a link to that page's capsule. A tile
+// without a route keeps what it had (and dev says so – the config should know it). And its unit (CLAUDE.md "Kapsel = Einheit = eine Frage =
+// eine Farbe"): the title in its capsule's colour, the tiles of one unit side by side (the page's order, else the capsules' order).
+import { ADMIN_PAGES, routeHref, unitColorOf, type AdminPageKey } from "@/config/admin-tiles";
+import { APP_MODE } from "@/lib/appMode";
+import { setAdminSearch } from "@/lib/admin/urlState";
+import type { AdminTab } from "./AdminLayout";
+import type { TileSpec } from "./AdminTiles";
+
+export function routeTiles(page: AdminPageKey, tiles: readonly TileSpec[]): TileSpec[] {
+  const def = ADMIN_PAGES[page];
+  const routed = tiles.map((tile) => {
+    const route = def.tiles[tile.key];
+    if (!route) {
+      if (APP_MODE === "dev") console.warn(`[admin] Kachel ohne Kapsel: ${page} › ${tile.key}`);
+      return tile;
+    }
+    const target = route.page ?? page;
+    // Übersicht keeps its row colours; elsewhere a tile wears its unit's colour (a tile of another page none).
+    const unit = page === "overview" || target !== page ? undefined : (route.unit ?? route.tab);
+    const titleColor = unit ? unitColorOf(page, unit) : null;
+    if (target !== page) return { ...tile, onOpen: undefined, href: routeHref(page, route), unit, titleColor };
+    const first = def.capsules[0]?.key;
+    return { ...tile, href: undefined, onOpen: () => setAdminSearch({ tab: route.tab === first ? null : route.tab, focus: route.focus ?? null }), unit, titleColor };
+  });
+  if (page === "overview") return routed;
+  // The order: the page's own (config), else by unit in the capsules' order (stable; tiles without a unit last).
+  if (def.order) {
+    const at = (key: string) => {
+      const i = def.order!.indexOf(key);
+      return i < 0 ? Number.MAX_SAFE_INTEGER : i;
+    };
+    return routed.toSorted((a, b) => at(a.key) - at(b.key));
+  }
+  const capIndex = (unit: string | undefined) => {
+    const i = def.capsules.findIndex((c) => c.key === unit);
+    return i < 0 ? Number.MAX_SAFE_INTEGER : i;
+  };
+  return routed.toSorted((a, b) => capIndex(a.unit) - capIndex(b.unit));
+}
+
+/** A page's capsules with their unit dot (the tab's `tone`): Überblick none. */
+export function withUnits<T extends string>(page: AdminPageKey, tabs: readonly AdminTab<T>[]): AdminTab<T>[] {
+  return tabs.map((tab) => ({ ...tab, tone: tab.tone ?? unitColorOf(page, tab.value) ?? undefined }));
+}
+

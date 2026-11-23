@@ -48,8 +48,9 @@ export const mockAdapter: DataAdapter = {
   // ⚠ Simulated: around 6 people in the evening, 2 at night, a little noise – the overview reads it again every few seconds.
   getLiveVisitors: () => {
     const hour = new Date().getHours() + new Date().getMinutes() / 60;
-    const base = 4 + 3 * Math.sin(((hour - 13) / 24) * 2 * Math.PI);
-    return Math.max(0, Math.round(base + (Math.random() - 0.5) * 3));
+    // Demo and dev: a few people on the site at any time of day – busier in the afternoon, never 0 (CLAUDE.md "live").
+    const base = 7 + 4 * Math.sin(((hour - 13) / 24) * 2 * Math.PI);
+    return Math.max(2, Math.round(base + (Math.random() - 0.5) * 3));
   },
   getHostTaxData: mockHostTaxData,
 };

@@ -203,12 +203,17 @@ export const MOCK_METRICS_HISTORY = {
    * guests (most search and save before they ever stay); new guests ≈ the guests of the month without the returning ones.
    */
   series: {
-    sharedNights: [790, 980, 1110, 1290, 1520, 1830, 2140, 1390, 2190, 2330, 2470, 2240],
+    // ⚠ Example values; the last four a little higher than before (Wert-Check: the nights per 100 € of revenue keep pace with the fee).
+    sharedNights: [790, 980, 1110, 1290, 1520, 1830, 2140, 1390, 2240, 2500, 2750, 2560],
     bookingVolume: [11900, 15200, 18100, 21400, 26300, 32500, 37400, 25100, 39600, 43300, 47600, 44100],
     activeUsers: [840, 990, 1130, 1290, 1520, 1830, 2160, 1740, 2410, 2680, 2970, 2810],
     newGuests: [58, 69, 76, 86, 99, 117, 133, 88, 136, 141, 147, 128],
     repeatRate: [11, 12, 13, 14, 15, 16, 17, 17, 18, 19, 21, 22],
-    connectionRate: [55, 56, 57, 56, 58, 59, 58, 60, 62, 59, 58, 61],
+    connectionRate: [55, 56, 57, 56, 58, 59, 60, 60, 61, 62, 62, 61],
+    /** ⚠ Example values (Wert-Check): still in touch after 30 days, second House within 6 months, new mutual pairs – all slowly rising. */
+    stillInTouch: [38, 39, 41, 40, 42, 43, 44, 44, 46, 47, 48, 48],
+    secondHouse: [18, 19, 21, 22, 23, 25, 26, 27, 29, 30, 32, 32],
+    mutualPairs: [3, 4, 5, 5, 6, 8, 9, 6, 10, 11, 13, 11],
   },
   /** Guests with a booking who have Simpulo installed: iPhone lower than Android (three taps in Safari against one button), both rising. */
   installs: {

@@ -17,7 +17,7 @@ import { ProgressBar, StatusDot } from "./AdminCharts";
 import { ArrowUpRight, ChartColumn, Code, CreditCard, Database, ExternalLink, Eye, Flame, Globe, HardDrive, Landmark, Mail, ScrollText, Server, Users, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { InfoTip } from "./AdminNumbers";
 import { TileValue } from "./AdminTiles";
 import { profileHref } from "@/lib/privacy";
@@ -39,14 +39,18 @@ import { useAdminInputs } from "@/lib/admin/useAdminInputs";
 import { linkDomain } from "@/lib/links";
 import { socialHandle, socialUrl } from "@/lib/socialLinks";
 import { findUser, useStore } from "@/lib/store";
-import type { ApplicationStatus, HostApplication, HostTier, PlatformPhase } from "@/lib/types";
+import { shortNameOf } from "@/lib/shortName";
+import type { ApplicationStatus, HostApplication, HostTier, PlatformPhase, Stay } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { compact, eur as formatEur, monthYear, num, share } from "@/lib/i18n/adminFormat";
+import { compact, dec, eur as formatEur, monthYear, num, share } from "@/lib/i18n/adminFormat";
 import { Textarea } from "@/components/ui/Input";
 import { PrepareButton, PreparedList } from "./AdminHouses";
 import { AdminNested, AdminSection, AdminShell } from "./AdminShell";
 import { OpenTasksHint } from "./OpenTasksHint";
 import { TileBoard, chunkRows, type TileSpec } from "./AdminTiles";
+import { useFillHeight } from "./useFillHeight";
+import { routeTiles, withUnits } from "./tileRoutes";
+import { setAdminSearch, useAdminTab } from "@/lib/admin/urlState";
 
 // ── Houses: early warning – components/admin/AdminHouseWatch.tsx (AdminHouseList) ──────────────────────────────────────────
 
@@ -91,7 +95,22 @@ function Followers({ count }: { count: number }) {
  * prepared Houses.
  */
 /** "Überblick" first and by default (CLAUDE.md "Überblick zuerst"), then the lists. */
-type HostTab = "overview" | "all" | HostTier | "founding" | "review" | "applications" | "prepared";
+type HostTab = "overview" | "all" | "review" | "applications" | "prepared";
+/** "Alle" narrowed by tier (Share · Pro · Anchor · Founding) and by activity (a House in the next 90 days or not). */
+type TierFilterValue = "all" | HostTier | "founding";
+type ActivityFilter = "all" | "active" | "inactive" | "dormant";
+/** Active: a House running or starting within this many days; dormant: the last House ended longer ago than this. */
+const ACTIVE_DAYS = 90;
+const DORMANT_DAYS = 182;
+function hostActivity(r: HostOverview, today: string): "active" | "inactive" {
+  const until = new Date(Date.parse(`${today}T12:00:00Z`) + ACTIVE_DAYS * 86_400_000).toISOString().slice(0, 10);
+  return r.houses.some((h) => h.endDate >= today && h.startDate <= until && h.status !== "closed") ? "active" : "inactive";
+}
+function isDormant(r: HostOverview, today: string): boolean {
+  if (hostActivity(r, today) === "active") return false;
+  const lastEnd = r.houses.map((h) => h.endDate).toSorted().at(-1);
+  return !lastEnd || Date.parse(lastEnd) < Date.parse(`${today}T12:00:00Z`) - DORMANT_DAYS * 86_400_000;
+}
 type HostSort = "value" | "houses" | "newest";
 const NEW_HOST_DAYS = 30;
 
@@ -103,13 +122,24 @@ export function AdminHosts() {
   const inputs = useAdminInputs();
   const rows = hostOverview(inputs);
   const store = useStore();
-  // Opens on the overview; ?tab=applications (from the overview, old /admin/applications links) opens Bewerbungen, ?host= a host in "Alle".
-  const [tab, setTab] = useState<HostTab>(() => {
-    if (typeof window === "undefined") return "overview";
-    const q = new URLSearchParams(window.location.search);
-    return q.get("tab") === "applications" ? "applications" : q.get("host") ? "all" : "overview";
-  });
-  const [sort, setSort] = useState<HostSort>("value");
+  // The capsule in ?tab= (pushed – back works); ?host= alone opens "Alle". A tile's ?focus= (config/admin-tiles.ts) sets the tier filter
+  // (share · pro · anchor · founding), "Aktivität: Inaktiv" (inactive) or the sort (value · fill · recurring); a menu choice lifts it.
+  const url = useAdminTab<HostTab>(["overview", "all", "review", "applications", "prepared"], "overview");
+  const hostParam = typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("host");
+  const tab: HostTab = url.tab === "overview" && hostParam ? "all" : url.tab;
+  const setTab = (next: HostTab) => url.open(next);
+  const focus = url.focus;
+  const liftFocus = () => focus && setAdminSearch({ focus: null }, { replace: true });
+  const [chosenSort, setChosenSort] = useState<HostSort>("value");
+  const [chosenTier, setChosenTier] = useState<TierFilterValue>("all");
+  const [chosenActivity, setChosenActivity] = useState<ActivityFilter>("all");
+  const focusTier = focus === "share" || focus === "pro" || focus === "anchor" || focus === "founding" ? focus : null;
+  const tierFilter: TierFilterValue = focusTier ?? chosenTier;
+  const activity: ActivityFilter = focus === "inactive" ? "inactive" : chosenActivity;
+  const sort: HostSort = focus === "recurring" ? "houses" : chosenSort;
+  const setSort = (next: HostSort) => (setChosenSort(next), liftFocus());
+  const setTierFilter = (next: TierFilterValue) => (setChosenTier(next), liftFocus());
+  const setActivity = (next: ActivityFilter) => (setChosenActivity(next), liftFocus());
   // A link from the Posteingang opens one host (?host=…).
   const [selectedId, setSelectedId] = useState<string | null>(() => (typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("host")));
   // "Prüfen": new (first House within 30 days) or with a warning – waits for you.
@@ -117,7 +147,11 @@ export function AdminHosts() {
   const review = rows.filter((r) => r.warnings.length > 0 || isNew(r));
   const prepared = store.stays.filter((s) => s.claim).length;
   const applicationsOpen = useAdminData().applications.filter((a) => a.status === "new" || a.status === "maybe").length;
-  const inTab = (r: HostOverview) => (tab === "all" ? true : tab === "review" ? review.includes(r) : tab === "founding" ? isFoundingHost(r.user) : r.tier === tab);
+  const tierOk = (r: HostOverview) => (tierFilter === "all" ? true : tierFilter === "founding" ? isFoundingHost(r.user) : r.tier === tierFilter);
+  const activityOk = (r: HostOverview) => (activity === "all" ? true : activity === "dormant" ? isDormant(r, inputs.today) : hostActivity(r, inputs.today) === activity);
+  const inTab = (r: HostOverview) => (tab === "all" ? tierOk(r) && activityOk(r) : review.includes(r));
+  const tTierF = useTranslations("admin.hosts.tierFilter");
+  const tAct = useTranslations("admin.hosts.activityFilter");
   const shown = rows.filter(inTab).toSorted((a, b) => (sort === "houses" ? b.houses.length - a.houses.length : sort === "newest" ? b.newest.localeCompare(a.newest) : b.valuePerYear - a.valuePerYear));
   const selected = shown.find((r) => r.user.id === selectedId) ?? null;
 
@@ -126,21 +160,23 @@ export function AdminHosts() {
       label={t("tabs.label")}
       value={tab}
       onChange={(next) => (setTab(next), setSelectedId(null))}
-      tabs={[
+      tabs={withUnits<HostTab>("hosts", [
         { value: "overview", label: tAdmin("overviewBlock.tab") },
         { value: "all", label: t("tabs.all"), count: rows.length },
-        ...HOST_TIERS.map((tier) => ({ value: tier, label: tTier(tier), count: rows.filter((r) => r.tier === tier).length, tooltip: t(`tabInfo.${tier}`) })),
-        { value: "founding", label: t("tabs.founding"), count: rows.filter((r) => isFoundingHost(r.user)).length, tooltip: t("tabInfo.founding", { limit: FOUNDING_HOST.limit }) },
         { value: "review", label: t("tabs.review"), count: review.length, tooltip: t("tabInfo.review") },
         { value: "applications", label: t("tabs.applications"), count: applicationsOpen, tooltip: t("tabInfo.applications") },
         { value: "prepared", label: t("tabs.prepared"), count: prepared, tooltip: t("tabInfo.prepared") },
-      ]}
+      ])}
     />
   );
   if (tab === "overview")
     return (
       <AdminShell title={t("title")} tabs={tabs}>
-        <HostsOverview rows={rows} review={review} onOpen={(next, nextSort) => (setTab(next), setSelectedId(null), nextSort && setSort(nextSort))} />
+        <HostsOverview
+          rows={rows}
+          review={review}
+          onOpen={(next) => (setTab(next), setSelectedId(null))}
+        />
       </AdminShell>
     );
   // Bewerbungen: the whole applications page as a tab (its status tabs and tier filter in the second row).
@@ -155,7 +191,33 @@ export function AdminHosts() {
     <AdminShell
       title={t("title")}
       tabs={tabs}
-      aside={tab === "prepared" ? <PrepareButton label={tGrowth("newHouse")} /> : <AdminSort label={t("sort.label")} value={sort} onChange={setSort} options={(["value", "houses", "newest"] as const).map((value) => ({ value, label: t(`sort.${value}`) }))} />}
+      aside={
+        tab === "prepared" ? (
+          <PrepareButton label={tGrowth("newHouse")} />
+        ) : (
+          <>
+            {tab === "all" && (
+              <>
+                <AdminSort
+                  label={tTierF("label")}
+                  trigger={tierFilter === "all" ? tTierF("label") : tTierF(tierFilter)}
+                  value={tierFilter}
+                  onChange={(v) => (setTierFilter(v), setSelectedId(null))}
+                  options={(["all", ...HOST_TIERS, "founding"] as const).map((value) => ({ value, label: `${tTierF(value)} ${num(value === "all" ? rows.length : value === "founding" ? rows.filter((r) => isFoundingHost(r.user)).length : rows.filter((r) => r.tier === value).length)}` }))}
+                />
+                <AdminSort
+                  label={tAct("label")}
+                  trigger={activity === "all" ? tAct("label") : tAct(activity)}
+                  value={activity}
+                  onChange={(v) => (setActivity(v), setSelectedId(null))}
+                  options={(["all", "active", "inactive", "dormant"] as const).map((value) => ({ value, label: tAct(value) }))}
+                />
+              </>
+            )}
+            <AdminSort label={t("sort.label")} value={sort} onChange={setSort} options={(["value", "houses", "newest"] as const).map((value) => ({ value, label: t(`sort.${value}`) }))} />
+          </>
+        )
+      }
     >
       <OpenTasksHint area="hosts" />
       {tab === "prepared" ? (
@@ -204,7 +266,7 @@ export function AdminHosts() {
  * Founding · Prüfen · Bewerbungen · Vorbereitet) and the numbers behind them: average value per year and fill rate, hosts with a warning,
  * anchors against their target. Each tile opens its list (sorted where that helps).
  */
-function HostsOverview({ rows, review, onOpen }: { rows: readonly HostOverview[]; review: readonly HostOverview[]; onOpen: (tab: HostTab, sort?: HostSort) => void }) {
+function HostsOverview({ rows, review, onOpen }: { rows: readonly HostOverview[]; review: readonly HostOverview[]; onOpen: (tab: HostTab, sort?: HostSort, filter?: { tier?: TierFilterValue; activity?: ActivityFilter }) => void }) {
   const t = useTranslations("admin.pageTiles.hosts");
   const tHosts = useTranslations("admin.hosts");
   const inputs = useAdminInputs();
@@ -233,29 +295,67 @@ function HostsOverview({ rows, review, onOpen }: { rows: readonly HostOverview[]
   const warn = (w: HostOverview["warnings"][number]) => rows.filter((r) => r.warnings.includes(w)).length;
   const isNewHost = (r: HostOverview) => r.warnings.length === 0;
   const anchorPending = rows.filter((r) => r.suggested === "anchor" && r.user.hostTier !== "anchor").length;
-  const tile = (key: "all" | "share" | "pro" | "anchor" | "founding" | "review" | "applications" | "prepared" | "value" | "fill" | "warnings" | "anchorTarget", shown: string, details: string[], tab: HostTab, sort?: HostSort): TileSpec => ({
+  const tile = (key: "all" | "share" | "pro" | "anchor" | "founding" | "review" | "applications" | "prepared" | "value" | "fill" | "recurring" | "active", shown: string, details: string[], tab: HostTab, sort?: HostSort, filter?: { tier?: TierFilterValue; activity?: ActivityFilter }): TileSpec => ({
     key,
     label: t(`${key}.label`),
-    info: key === "founding" ? t("founding.info", { limit: String(FOUNDING_HOST.limit) }) : t(`${key}.info`),
+    info: key === "founding" ? t("founding.info", { limit: String(FOUNDING_HOST.limit) }) : key === "active" ? t("active.info", { days: String(ACTIVE_DAYS) }) : t(`${key}.info`),
     value: shown,
     details,
-    onOpen: () => onOpen(tab, sort),
+    onOpen: () => onOpen(tab, sort, filter),
   });
+  // Wiederkehrende Hosts: 2+ Houses over Simpulo; the average gap between a host's House starts; the same share three months ago.
+  const real = (r: HostOverview) => r.houses.filter((h) => h.status !== "closed");
+  const recurringNow = rows.filter((r) => real(r).length >= 2);
+  const before = new Date(Date.parse(`${inputs.today}T12:00:00Z`) - 91 * 86_400_000).toISOString().slice(0, 10);
+  // Three months ago: the Houses that had started by then (their start date – the creation dates of the demo data are all recent).
+  const hostsBefore = rows.filter((r) => real(r).some((h) => h.startDate <= before));
+  const recurringBefore = hostsBefore.filter((r) => real(r).filter((h) => h.startDate <= before).length >= 2);
+  const gaps = recurringNow.flatMap((r) => {
+    const starts = real(r).map((h) => Date.parse(h.startDate)).toSorted((a, b) => a - b);
+    return starts.slice(1).map((s, i) => (s - starts[i]) / 86_400_000);
+  });
+  const avgGap = avg(gaps);
+  const active = rows.filter((r) => hostActivity(r, inputs.today) === "active");
+  // Names in tiles are never cut: the short name when whole, a short title, else the place.
+  const nameOf = (s: Stay) => (!shortNameOf(s).endsWith("…") ? shortNameOf(s) : s.title.length <= 28 ? s.title : s.location.city);
+  const dormant = rows.filter((r) => isDormant(r, inputs.today));
+  // More lines where the tile has room (ordered by importance; the tile shows as many as fit).
+  const verified = (list: readonly HostOverview[]) => t("d.verified", { count: num(list.filter((r) => r.user.verified).length), all: num(list.length) });
+  const warned = (list: readonly HostOverview[]) => t("d.warned", { count: num(list.filter((r) => r.warnings.length > 0).length) });
+  const upcoming = (list: readonly HostOverview[]) => t("d.upcoming", { count: num(list.reduce((n, r) => n + r.houses.filter((h) => h.startDate > inputs.today).length, 0)) });
+  const topOf = (list: readonly HostOverview[]) => {
+    const top = list.toSorted((a, b) => b.valuePerYear - a.valuePerYear)[0];
+    return top ? t("d.top", { name: top.user.name.split(" ")[0], value: formatEur(top.valuePerYear) }) : null;
+  };
+  const perHost = rows.length ? Math.round((rows.reduce((n, r) => n + r.houses.length, 0) / rows.length) * 10) / 10 : null;
+  const hubCount = new Map<string, number>();
+  for (const r of rows) for (const h of r.hubs) hubCount.set(h, (hubCount.get(h) ?? 0) + 1);
+  const topHub = [...hubCount.entries()].toSorted((a, b) => b[1] - a[1])[0];
+  const appHub = new Map<string, number>();
+  for (const a of open) appHub.set(a.hub, (appHub.get(a.hub) ?? 0) + 1);
+  const topAppHub = [...appHub.entries()].toSorted((a, b) => b[1] - a[1])[0];
+  const appFollowers = avg(open.map((a) => a.audienceSize).filter((n) => n > 0));
+  const fillOf = (tier: HostTier) => shareOr(avg(of(tier).map((r) => r.fillRate)));
+  const fills = rows.map((r) => r.fillRate).toSorted((a, b) => a - b);
+  const fillMedian = fills.length ? fills[Math.floor(fills.length / 2)] : null;
+  const firstWarned = rows.find((r) => r.warnings.length > 0);
+  const preparedCities = new Set(preparedStays.map((s) => s.location.city)).size;
+  const lines = (...all: (string | null)[]) => all.filter((l): l is string => l !== null);
   const tiles: TileSpec[] = [
-    tile("all", num(rows.length), [t("d.mix", { share: num(of("share").length), pro: num(of("pro").length), anchor: num(of("anchor").length) }), t("d.newMonth", { count: num(newThisMonth) })], "all"),
-    tile("share", num(of("share").length), [tierLine(of("share")), housesLine(of("share"))], "share"),
-    tile("pro", num(of("pro").length), [tierLine(of("pro")), housesLine(of("pro"))], "pro"),
-    tile("anchor", num(of("anchor").length), [t("d.followers", { count: compact(avg(of("anchor").map((r) => r.followers)) ?? 0) }), t("d.anchorPending", { count: num(anchorPending) })], "anchor"),
-    tile("founding", num(founding.length), [t("d.foundingFree", { free: num(Math.max(0, FOUNDING_HOST.limit - founding.length)), limit: num(FOUNDING_HOST.limit) }), tierLine(founding)], "founding"),
-    tile("review", num(review.length), [t("d.review", { fresh: num(review.filter(isNewHost).length), warned: num(review.length - review.filter(isNewHost).length) }), review[0] ? t("d.first", { name: review[0].user.name }) : t("d.none")], "review"),
-    tile("applications", num(open.length), [t("d.applications", { fresh: num(open.filter((a) => a.status === "new").length), question: num(open.filter((a) => a.status === "maybe").length) }), oldest ? t("d.oldest", { days: num(daysSince(oldest) ?? 0) }) : t("d.none")], "applications"),
-    tile("prepared", num(preparedStays.length), [t("d.prepared", { claimed: num(claimed), open: num(preparedStays.length - claimed) }), preparedStays[0] ? t("d.latest", { title: preparedStays.toSorted((a, b) => b.createdAt.localeCompare(a.createdAt))[0].title }) : t("d.none")], "prepared"),
-    tile("value", eurOr(value), [byValue[0] ? t("d.top", { name: byValue[0].user.name, value: formatEur(byValue[0].valuePerYear) }) : t("d.none"), t("d.median", { value: eurOr(median) })], "all", "value"),
-    tile("fill", shareOr(fill), [t("d.fillHigh", { count: num(rows.filter((r) => r.fillRate >= 0.7).length) }), t("d.fillLow", { count: num(rows.filter((r) => r.fillRate < 0.5).length) })], "all"),
-    tile("warnings", num(rows.filter((r) => r.warnings.length > 0).length), [t("d.warnA", { slow: num(warn("slowAnswers")), low: num(warn("lowFill")) }), t("d.warnB", { reported: num(warn("reported")), safety: num(warn("safety")) })], "review"),
-    tile("anchorTarget", t("anchorTargetValue", { anchors: String(mix.anchors), min: String(mix.target.min), max: String(mix.target.max) }), [t("d.anchorRule"), t("d.anchorPending", { count: num(anchorPending) })], "anchor"),
+    tile("all", num(rows.length), lines(t("d.mix", { share: num(of("share").length), pro: num(of("pro").length), anchor: num(of("anchor").length) }), t("d.newMonth", { count: num(newThisMonth) }), housesLine(rows), perHost === null ? null : t("d.perHost", { value: dec(perHost) }), verified(rows), topHub ? t("d.topHub", { hub: topHub[0], count: num(topHub[1]) }) : null), "all"),
+    tile("share", num(of("share").length), lines(tierLine(of("share")), housesLine(of("share")), upcoming(of("share")), topOf(of("share")), verified(of("share")), warned(of("share"))), "all", undefined, { tier: "share" }),
+    tile("pro", num(of("pro").length), lines(tierLine(of("pro")), housesLine(of("pro")), upcoming(of("pro")), topOf(of("pro")), verified(of("pro")), warned(of("pro"))), "all", undefined, { tier: "pro" }),
+    tile("anchor", num(of("anchor").length), lines(t("d.anchorGoal", { min: num(mix.target.min), max: num(mix.target.max) }), t("d.followers", { count: compact(avg(of("anchor").map((r) => r.followers)) ?? 0) }), t("d.anchorPending", { count: num(anchorPending) }), tierLine(of("anchor")), housesLine(of("anchor")), topOf(of("anchor"))), "all", undefined, { tier: "anchor" }),
+    tile("founding", num(founding.length), lines(t("d.foundingFree", { free: num(Math.max(0, FOUNDING_HOST.limit - founding.length)), limit: num(FOUNDING_HOST.limit) }), tierLine(founding), housesLine(founding), upcoming(founding), verified(founding), warned(founding)), "all", undefined, { tier: "founding" }),
+    tile("review", num(review.length), lines(t("d.review", { fresh: num(review.filter(isNewHost).length), warned: num(review.length - review.filter(isNewHost).length) }), t("d.warnA", { slow: num(warn("slowAnswers")), low: num(warn("lowFill")) }), t("d.warnB", { reported: num(warn("reported")), safety: num(warn("safety")) }), firstWarned ? t("d.first", { name: firstWarned.user.name.split(" ")[0] }) : review[0] ? t("d.first", { name: review[0].user.name.split(" ")[0] }) : null, rows.length ? t("d.ofHosts", { value: share(rows.filter((r) => r.warnings.length > 0).length / rows.length) }) : null), "review"),
+    tile("applications", num(open.length), lines(t("d.applications", { fresh: num(open.filter((a) => a.status === "new").length), question: num(open.filter((a) => a.status === "maybe").length) }), oldest ? t("d.oldest", { days: num(daysSince(oldest) ?? 0) }) : null, open.length ? t("d.appTypes", { share: num(open.filter((a) => a.hostType === "share").length), pro: num(open.filter((a) => a.hostType === "pro").length) }) : null, topAppHub ? t("d.topHub", { hub: topAppHub[0], count: num(topAppHub[1]) }) : null, appFollowers === null ? null : t("d.followers", { count: compact(Math.round(appFollowers)) }), t("d.accepted", { count: num(applications.filter((a) => a.status === "yes").length) })), "applications"),
+    tile("prepared", num(preparedStays.length), lines(t("d.prepared", { claimed: num(claimed), open: num(preparedStays.length - claimed) }), preparedStays[0] ? t("d.latest", { title: nameOf(preparedStays.toSorted((a, b) => b.createdAt.localeCompare(a.createdAt))[0]) }) : null, preparedStays.length ? t("d.cities", { count: preparedCities }) : null), "prepared"),
+    tile("value", eurOr(value), lines(byValue[0] ? t("d.top", { name: byValue[0].user.name.split(" ")[0], value: formatEur(byValue[0].valuePerYear) }) : null, byValue[1] ? t("d.second", { name: byValue[1].user.name.split(" ")[0], value: formatEur(byValue[1].valuePerYear) }) : null, t("d.median", { value: eurOr(median) }), t("d.sum", { value: formatEur(rows.reduce((n, r) => n + r.valuePerYear, 0)) }), t("d.noValue", { count: num(rows.filter((r) => r.valuePerYear === 0).length) })), "all", "value"),
+    tile("fill", shareOr(fill), lines(t("d.fillHigh", { count: num(rows.filter((r) => r.fillRate >= 0.7).length) }), t("d.fillLow", { count: num(rows.filter((r) => r.fillRate < 0.5).length) }), fillMedian === null ? null : t("d.median", { value: share(fillMedian) }), t("d.fillTiers", { share: fillOf("share"), pro: fillOf("pro") }), of("anchor").length ? t("d.fillAnchor", { value: fillOf("anchor") }) : null), "all"),
+    tile("recurring", rows.length ? share(recurringNow.length / rows.length) : "–", lines(t("d.recurringCount", { count: num(recurringNow.length), all: num(rows.length) }), avgGap === null ? t("d.noGap") : t("d.avgGap", { days: num(Math.round(avgGap)) }), hostsBefore.length ? t("d.before", { value: share(recurringBefore.length / hostsBefore.length) }) : t("d.noBefore")), "all", "houses"),
+    tile("active", `${num(active.length)} / ${num(rows.length - active.length)}`, lines(t("d.activeSplit", { active: num(active.length), inactive: num(rows.length - active.length) }), t("d.dormant", { count: num(dormant.length) }), rows.length ? t("d.activeShare", { value: share(active.length / rows.length) }) : null), "all", undefined, { activity: dormant.length ? "dormant" : "inactive" }),
   ];
-  return <TileBoard label={tHosts("title")} columns={4} rows={chunkRows(tiles, "platform", 4)} />;
+  return <TileBoard label={tHosts("title")} columns={4} rows={chunkRows(routeTiles("hosts", tiles), "platform", 4)} />;
 }
 
 /** The columns right in a host's row: tier · Houses · fill rate · value per year · the signal dot (a warning). */
@@ -652,13 +752,16 @@ export function AdminPlatform({ facts = null }: { /** What only the server sees 
   const blockedLive = pending === "live" && addressMissing;
   // Überblick (four tiles, no scrolling) · Einstellungen (phase, values, rules) · Tools (?view=tools) · Launch-Vorbereitung with its Unterreiter:
   // Backlog (config/backlog.ts) · Launch (the checklist, config/launch.ts) · Plattform-Pflichten (config/obligations.ts).
-  const [view, setView] = useState<SystemView>("overview");
+  // The capsule in ?tab= (pushed – back works); the old ?view=tools leads to ?tab=tools.
+  const systemUrl = useAdminTab<SystemView>(["overview", "settings", "tools", "prepare"], "overview");
+  const view = systemUrl.tab;
+  const setView = (next: SystemView) => systemUrl.open(next);
   const [prep, setPrep] = useState<"backlog" | "launch" | "duties">("backlog");
   const router = useRouter();
   // ?view=tools opens Tools; the old „Zeitplan & Vorbereitung“ links (?view=roadmap[&sub=todos][&due=…]) go to Admin › Zeitplan.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get("view") === "tools") return void requestAnimationFrame(() => setView("tools"));
+    if (params.get("view") === "tools") return void setAdminSearch({ tab: "tools", view: null }, { replace: true });
     if (params.get("view") !== "roadmap") return;
     const due = params.get("due");
     const todos = params.get("sub") === "todos";
@@ -780,21 +883,6 @@ export function AdminPlatform({ facts = null }: { /** What only the server sees 
   );
 }
 
-/** The height from an element's top to the window's bottom (minus the page's bottom padding) – from 1024px; null below. */
-function useFillHeight<T extends HTMLElement>(min = 240) {
-  const ref = useRef<T>(null);
-  const [height, setHeight] = useState<number | null>(null);
-  useLayoutEffect(() => {
-    const measure = () => {
-      const top = ref.current?.getBoundingClientRect().top;
-      setHeight(top === undefined || window.innerWidth < 1024 ? null : Math.max(min, Math.floor(window.innerHeight - (top + window.scrollY) - 40)));
-    };
-    measure();
-    window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
-  }, [min]);
-  return [ref, height] as const;
-}
 
 /** The six services on the overview, each with its brand colour as a light tint (admin-tokens.css --adm-brand-*). */
 const OVERVIEW_TOOLS = [
@@ -826,7 +914,7 @@ function SystemOverview({ phase, onPhase, onLaunch }: { phase: PlatformPhase; on
   ] as const;
   const met = criteria.filter((c) => c.p.value >= c.p.target).length;
   const tools = OVERVIEW_TOOLS.map((o) => ({ ...o, tool: TOOLS.find((x) => x.id === o.id) })).filter((o) => o.tool?.url);
-  const tile = "flex min-h-0 min-w-0 flex-col rounded-xl border border-(--line) bg-(--card) p-5";
+  const tile = "adm-tile flex min-h-0 min-w-0 flex-col rounded-xl border p-5";
   const head = "mb-3 text-eyebrow uppercase text-(--adm-label)";
   const values = [
     { label: t("hideCategory"), value: t("realHouses", { count: examples.hideCategoryAtRealCount }) },
@@ -835,7 +923,7 @@ function SystemOverview({ phase, onPhase, onLaunch }: { phase: PlatformPhase; on
     { label: t("launchMonth"), value: launch.targetMonth },
   ];
   return (
-    <div ref={box} data-system-overview className="grid gap-(--adm-inner) lg:grid-cols-2 lg:grid-rows-2" style={height ? ({ height } as CSSProperties) : undefined}>
+    <div ref={box} data-system-overview className="grid gap-(--adm-grid-gap) lg:grid-cols-2 lg:grid-rows-2" style={height ? ({ height } as CSSProperties) : undefined}>
       {/* Phase: the capsules (a change asks first, then the log), what this phase allows now. */}
       <section aria-labelledby="sys-phase" className={tile}>
         <h2 id="sys-phase" className={head}>{t("phase")}</h2>

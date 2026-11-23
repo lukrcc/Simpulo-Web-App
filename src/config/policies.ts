@@ -226,6 +226,12 @@ export const DIRECT_MESSAGE_POLICY = {
  * Admin › Houses › Sichtbarkeit ("Im Explore hervorheben"): a House that needs help moves up in Explore's default order for a while – as if it
  * started `rankShiftDays` earlier (lib/houseHelp.ts). At most `maxConcurrent` Houses at once, each for `days`.
  */
+/**
+ * Simpulo Places' release (Finanzierung › Firmenstruktur, Vision › Schicht 4): before the first build and before any payout, `months` months
+ * over `fillPercent` % occupancy – counted as the months (of the last `months`) whose Houses were on average at least that full.
+ */
+export const PLACES_RELEASE = { months: 12, fillPercent: 80 } as const;
+
 export const HIGHLIGHT_POLICY = { days: 7, maxConcurrent: 3, rankShiftDays: 21 } as const;
 
 /**
@@ -300,6 +306,26 @@ export const MOVE_STREAK = { profitPerMonth: 5000, planFrom: 3, moveFrom: 6 } as
  * a month 44): full Houses (not the launch criterion of 50 real Houses) and what Simpulo earns from a paid booking (the guest's service fee).
  */
 export const OVERVIEW_GOALS = { fullHousesPerMonth: 44, perBookingGuest: 30 } as const;
+
+/**
+ * Admin › Analyse › Wert-Check (Wert statt Abschöpfen): three questions, each with its traffic light – does connection come about, do hosts
+ * stay of their own will, does the value grow faster than the fee. good / warning are the lower bounds (below warning: red). The value per
+ * 100 € of revenue is judged by its trend (its latest full month against `trendMonths` before, in percent). The warning signal (red + a task
+ * in Aufgaben, kind Geld): revenue rises `risingMonths` full months in a row while one of the value numbers falls over the same months by
+ * more than `dropPoints` (shares) or `dropPercent` (per 100 €). ⚠ First values, to be refined with real data.
+ */
+export const VALUE_CHECK = {
+  months: 6,
+  connectionRate: { good: 55, warning: 45 },
+  stillInTouch: { good: 40, warning: 30 },
+  secondHouse: { good: 25, warning: 15 },
+  /** Within this many months a host's second House over Simpulo counts */
+  secondHouseWithinMonths: 6,
+  perHundred: { trendMonths: 3, good: -5, warning: -15 },
+  risingMonths: 2,
+  dropPoints: 2,
+  dropPercent: 5,
+} as const;
 
 /**
  * How long a House is at least (Regel „Mindestens eine Nacht“): living together means at least one night under one roof – no Houses without
