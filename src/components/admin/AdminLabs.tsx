@@ -68,7 +68,6 @@ const LAB_STATUS_TEXT: Record<LabStatus, string> = { idea: "text-muted!", runnin
 /** Room under the grid (the page's bottom padding) and the card height's bounds. */
 const LAB_BOTTOM = 40;
 const LAB_CARD_MIN = 132;
-const LAB_CARD_MAX = 260;
 
 function LabsOverview({ onLab }: { onLab: (id: LabId) => void }) {
   const t = useTranslations("admin.pageTiles.labs");
@@ -81,7 +80,8 @@ function LabsOverview({ onLab }: { onLab: (id: LabId) => void }) {
       if (top === undefined || window.innerWidth < 1024) return setCardH(null);
       const gap = box.current ? parseFloat(getComputedStyle(box.current).rowGap) || 0 : 0; // --adm-grid-gap, as rendered
       const room = window.innerHeight - (top + window.scrollY) - LAB_BOTTOM;
-      setCardH(Math.round(Math.min(LAB_CARD_MAX, Math.max(LAB_CARD_MIN, (room - gap * (rows - 1)) / rows))));
+      // Always the whole height (CLAUDE.md "Kacheln füllen die volle Höhe"): only a floor, no ceiling.
+      setCardH(Math.floor(Math.max(LAB_CARD_MIN, (room - gap * (rows - 1)) / rows)));
     };
     measure();
     window.addEventListener("resize", measure);

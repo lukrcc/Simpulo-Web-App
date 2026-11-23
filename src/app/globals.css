@@ -57,16 +57,26 @@
 [data-site-header] {
   --focus-ring: rgba(244, 238, 231, 0.4);
 }
-/* The admin's bar: compact, 48px (the same logic: text buttons, only the search and "Open a House" filled); the avatar 32px. */
+/* ONE capsule height for everything in the desktop bar (CLAUDE.md "Kopfleiste: gleiche Kapsel-Höhe, exakt mittig"), product and admin: the
+   search field, the active tab, "Open a House", the avatar – --header-pill-h, borders inside it. The bar = the capsule + the same gap above
+   and below (--header-pad-y, the bar's former lower gap) + its 1px foot line (--header-line), so the capsules sit exactly in the middle of
+   the glass above the line. */
+:root {
+  --header-pill-h: 36px;
+  --header-pad-y: 5px;
+  --header-line: 1px;
+  --header-bar-h: calc(var(--header-pill-h) + 2 * var(--header-pad-y) + var(--header-line));
+}
+/* The admin's bar: the same compact bar (text buttons, only the search and "Open a House" filled). */
 @media (min-width: 744px) {
   :root:has([data-site-header][data-admin]) {
-    --header-h: 48px;
-    --header-total: calc(48px + var(--band-h));
+    --header-h: var(--header-bar-h);
+    --header-total: calc(var(--header-bar-h) + var(--band-h));
   }
 }
 [data-site-header][data-admin] [data-header-avatar] {
-  width: 32px;
-  height: 32px;
+  width: var(--header-pill-h);
+  height: var(--header-pill-h);
 }
 /* The avatar in the bar (and the login circle): 40px, round, no ring or edge – the same size and line as the icon buttons. */
 [data-header-avatar] {
@@ -550,21 +560,27 @@ html.sim-standalone {
 }
 @media (min-width: 1100px) {
   :root {
-    --header-h: 48px;
-    --header-total: calc(48px + var(--band-h));
-    --header-open-total: calc(48px + var(--band-h));
+    --header-h: var(--header-bar-h);
+    --header-total: calc(var(--header-bar-h) + var(--band-h));
+    --header-open-total: calc(var(--header-bar-h) + var(--band-h));
     --header-row-total: calc(92px + var(--band-h));
   }
   /* The bar's controls 36px (the search field, Short trips, the themes, More, All filters – product and admin alike), the avatar 32px. */
   [data-site-header] :is(.search-capsule, .short-trips, .bar-capsule, .chip-row [role="radiogroup"] > :is(button, a)) {
-    height: 36px;
+    height: var(--header-pill-h);
+    box-sizing: border-box;
   }
   [data-site-header] [data-explore-slot] {
-    --control-h: 36px;
+    --control-h: var(--header-pill-h);
   }
+  /* The avatar as high as every capsule (its ring drawn inside). */
   [data-site-header] [data-header-avatar] {
-    width: 32px;
-    height: 32px;
+    width: var(--header-pill-h);
+    height: var(--header-pill-h);
+  }
+  /* The row centres its capsules in the glass ABOVE the foot line: the same gap above and below. */
+  [data-site-header] > [data-header-row] {
+    padding-bottom: var(--header-line);
   }
 }
 

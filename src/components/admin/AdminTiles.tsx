@@ -53,7 +53,6 @@ export interface TileRow {
 
 /** The tiles' height: never below (≥ 1280 × 720 without scrolling), never above (large screens). */
 const TILE_MIN = 72;
-const TILE_MAX = 240;
 /** A row heading's height with its gap. */
 const HEADING_H = 22;
 /** Room under the board: the page's bottom padding (--adm-section, 40px). */
@@ -75,7 +74,8 @@ export function chunkRows(tiles: readonly TileSpec[], group: AreaColor, columns 
 
 /**
  * The rows of tiles over the full height left on screen: measured from the board's top to the window's bottom, shared by the rows (with
- * their headings and gaps); the tile height is clamped (TILE_MIN–TILE_MAX), the gaps and the inner padding follow it.
+ * their headings and gaps) – ALWAYS the whole height, 2, 3 or 4 rows alike (CLAUDE.md "Kacheln füllen die volle Höhe"): no empty room at the
+ * bottom; only a floor (TILE_MIN, ≥ 1280 × 720 without scrolling). Taller tiles show more detail lines; the value stays on top.
  */
 export function TileBoard({ rows, columns = 5, label, spacious = false, colorTitles = false, fixedHeight }: { rows: readonly TileRow[]; columns?: 2 | 4 | 5; label: string; /** A fixed tile height instead of filling the screen (the overview's group capsules: the tiles on top, details under them) */ fixedHeight?: number; /** More padding inside the tiles (the overview) – the gaps are the same on every page */ spacious?: boolean; /** Titles in the group colour of the page each tile leads to – only the overview (CLAUDE.md "Farbe nur zur Orientierung") */ colorTitles?: boolean }) {
   const t = useTranslations("admin.cockpit");
@@ -91,7 +91,7 @@ export function TileBoard({ rows, columns = 5, label, spacious = false, colorTit
       const room = window.innerHeight - (top + window.scrollY) - BOTTOM_GAP - headings * HEADING_H;
       // One gap on every page (--adm-grid-gap, admin-tokens.css), read as rendered; the tiles take the rest.
       const gap = box.current ? parseFloat(getComputedStyle(box.current).rowGap) || 0 : 0;
-      const next = Math.round(Math.min(TILE_MAX, Math.max(TILE_MIN, (room - gap * (rows.length - 1)) / rows.length)));
+      const next = Math.floor(Math.max(TILE_MIN, (room - gap * (rows.length - 1)) / rows.length));
       setTileH((now) => (now === next ? now : next));
     };
     measure();

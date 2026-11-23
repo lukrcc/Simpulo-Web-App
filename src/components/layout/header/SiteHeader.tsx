@@ -26,7 +26,7 @@ import { AvatarMenu } from "./AvatarMenu";
 /*
  * Header sizes – do not change without explicit instruction.
  *
- * ONE bar on every page (48px from 1100px – the admin's height –, 64px on tablets; --header-h), fixed at the top, transparent graphite glass (.40, at the very top .62), full width, a 1px line white 10 % at
+ * ONE bar on every page (from 1100px and in the admin --header-bar-h = one capsule height --header-pill-h + the same gap above and below + the foot line; 64px on tablets; --header-h), fixed at the top, transparent graphite glass (.40, at the very top .62), full width, a 1px line white 10 % at
  * its foot, above the page (only dialogs go over it); the content gets its height as padding-top. It never moves while scrolling. The same on
  * every page: the wordmark (→ Explore) · in the middle Explore's quick search, elsewhere the capsule "Where to next?" (the same Where/When
  * sheet, then Explore with the filter) · right the text tabs Explore · Your houses · Messages, the avatar (its account menu, AvatarMenu)
@@ -81,7 +81,7 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
   // Explore's header (its quick search in the bar's slot): /explore, and / once signed in – visitors get the start page there (Landing), with
   // the "Where to next?" search of every other page.
   const explorePage = pathname === "/explore" || (pathname === "/" && Boolean(store.sessionRestored && store.currentUserId));
-  // The admin: a compact bar (48px, data-admin → --header-h in globals.css) and its own search (⌘K, AdminCommandSearch portalled into the slot).
+  // The admin: the same compact bar (--header-bar-h, data-admin → --header-h in globals.css) and its own search (⌘K, AdminCommandSearch portalled into the slot).
   const adminPage = pathname === "/admin" || Boolean(pathname?.startsWith("/admin/"));
   // At the very top (scrollY < 8) the glass is a little more opaque: an IntersectionObserver on AppShell's 1px mark – no scroll listener; only
   // the colour changes (200ms), never the height or the place.
@@ -114,14 +114,14 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
   // The text tabs: 36px, padding 0 14px, 15px medium; from 1100px text buttons without a surface (CLAUDE.md "Kopfleiste leichter"): a light
   // surface only on hover, the page you're on a light one and semibold (--hdr-tab-* in globals.css).
   // Below 1100px the words go and each tab is a 40px circle with its icon (the tooltip is its aria-label).
-  const tab = "press relative inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-full px-3.5 text-nav-main text-ink transition-colors duration-150";
+  const tab = "press relative inline-flex h-(--header-pill-h) shrink-0 items-center justify-center gap-2 rounded-full px-3.5 text-nav-main text-ink transition-colors duration-150";
 
   return (
     // ONE bar on every page: the wordmark · in the middle Explore's quick search (ExploreFeed's portal) or, elsewhere, the capsule "Where to
     // next?" · right the tabs Explore · Your houses · Messages, the avatar and "Open a House".
     <header data-site-header data-admin={adminPage || undefined} className="header-glass fixed inset-x-0 top-(--band-h) z-40 hidden h-(--header-h) md:block">
       {/* Logo · 32px · the groups, 20px apart, left-aligned from the logo · what's left over · 20px at least · the right group, flush right. */}
-      <div className="bar-width flex h-full items-center">
+      <div data-header-row className="bar-width flex h-full items-center">
         {/* The installed app (tablets, desktop): the way back on sub-pages, left of the wordmark (HeaderBack). */}
         <HeaderBack className="mr-2" />
         <Logo className="mr-8 shrink-0" />

@@ -90,6 +90,9 @@ export function Button({ variant = "primary", size = "md", icon = false, classNa
  * fully round, the plus a 16px block on the text's centre line. Below 744px only the plus, a circle of the same height.
  */
 export const headerActionStyles = cn(
-  // The bar's one filled button (CLAUDE.md "Kopfleiste leichter"): primary on the dark glass – cream (never pure white) with ink words, no text shadow; hover a step lighter.
-  "press inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-full bg-(--stage-text) px-4 text-nav-main font-semibold text-(--stage-bg) [text-shadow:none] transition-colors duration-150 hover:bg-[color-mix(in_srgb,var(--stage-text)_50%,var(--action-hover))] max-md:w-9 max-md:px-0 [&_svg]:block [&_svg]:size-4",
+  // The bar's one filled button (CLAUDE.md "Kopfleiste: … Open a House kompakter in Orange"), product and admin: Simpulo's orange – the
+  // logo dot's, in its deeper step (--brand-action-fill) so white words and the plus keep AA (4.7 : 1; the dot's own orange holds 3.2) –,
+  // hover a step darker, pressed like everything (.press). Compact: as high as every capsule (--header-pill-h), less room left and right,
+  // the plus close to the words.
+  "press inline-flex h-(--header-pill-h) shrink-0 items-center justify-center gap-1.5 rounded-full bg-(--brand-action-fill) px-3 text-nav-main font-semibold text-on-signal [text-shadow:none] transition-colors duration-150 hover:bg-(--brand-action-fill-hover) max-md:w-9 max-md:px-0 [&_svg]:block [&_svg]:size-4",
 );

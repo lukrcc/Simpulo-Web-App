@@ -4,7 +4,7 @@
 // focus in the URL (?tab=&focus=, setAdminSearch: back works, links can be shared), on another page a link to that page's capsule. A tile
 // without a route keeps what it had (and dev says so – the config should know it). And its unit (CLAUDE.md "Kapsel = Einheit = eine Frage =
 // eine Farbe"): the tile softly filled in its capsule's colour, the tiles of one unit side by side (the page's order, else the capsules' order).
-import { ADMIN_PAGES, routeHref, unitColorOf, type AdminPageKey } from "@/config/admin-tiles";
+import { ADMIN_PAGES, NEUTRAL_UNIT, routeHref, unitColorOf, type AdminPageKey } from "@/config/admin-tiles";
 import { APP_MODE } from "@/lib/appMode";
 import { setAdminSearch } from "@/lib/admin/urlState";
 import type { AdminTab } from "./AdminLayout";
@@ -21,7 +21,9 @@ export function routeTiles(page: AdminPageKey, tiles: readonly TileSpec[]): Tile
     const target = route.page ?? page;
     // A tile wears its unit's colour – its capsule's (Übersicht too: its group capsules); a tile of another page none.
     const unit = target !== page ? undefined : (route.unit ?? route.tab);
-    const unitColor = unit ? unitColorOf(page, unit) : null;
+    // A tile of another page: neutral silver (never unfilled); else its unit's colour.
+    const unitColor = target !== page ? NEUTRAL_UNIT : unit ? unitColorOf(page, unit) : null;
+    if (APP_MODE === "dev" && !unitColor) console.error(`[admin] Kachel ohne Farbe: ${page} › ${tile.key} (Kapsel ${route.tab})`);
     if (target !== page) return { ...tile, onOpen: undefined, href: routeHref(page, route), unit, unitColor };
     const first = def.capsules[0]?.key;
     return { ...tile, href: undefined, onOpen: () => setAdminSearch({ tab: route.tab === first ? null : route.tab, focus: route.focus ?? null }), unit, unitColor };
@@ -45,6 +47,14 @@ export function routeTiles(page: AdminPageKey, tiles: readonly TileSpec[]): Tile
 
 /** A page's capsules filled in their unit colour (the tab's `tone`): Überblick none. */
 export function withUnits<T extends string>(page: AdminPageKey, tabs: readonly AdminTab<T>[]): AdminTab<T>[] {
-  return tabs.map((tab) => ({ ...tab, tone: tab.tone ?? unitColorOf(page, tab.value) ?? undefined }));
+  return tabs.map((tab) => {
+    const tone = tab.tone ?? unitColorOf(page, tab.value) ?? undefined;
+    // Dev: a capsule without a valid colour is an error – unless the config names it neutral (Überblick, Zeitleiste: unit null).
+    if (APP_MODE === "dev" && !tone) {
+      const def = ADMIN_PAGES[page].capsules.find((c) => c.key === tab.value);
+      if (!def || def.unit !== null) console.error(`[admin] Kapsel ohne Farbe: ${page} › ${tab.value}`);
+    }
+    return { ...tab, tone };
+  });
 }
 

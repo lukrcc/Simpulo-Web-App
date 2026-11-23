@@ -27,7 +27,7 @@ export const TILES_VISION = {
   funding: { label: "Finanzierung", info: "Kriterien der Bereitschaft für die erste Runde – öffnet Admin › Finanzierung.", value: "{met} / {total}", extra: "Kriterien erfüllt" },
   goal: "Ziel: {goal}",
   laneCount: "{segments} Zielgruppen · {revenue} Quellen",
-  nextPhase: "danach: {title}",
+  nextPhase: "nächste Stufe: {title}",
   columnBlocks: "{column}: {count} Bausteine",
   segmentCount: "aus {count} Zielgruppen",
   todayLine: "Simpulo heute {value}",
@@ -54,4 +54,5 @@ export const TILES_VISION = {
   crit: { repeatRate: "Wiederkehrer", fullHousesGrowth: "Wachstum", hubsFill: "Hubs", contribution: "Deckungsbeitrag" },
   critMet: "✓ {name}",
   critOpen: "○ {name}",
+  fundingMissing: "fehlt: {list}",
 } as const;

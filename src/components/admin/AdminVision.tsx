@@ -265,7 +265,7 @@ function VisionOverview({ inputs }: { inputs: AdminInputs }) {
       label: t("funding.label"),
       info: t("funding.info"),
       value: t("funding.value", { met: String(ready.met), total: String(ready.total) }),
-      details: keep(t("funding.extra"), ...[...ready.items.filter((i) => !i.met), ...ready.items.filter((i) => i.met)].map((i) => t(i.met ? "critMet" : "critOpen", { name: critShort[i.key] }))),
+      details: keep(ready.items.some((i) => !i.met) ? t("fundingMissing", { list: ready.items.filter((i) => !i.met).map((i) => critShort[i.key]).join(", ") }) : null, t("funding.extra"), ...ready.items.filter((i) => i.met).map((i) => t("critMet", { name: critShort[i.key] }))),
     },
   ];
   return <TileBoard label={VISION_TITLE} columns={4} rows={chunkRows(routeTiles("vision", tiles), "plan", 4)} />;

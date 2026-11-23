@@ -254,7 +254,7 @@ export const ADMIN_PAGES: Readonly<Record<AdminPageKey, AdminPageDef>> = {
   // Vision: eight tiles, each to its capsule; "Verbindung" opens Schichten with layer 2 chosen, "Finanzierung" its own page.
   vision: {
     path: "/admin/vision",
-    capsules: caps("overview", "layers", "continuum", "market", "segments", "roadmap", "location"),
+    capsules: capsAs(["overview", null], ["layers", "blue"], ["continuum", "green"], ["market", "orange"], ["segments", "lilac"], ["roadmap", "yellow"], ["location", "pink"]),
     tiles: {
       layers: { tab: "layers" },
       continuum: { tab: "continuum" },
@@ -295,6 +295,9 @@ export function routeHref(from: AdminPageKey, route: TileRoute): string {
   const q = params.toString();
   return `${page.path}${q ? `?${q}` : ""}`;
 }
+
+/** A tile that leads to another page: filled in neutral silver (admin-tokens.css --adm-unit-silver), never unfilled. */
+export const NEUTRAL_UNIT = "var(--adm-unit-silver)";
 
 /** A capsule's unit colour as a CSS colour (var(--adm-unit-…)), or null. */
 /** The capsule a tab belongs to when sub-tabs sit under it (Analyse: Ort-Typ, Ort-Herkunft, Hub → "place"; Stufe, Tiefe → "host"). */

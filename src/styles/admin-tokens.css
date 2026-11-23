@@ -917,11 +917,14 @@ body:has(.admin-scope) {
   --adm-unit-orange: var(--adm-group-plan);
   --adm-unit-pink: #ae2f74;
   --adm-unit-lilac: var(--adm-group-platform);
+  /* Neutral: a tile that leads to another page (and nothing else) – silver, filled like the others. */
+  --adm-unit-silver: #77716b;
 }
 :root[data-theme="dark"] .admin-scope,
 :root[data-theme="dark"] body:has(.admin-scope) {
   --adm-unit-yellow: #e3c24f;
   --adm-unit-pink: #f08dc3;
+  --adm-unit-silver: #c8c2bb;
 }
 
 /* Unit colour = a full, soft fill of capsule and tiles; the words stay neutral (CLAUDE.md "Einheiten-Farbe"). A tile of a unit (--unit:
