@@ -1,6 +1,7 @@
 "use client";
 
-import { PageFrame } from "@/components/PageFrame";
+import { FrameStrip, PageFrame } from "@/components/PageFrame";
+import { StripFig } from "@/components/StripFig";
 
 // /h/[id] for members (a guest with a request, a yes or a paid share) and the host – the House area (CLAUDE.md "House-Bereich"): the stage on
 // top in the HeroBand pattern (photo, title, dates · place, the crew's faces, where the House stands: "Starts in 12 days" / "Day 4 of 14" /
@@ -64,8 +65,11 @@ import { AfterForm, ChosenPanel, ClosingPanel, CrewWordsList, HostAfterSummary, 
 import { LockSheet } from "./LockSheet";
 import { PaySheet } from "./PaySheet";
 
-type Tab = "chat" | "crew" | "plan" | "moments" | "me" | "manage";
-const MEMBER_TABS: readonly Tab[] = ["chat", "crew", "plan", "moments", "me"];
+// CLAUDE.md "Klare Ziele für alle House-Karten": Chat · Plan · Crew · Moments, the host also Manage; no "Me" – its content ("Your stay": your
+// payment, getting there, leaving) is a section of Plan. Before and during the House Chat comes first; after it Moments.
+type Tab = "chat" | "plan" | "crew" | "moments" | "manage";
+const TABS_BEFORE: readonly Tab[] = ["chat", "plan", "crew", "moments"];
+const TABS_AFTER: readonly Tab[] = ["moments", "chat", "plan", "crew"];
 const DAY_MS = 86_400_000;
 const dayOf = (iso: string) => Date.parse(`${iso.slice(0, 10)}T00:00:00Z`);
 
@@ -108,11 +112,15 @@ export function HouseArea({ stay, role, ended }: { stay: Stay; role: "member" | 
   const arcStep = params.get("arc");
 
   // The tab: ?tab= (the browser's back walks through them); without one, where you'd look first.
-  const tabs: readonly Tab[] = isHost ? [...MEMBER_TABS, "manage"] : MEMBER_TABS;
+  const over = phase.key === "ended";
+  const memberTabs = over ? TABS_AFTER : TABS_BEFORE;
+  const tabs: readonly Tab[] = isHost ? [...memberTabs, "manage"] : memberTabs;
   const focus = params.get("focus");
-  const fromFocus: Tab | null = focus === "pay" ? "me" : focus === "chat" ? "chat" : isHost && (focus === "requests" || focus === "booking" || focus === "invite") ? "manage" : null;
-  const asked = params.get("tab") as Tab | null;
-  const fallback: Tab = ended ? "me" : isHost ? "manage" : inChat ? "chat" : "me";
+  const fromFocus: Tab | null = focus === "pay" ? "plan" : focus === "chat" ? "chat" : isHost && (focus === "requests" || focus === "booking" || focus === "invite") ? "manage" : null;
+  // Old links to "Me" (?tab=me) open Plan, where "Your stay" is now.
+  const askedRaw = params.get("tab");
+  const asked = (askedRaw === "me" ? "plan" : askedRaw) as Tab | null;
+  const fallback: Tab = ended ? "plan" : isHost ? "manage" : over ? "moments" : inChat ? "chat" : "plan";
   const tab: Tab = asked && tabs.includes(asked) ? asked : (fromFocus ?? fallback);
   const setTab = (next: Tab) => {
     const q = new URLSearchParams(params.toString());
@@ -189,6 +197,17 @@ export function HouseArea({ stay, role, ended }: { stay: Stay; role: "member" | 
           </div>
         </div>
       </PageFrame>
+      {/* Lived in (the House is over): the dark strip with "Do it again" – Open a House from this one, the crew of then invited. */}
+      {over && !ended && (
+        <FrameStrip
+          figures={<StripFig value={f.stayDates({ startDate: stay.startDate, endDate: stay.startDate, datesOpen: true })} label={t("livedInLabel")} />}
+          buttons={
+            <Button variant="cream" href={againHref(stay.id)}>
+              {t("doItAgain")}
+            </Button>
+          }
+        />
+      )}
 
       <div className="page-container explore-width">
         {/* The tabs as capsules (product style); on phones the row scrolls sideways and sticks under the header. */}
@@ -209,9 +228,19 @@ export function HouseArea({ stay, role, ended }: { stay: Stay; role: "member" | 
           )}
           {tab === "chat" && <ChatBody stay={stay} empty={isHost ? t("chat.emptyHost") : t("chat.emptyMember")} />}
           {tab === "crew" && <CrewTab stay={stay} crew={crew} inChat={inChat} />}
-          {tab === "plan" && <PlanTab stay={stay} isHost={isHost} />}
+          {tab === "plan" && (
+            // "Your stay" (your payment, getting there, leaving – what "Me" was) first, then the plan of the House.
+            <div className="flex flex-col gap-12">
+              <section id="your-stay" aria-labelledby="your-stay-title" className="scroll-mt-40">
+                <h2 id="your-stay-title" className="mb-4 text-subhead text-ink">
+                  {t("yourStay")}
+                </h2>
+                <MeTab stay={stay} isHost={isHost} ended={ended} over={over} onPay={() => setPaying(true)} chat={inChat ? `/messages/${crewThreadId(stay.id)}` : null} />
+              </section>
+              {!ended && <PlanTab stay={stay} isHost={isHost} />}
+            </div>
+          )}
           {tab === "moments" && <MomentsTab stay={stay} />}
-          {tab === "me" && <MeTab stay={stay} isHost={isHost} ended={ended} over={phase.key === "ended"} onPay={() => setPaying(true)} chat={inChat ? `/messages/${crewThreadId(stay.id)}` : null} />}
           {tab === "manage" && isHost && <ManageTab stay={stay} />}
         </div>
       </div>

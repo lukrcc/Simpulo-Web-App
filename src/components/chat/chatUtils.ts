@@ -62,7 +62,8 @@ export function buildRows(messages: Message[], firstUnreadId: string | null): Ch
       !newDay &&
       !unread &&
       open.message.senderId === message.senderId &&
-      new Date(message.createdAt).getTime() - new Date(previous.createdAt).getTime() <= GROUP_WINDOW_MS;
+      // Either direction (the newest-first chat builds its rows from the reversed list).
+      Math.abs(new Date(message.createdAt).getTime() - new Date(previous.createdAt).getTime()) <= GROUP_WINDOW_MS;
     if (open && continues) open.last = false;
     const row: Extract<ChatRow, { kind: "message" }> = { kind: "message", key: message.id, message, first: !continues, last: true };
     rows.push(row);

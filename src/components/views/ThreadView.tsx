@@ -7,14 +7,14 @@ import { type ReactNode, use, useEffect, useLayoutEffect, useRef, useState } fro
 import { RequireLogin } from "@/components/auth/RequireLogin";
 import { DoItAgainCard } from "@/components/chat/ChatCards";
 import { Composer, type ReplyDraft } from "@/components/chat/Composer";
-import { MessageList } from "@/components/chat/MessageList";
+import { MessageList, NewestFirstContext } from "@/components/chat/MessageList";
 import { CrewHeader, DirectHeader } from "@/components/chat/ThreadHeader";
 import { useOfferInstall } from "@/components/installPromptContext";
 import { Container } from "@/components/layout/Container";
 import { Button } from "@/components/ui/ActionButton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/PageSkeleton";
-import { chatThemeOf, crewThreadId, findUser, isBlocked, isCrewMember, useStore } from "@/lib/store";
+import { crewThreadId, findUser, isBlocked, isCrewMember, useStore } from "@/lib/store";
 import Link from "next/link";
 import type { Stay, Thread } from "@/lib/types";
 import { CrewVotes } from "@/components/stay/CrewVotes";
@@ -22,11 +22,9 @@ import { useMediaQuery } from "@/lib/useMediaQuery";
 import { MEDIA } from "@/config/breakpoints";
 import { addTicketFollowUp } from "@/lib/admin/store";
 import { SUPPORT_THREAD_ID, useSupportThread } from "@/lib/support/conversation";
-import { chatHouseShare, stayAccentOf } from "@/lib/stageTint";
-import { chatThemeStyle } from "@/config/chat-themes";
-import { housePhotos } from "@/lib/utils";
 import { LifeBuoy } from "lucide-react";
 import { useVisualViewport } from "@/lib/useVisualViewport";
+import { MESSENGER } from "@/config/messenger";
 
 /** /messages/[threadId] – the mobile detail page. On desktop the same chat opens inside /messages. */
 export function ThreadView({ params }: { params: Promise<{ threadId: string }> }) {
@@ -78,7 +76,7 @@ function SupportContent({ embedded }: { embedded: boolean }) {
     <ThreadFrame
       embedded={embedded}
       head={
-        <div className="flex h-16 items-center gap-3 px-5">
+        embedded ? undefined : <div className="flex h-16 items-center gap-3 px-5">
           <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-ink text-inverse">
             <LifeBuoy aria-hidden className="size-5" />
           </span>
@@ -171,7 +169,7 @@ function UpdatesContent({ thread, embedded }: { thread: Thread; embedded: boolea
     markThreadRead(thread.id);
   }, [messageCount, thread.id, markThreadRead]);
   return (
-    <ThreadFrame embedded={embedded} head={<p className="flex h-16 items-center px-5 text-h3 text-ink">{t("inbox.updates")}</p>}>
+    <ThreadFrame embedded={embedded} head={embedded ? undefined : <p className="flex h-16 items-center px-5 text-h3 text-ink">{t("inbox.updates")}</p>}>
       <MessageList thread={thread} emptyText={t("thread.notFound")} onReply={() => {}} />
     </ThreadFrame>
   );
@@ -181,11 +179,12 @@ function UpdatesContent({ thread, embedded }: { thread: Thread; embedded: boolea
  * The chat: messages over the whole height, the glass head and the floating glass composer over them. Both can grow (a pinned vote, a reply
  * being written), so their heights are measured and the messages keep clear of them (--chat-top, --chat-bottom).
  */
-function ThreadFrame({ embedded, head, tabs, composer, accent, threadId, children }: { embedded: boolean; head: ReactNode; /** Later: Chat · Crew · Plan · Moments · Me – a row under the head, inside the glass (not built yet) */ tabs?: ReactNode; composer?: ReactNode; /** The House's colour – the "house" chat background mixes it in */ accent?: string; /** The chat, for its background (config/chat-themes.ts) */ threadId?: string; children: ReactNode }) {
-  const store = useStore();
-  // The chat background this person chose (this chat, else all chats, else "house" – a breath of the House's colour over the cream).
-  const theme = threadId ? chatThemeOf(store, threadId) : "cream";
-  const tint = chatThemeStyle(theme, accent, chatHouseShare(accent));
+function ThreadFrame({ embedded, head, tabs, composer, children }: { embedded: boolean; head?: ReactNode; /** Later: Chat · Crew · Plan · Moments · Me – a row under the head, inside the glass (not built yet) */ tabs?: ReactNode; composer?: ReactNode; children: ReactNode }) {
+  // ONE calm background (CLAUDE.md "Messenger ruhig"): the "cream" tokens – light, and their dark variant in dark mode; no backgrounds to pick.
+  const theme = "cream";
+  // From 744px (list and chat side by side) the variant of config/messenger.ts: 'top' – the input line at the top, the newest message right
+  // under it; 'bottom' – the input line at the bottom, the newest last. The chat page on phones keeps it at the bottom.
+  const top = embedded && MESSENGER.composerPosition === "top";
   // The mobile chat page follows the visual viewport (the keyboard); embedded (desktop column) it doesn't need to.
   useVisualViewport(!embedded);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -195,39 +194,53 @@ function ThreadFrame({ embedded, head, tabs, composer, accent, threadId, childre
     const stage = stageRef.current;
     if (!stage) return;
     const measure = () => {
-      stage.style.setProperty("--chat-top", `${headRef.current?.offsetHeight ?? 0}px`);
-      stage.style.setProperty("--chat-bottom", `${composerRef.current?.offsetHeight ?? 0}px`);
+      stage.style.setProperty("--chat-top", top ? "0px" : `${headRef.current?.offsetHeight ?? 0}px`);
+      stage.style.setProperty("--chat-bottom", top ? "0px" : `${composerRef.current?.offsetHeight ?? 0}px`);
     };
     measure();
     const observer = new ResizeObserver(measure);
     if (headRef.current) observer.observe(headRef.current);
     if (composerRef.current) observer.observe(composerRef.current);
     return () => observer.disconnect();
-  }, []);
-  const stage = (
+  }, [top]);
+  const stage = top ? (
+    // 'top': the input line first (a fine line under it), then what's pinned (an open vote), then the messages – the newest first.
     <div ref={stageRef} className="relative flex h-full min-h-0 flex-col overflow-hidden">
-      {/* The head as glass (half see-through, blur 20px) – the messages scroll under it. It's a column: the 64px row, then room for the
-          House's tabs later (Chat · Crew · Plan · Moments · Me); its height is measured, so the messages keep clear of whatever it holds. */}
-      <div ref={headRef} className="chat-glass absolute inset-x-0 top-0 z-20 flex flex-col">
-        {head}
-        {tabs && <div data-chat-tabs>{tabs}</div>}
-      </div>
+      {composer && (
+        <div ref={composerRef} className="shrink-0 border-b border-ink/8 bg-(--chat-bg) px-4">
+          <div className="mx-auto max-w-[920px]">{composer}</div>
+        </div>
+      )}
+      {(head || tabs) && (
+        <div ref={headRef} className="shrink-0">
+          {head}
+          {tabs && <div data-chat-tabs>{tabs}</div>}
+        </div>
+      )}
+      <NewestFirstContext.Provider value>{children}</NewestFirstContext.Provider>
+    </div>
+  ) : (
+    <div ref={stageRef} className="relative flex h-full min-h-0 flex-col overflow-hidden">
+      {/* The head (phones: back, the House or person, "…"; from 744px only what's pinned) – solid, the messages scroll under it. */}
+      {(head || tabs) && (
+        <div ref={headRef} className="chat-glass absolute inset-x-0 top-0 z-20 flex flex-col">
+          {head}
+          {tabs && <div data-chat-tabs>{tabs}</div>}
+        </div>
+      )}
       {children}
       {composer && (
-        // The input as its own area at the bottom: the chat's ground, a 24px fade above it (the messages never show under the field), 20px
-        // under it; centred in at most 920px like the messages.
-        <div ref={composerRef} className="absolute inset-x-0 bottom-0 z-20 bg-(--chat-bg) px-4 pb-[max(20px,var(--safe-bottom))] pt-1">
-          <span aria-hidden className="pointer-events-none absolute inset-x-0 -top-6 h-6 bg-[linear-gradient(to_bottom,transparent,var(--chat-bg))]" />
+        // The input line at the bottom: the chat's ground, a fine line above it, 20px under it; centred in at most 920px like the messages.
+        <div ref={composerRef} className="absolute inset-x-0 bottom-0 z-20 border-t border-ink/8 bg-(--chat-bg) px-4 pb-[max(12px,var(--safe-bottom))] pt-1">
           <div className="mx-auto max-w-[920px]">{composer}</div>
         </div>
       )}
     </div>
   );
-  // Desktop: the right column, a little lighter than the page, nothing around it.
-  // Desktop: the right column on the page's ground (.chat-dark keeps the chat's own small rules, light now).
+  // From 744px: the right column on the page's ground, the same as the list's (one background, a fine vertical line between them).
   if (embedded)
     return (
-      <div style={tint} data-chat-theme={theme} className="chat-dark h-full min-h-0 bg-(--chat-bg)">
+      <div data-chat-theme={theme} className="chat-dark h-full min-h-0 bg-(--chat-bg)">
         {stage}
       </div>
     );
@@ -238,9 +251,8 @@ function ThreadFrame({ embedded, head, tabs, composer, accent, threadId, childre
   return (
     <div
       data-app-pane="always"
-      style={tint}
       data-chat-theme={theme}
-      className="chat-dark relative z-41 overflow-hidden bg-(--chat-bg) max-md:fixed max-md:inset-x-0 max-md:top-(--vv-top,0px) max-md:h-(--vv-h,100dvh) md:h-[calc(100dvh-var(--header-total)-var(--tabbar-clear))]"
+      className="chat-dark relative z-41 overflow-hidden bg-(--chat-bg) max-md:fixed max-md:inset-x-0 max-md:top-(--vv-top,0px) max-md:h-(--vv-h,100dvh) md:h-[calc(100dvh-var(--header-total)-var(--tabbar-safe))]"
     >
       <div className="mx-auto h-full min-h-0 w-full max-w-3xl pt-(--safe-top) md:pt-0">{stage}</div>
     </div>
@@ -282,11 +294,10 @@ function ThreadContent({ thread, stay, embedded, inline }: { thread: Thread; sta
   return (
     <ThreadFrame
       embedded={embedded}
-      accent={stayAccentOf(stay, housePhotos(stay, findUser(store, stay.hostId))[0])}
-      threadId={thread.id}
+      // From 744px the House or person, the crew, settings and "…" are the info bar under list and chat (ChatInfoBar); phones keep the head.
       head={
         <>
-          {thread.type === "house" ? <CrewHeader stay={stay} embedded={embedded} threadId={thread.id} /> : <DirectHeader stay={stay} other={other} embedded={embedded} threadId={thread.id} />}
+          {!embedded && (thread.type === "house" ? <CrewHeader stay={stay} embedded={embedded} threadId={thread.id} /> : <DirectHeader stay={stay} other={other} embedded={embedded} threadId={thread.id} />)}
           {thread.type === "house" && <CrewVotes stay={stay} pinned />}
         </>
       }

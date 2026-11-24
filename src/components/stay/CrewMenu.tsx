@@ -17,6 +17,8 @@ interface CrewMenuProps {
   afterLeaveHref: string;
   /** Leave out "View House" etc. where the page already links there */
   minimal?: boolean;
+  /** A guest's menu without "View House" (the chat's head is the link into the House) */
+  hideView?: boolean;
   /** More entries first (the detail page puts "Edit" here) */
   extraItems?: MoreMenuItem[];
   /** A group of its own after the House's entries (the chat: Get help · Report) */
@@ -31,7 +33,7 @@ interface CrewMenuProps {
 }
 
 /** ⋯ menu for a crew: members can leave; the host can't – they edit or close the House instead. */
-export function CrewMenu({ stay, afterLeaveHref, minimal = false, extraItems = [], helpItems = [], top, onOpen, dark, buttonClassName }: CrewMenuProps) {
+export function CrewMenu({ stay, afterLeaveHref, minimal = false, hideView = false, extraItems = [], helpItems = [], top, onOpen, dark, buttonClassName }: CrewMenuProps) {
   const t = useTranslations("houses");
   const store = useStore();
   const { currentUserId, leaveStay, closeStay, setAcceptingRequests } = store;
@@ -74,7 +76,7 @@ export function CrewMenu({ stay, afterLeaveHref, minimal = false, extraItems = [
             ]
           : []),
       ]
-    : [...(minimal ? [] : [{ label: t("crewMenu.view"), href: `/house/${stay.slug}` }])])];
+    : [...(minimal || hideView ? [] : [{ label: t("crewMenu.view"), href: `/house/${stay.slug}` }])])];
   const dangerItems: MoreMenuItem[] = isHost
     ? stay.status === "closed"
       ? []

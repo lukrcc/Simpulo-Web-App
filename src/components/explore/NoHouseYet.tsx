@@ -196,7 +196,7 @@ export function NearbyShelf({ draft, stays, results }: { draft: SearchDraft; sta
       <Shelf variant="flat" top={EXPLORE_SPACING.headContent}>
         {nearby.map((stay) => (
           <div key={stay.id} className="explore-slide shrink-0">
-            <HouseCard stay={stay} host={findUser(store, stay.hostId)} crew={getCrew(store, stay)} />
+            <HouseCard variant="shelf" stay={stay} host={findUser(store, stay.hostId)} crew={getCrew(store, stay)} />
           </div>
         ))}
       </Shelf>

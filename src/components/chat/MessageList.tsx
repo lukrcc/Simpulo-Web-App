@@ -1,8 +1,8 @@
 "use client";
 
-import { ArrowDown } from "lucide-react";
+import { ArrowDown, ArrowUp } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ReportSheet } from "@/components/safety/ReportSheet";
 import { PhotoLightbox } from "@/components/stay/PhotoLightbox";
 import { Avatar } from "@/components/ui/Avatar";
@@ -17,6 +17,10 @@ import { BOTTOM_THRESHOLD, buildRows, offsetIn } from "./chatUtils";
 import type { ReplyDraft } from "./Composer";
 import { BlockedMessageRow, MessageBubble, quoteText } from "./MessageBubble";
 import { MEDIA } from "@/config/breakpoints";
+import { cn } from "@/lib/utils";
+
+/** The chat's order (config/messenger.ts composerPosition 'top'): the newest message first, right under the input line. Set by ThreadFrame. */
+export const NewestFirstContext = createContext(false);
 
 interface MessageListProps {
   thread: Thread;
@@ -35,6 +39,7 @@ export function MessageList({ thread, emptyText, onReply, footer }: MessageListP
   const t = useTranslations("messages.thread");
   const messageText = useMessageText();
   const store = useStore();
+  const newestFirst = useContext(NewestFirstContext);
   const { toggleReaction } = store;
   const me = store.currentUserId;
   const paneRef = useRef<HTMLDivElement>(null);
@@ -53,6 +58,8 @@ export function MessageList({ thread, emptyText, onReply, footer }: MessageListP
 
   // Captured once, before the thread gets marked read: the first message from someone else after the read mark.
   const [firstUnreadId] = useState(() => {
+    // Newest first: no "New messages" divider – what's new is at the top anyway.
+    if (newestFirst) return null;
     const readAt = store.lastReadAt[thread.id];
     if (!readAt) return null;
     return thread.messages.find((m) => m.createdAt > readAt && m.senderId !== me)?.id ?? null;
@@ -67,21 +74,28 @@ export function MessageList({ thread, emptyText, onReply, footer }: MessageListP
     () => (house && arc && arc.cards.length ? [...thread.messages, ...arcCardMessages(house, thread.id, arc.cards)].toSorted((a, b) => a.createdAt.localeCompare(b.createdAt)) : thread.messages),
     [thread.messages, thread.id, house, arc],
   );
-  const rows = useMemo(() => buildRows(messages, firstUnreadId), [messages, firstUnreadId]);
+  // Newest first: the rows built from the reversed list – a day's divider above its newest message, a group's name on its newest one.
+  const rows = useMemo(() => buildRows(newestFirst ? messages.toReversed() : messages, firstUnreadId), [messages, firstUnreadId, newestFirst]);
   const byId = useMemo(() => new Map(thread.messages.map((m) => [m.id, m])), [thread.messages]);
   const typingId = store.typing[thread.id];
   const typingUser = typingId && !isBlocked(store, typingId) ? findUser(store, typingId) : undefined;
 
+  // "The end": where the newest message is – the bottom as usual, the top when the newest comes first.
   const scrollToBottom = useCallback((smooth: boolean) => {
     const pane = paneRef.current;
-    if (pane) pane.scrollTo({ top: pane.scrollHeight, behavior: smooth ? "smooth" : "auto" });
+    if (pane) pane.scrollTo({ top: newestFirst ? 0 : pane.scrollHeight, behavior: smooth ? "smooth" : "auto" });
     setShowPill(false);
-  }, []);
+  }, [newestFirst]);
 
   // Opens at the "New messages" divider, otherwise at the bottom. Phones: always at the newest message (the divider stays in the list).
   useLayoutEffect(() => {
     const pane = paneRef.current;
     if (!pane) return;
+    if (newestFirst) {
+      pane.scrollTop = 0;
+      atBottomRef.current = true;
+      return;
+    }
     if (unreadRef.current && !window.matchMedia(MEDIA.phone).matches) pane.scrollTop = offsetIn(pane, unreadRef.current) - 24 - parseFloat(getComputedStyle(pane).getPropertyValue("--chat-top") || "0");
     else {
       pane.scrollTop = pane.scrollHeight;
@@ -97,7 +111,7 @@ export function MessageList({ thread, emptyText, onReply, footer }: MessageListP
       });
     }
     atBottomRef.current = pane.scrollHeight - pane.scrollTop - pane.clientHeight < BOTTOM_THRESHOLD;
-  }, []);
+  }, [newestFirst]);
 
   // New messages: follow them when at the bottom (or when they're ours), otherwise offer the pill.
   const count = thread.messages.length;
@@ -139,7 +153,7 @@ export function MessageList({ thread, emptyText, onReply, footer }: MessageListP
   function onScroll() {
     const pane = paneRef.current;
     if (!pane) return;
-    atBottomRef.current = pane.scrollHeight - pane.scrollTop - pane.clientHeight < BOTTOM_THRESHOLD;
+    atBottomRef.current = newestFirst ? pane.scrollTop < BOTTOM_THRESHOLD : pane.scrollHeight - pane.scrollTop - pane.clientHeight < BOTTOM_THRESHOLD;
     if (atBottomRef.current) setShowPill(false);
   }
 
@@ -169,12 +183,28 @@ export function MessageList({ thread, emptyText, onReply, footer }: MessageListP
     setActiveId(null);
   }
 
+  const typingLine = typingUser && (
+    <div className={cn("flex items-center gap-2", newestFirst ? "mb-3" : "mt-3")} aria-live="polite">
+      <Avatar user={typingUser} size="sm" />
+      <div className="flex items-center gap-2 rounded-[20px] bg-(--select-bg) px-3.5 py-2 shadow-(--shadow-xs)">
+        <span className="flex gap-1" aria-hidden>
+          {[0, 150, 300].map((delay) => (
+            <span key={delay} className="size-1.5 animate-bounce rounded-full bg-muted" style={{ animationDelay: `${delay}ms` }} />
+          ))}
+        </span>
+        <span className="text-small text-muted">{t("typing", { name: typingUser.name.split(" ")[0] })}</span>
+      </div>
+    </div>
+  );
+
   return (
     <div className="relative min-h-0 flex-1">
       <div ref={paneRef} onScroll={onScroll} data-scroll-from-end className="scroll-pane h-full overflow-y-auto overscroll-contain">
         {/* Under the glass head and over the floating composer: the messages keep clear of them when at either end. */}
         <div ref={innerRef} className="mx-auto max-w-[920px] px-4 pb-[calc(var(--chat-bottom,0px)+32px)] pt-[calc(var(--chat-top,0px)+16px)]">
         {count === 0 && !footer && <p className="py-16 text-center text-small text-muted">{emptyText}</p>}
+        {newestFirst && footer}
+        {newestFirst && typingLine}
         {rows.map((row) => {
           if (row.kind === "day") return <DayDivider key={row.key} day={row.day} />;
           if (row.kind === "unread")
@@ -238,30 +268,20 @@ export function MessageList({ thread, emptyText, onReply, footer }: MessageListP
           );
         })}
 
-        {typingUser && (
-          <div className="mt-3 flex items-center gap-2" aria-live="polite">
-            <Avatar user={typingUser} size="sm" />
-            <div className="flex items-center gap-2 rounded-[20px] bg-(--select-bg) px-3.5 py-2 shadow-(--shadow-xs)">
-              <span className="flex gap-1" aria-hidden>
-                {[0, 150, 300].map((delay) => (
-                  <span key={delay} className="size-1.5 animate-bounce rounded-full bg-muted" style={{ animationDelay: `${delay}ms` }} />
-                ))}
-              </span>
-              <span className="text-small text-muted">{t("typing", { name: typingUser.name.split(" ")[0] })}</span>
-            </div>
-          </div>
-        )}
-        {footer}
+        {!newestFirst && typingLine}
+        {!newestFirst && footer}
         </div>
       </div>
-
       {showPill && (
         <button
           type="button"
           onClick={() => scrollToBottom(true)}
-          className="absolute bottom-[calc(var(--chat-bottom,0px)+28px)] left-1/2 z-20 flex -translate-x-1/2 items-center gap-1.5 glass-panel rounded-full! px-4 py-2 text-small font-semibold text-ink"
+          className={cn(
+            "absolute left-1/2 z-20 flex -translate-x-1/2 items-center gap-1.5 glass-panel rounded-full! px-4 py-2 text-small font-semibold text-ink",
+            newestFirst ? "top-4" : "bottom-[calc(var(--chat-bottom,0px)+28px)]",
+          )}
         >
-          <ArrowDown className="size-3.5" />
+          {newestFirst ? <ArrowUp className="size-3.5" /> : <ArrowDown className="size-3.5" />}
           {t("newMessages")}
         </button>
       )}

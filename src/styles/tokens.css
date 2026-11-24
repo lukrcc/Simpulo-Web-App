@@ -15,6 +15,9 @@
 
 /* ── Constants ── */
 :root {
+  /* The home page's large line "Where to next, {Name}?" (CLAUDE.md "Hauptzeile ruhiger"): a warm dark grey instead of near-black. Not called
+     --text-display – that's the display font size (Tailwind's text-display); one name for both would make the size a colour. */
+  --display-ink: #2a2724;
   --signal: #f0633a;
   --graphite: #48423e;
   --graphite-line: rgba(251, 247, 242, 0.08);
@@ -296,6 +299,7 @@
    Contrast (WCAG, computed): text 15.5 : 1 on --bg, 14.1 on --surface, 12.9 on --surface-2; muted (cream 66 %) ≥ 6.4 : 1 on all three;
    faint (cream 45 %) ≥ 3.8 : 1 (decoration and placeholders only, like on light); the action orange --brand-action 5.6 : 1 on --bg (4.6 on --surface-2); the header over the dark floor: white 10.7, muted 8.3, in the active capsule 6.6. ── */
 :root[data-theme="dark"] {
+  --display-ink: #ece8e3;
   --glass-bar-bg: rgb(28 28 30 / 0.62);
   --glass-bar-edge: rgb(255 255 255 / 0.08);
   --glass-bar-shadow: none;
@@ -645,17 +649,15 @@
 }
 
 
-/* Messages' list (views/InboxList.tsx): the chosen chat is a soft fill of its House's colour – no edge –, the hover half of it; fully round
-   like every list choice. The shares (--row-share ~14 %, --row-hover-share) come from lib/stageTint.ts listFillStyle (muted text ≥ 4.5 : 1). */
 .chat-row {
-  border-radius: 9999px;
+  /* Messages' list (CLAUDE.md "Messenger ruhig"): a row across the list's whole width, square – the chosen chat a calm neutral fill, hover half. */
   transition: background-color 150ms ease-out;
 }
 .chat-row:hover {
-  background-color: color-mix(in oklab, var(--surface) calc(100% - var(--row-hover-share, 4%)), var(--row-accent, var(--text)) var(--row-hover-share, 4%));
+  background-color: color-mix(in oklab, var(--text) 3%, transparent);
 }
 .chat-row[aria-current="page"] {
-  background-color: color-mix(in oklab, var(--surface) calc(100% - var(--row-share, 8%)), var(--row-accent, var(--text)) var(--row-share, 8%));
+  background-color: color-mix(in oklab, var(--text) 6%, transparent);
 }
 
 /* A House's chat (views/ThreadView.tsx): its ground is the stage's tint of the House's colour (--stage-tint, .stage-tinted); the composer's

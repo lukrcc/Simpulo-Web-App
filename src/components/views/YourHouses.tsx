@@ -1,6 +1,6 @@
 "use client";
 
-import { PageFrame } from "@/components/PageFrame";
+import { FRAME_BODY_TOP, PageFrame } from "@/components/PageFrame";
 
 import { profileHref } from "@/lib/privacy";
 import { useOpenHouseEntry } from "@/components/platform/useOpenHouseEntry";
@@ -9,22 +9,19 @@ import { BackLink } from "@/components/ui/BackButton";
 import { ArrowRight, Check, ChevronLeft, ChevronRight, CreditCard, MessageCircleReply, Plus, Settings2, ShieldCheck, UserRound, Wallet, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useYourPeople } from "@/lib/useYourPeople";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Fragment, Suspense, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { TabBar } from "@/components/ui/TabBar";
-import { YourPlaces } from "@/components/places/YourPlaces";
+import { usePlaceCards } from "@/components/places/YourPlaces";
 import { RequireLogin } from "@/components/auth/RequireLogin";
 import { clearDraft, readDraft, toInput } from "@/components/create/model";
 import { CardStatusChip, HouseCard } from "@/components/HouseCard";
 import { Container } from "@/components/layout/Container";
-import { HeroBand } from "@/components/HeroBand";
-import { MyHouseStatus, MyHouseTile } from "@/components/MyHouseTile";
+import { MyHouseTile } from "@/components/MyHouseTile";
 import { CrewRow } from "@/components/CrewRow";
 import { UP_NEXT_EMPTY_IMAGE, upNextOf } from "@/config/upnext";
 import { cardGradient, cardTextShadow } from "@/components/ui/glass";
 import { PayoutSetupSheet } from "@/components/payouts/PayoutSetup";
-import { CardTaskAction } from "@/components/stay/CardTask";
 import { Button, buttonStyles } from "@/components/ui/ActionButton";
 import { againHref } from "@/components/create/model";
 import { TODO_GROUP, TODO_GROUPS, TODO_URGENT_HOURS, type TodoGroup, type TodoKind } from "@/config/todo";
@@ -50,13 +47,10 @@ import { useFormat } from "@/i18n/format";
 import { locationOf } from "@/lib/catalog";
 import { earningsFor, type Earnings } from "@/lib/earnings";
 import { hostStatsFor } from "@/lib/hostStats";
-import { focusOfTask, manageHref, stepHref } from "@/lib/houseTasks";
-import { daysUntil, timelineFor, type TimelineEvent } from "@/lib/timeline";
+import { areaHref, focusOfTask, hostManageHref, manageHref, stepHref } from "@/lib/houseTasks";
 import { Avatar } from "@/components/ui/Avatar";
-import { acceptedOverlaps } from "@/lib/overlap";
 import { useCardTask, useNeedsYou } from "@/lib/needsYou";
-import { StripFig, StripRow } from "@/components/StripFig";
-import { usePayoutAccount } from "@/lib/payments/hooks";
+import { StripRow } from "@/components/StripFig";
 import { useGridColumns } from "@/lib/useGridColumns";
 import { didntWorkOut } from "@/lib/requests";
 import { crewInOf, crewThreadId, findUser, getCrew, getCrewThread, getCurrentUser, getMyPayment, isCrewMember, settingsOf, useStore } from "@/lib/store";
@@ -105,17 +99,12 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
   const me = store.currentUserId;
   const meUser = getCurrentUser(store);
   const earnings = earningsFor(store, me, today);
-  const payout = usePayoutAccount();
   const tDash = useTranslations("houses.home.dash");
   const f = useFormat();
   const viewer = usePreferredCurrency();
   const [payoutSheet, setPayoutSheet] = useState(false);
   const [picking, setPicking] = useState<[Stay, Stay][] | null>(null);
   const repo = useNotifications();
-  // Two tabs under the band (CLAUDE.md "Your houses: Joining · Hosting"), in the URL (?tab=hosting) so Back and links work.
-  const params = useSearchParams();
-  const pathname = usePathname();
-  const router = useRouter();
 
   // The Open a House flow's own draft (this browser), shown with the draft Houses.
   const [localDraft, setLocalDraft] = useState<ReturnType<typeof readDraft>>(() => (typeof window === "undefined" ? null : readDraft()));
@@ -189,17 +178,19 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
   const [columnProbe, setColumnProbe] = useState<HTMLDivElement | null>(null);
   const cols = useGridColumns(columnProbe) || 4;
   // Your own Houses' rows: 5 a row from 1440px, 4 from 1100, 3 from 744, else 2 (globals.css --my-cols) – for "See all".
-  const xlUp = useMediaQuery(MEDIA.wide);
   const lgUp = useMediaQuery(MEDIA.desktop);
   const smUp = useMediaQuery(MEDIA.tabletUp);
-  const myCols = xlUp ? 5 : lgUp ? 4 : smUp ? 3 : 2;
+  // Rows show four tiles from 1100px (two and a bit on tablets, one on phones) – "See all" only with more.
+  const myCols = lgUp ? 4 : smUp ? 2 : 1;
+  const tPlaces = useTranslations("houses.places");
+  const placeCards = usePlaceCards(today);
   const probe = <div ref={setColumnProbe} aria-hidden className={cn(EXPLORE_GRID, "h-0")} />;
   // Saved: the Houses you hearted, as the same compact tile as your own (CLAUDE.md "Ein Seiten-Gerüst") – no large Explore cards; "See all" → /saved.
   const savedCards = (store.users.find((u) => u.id === me)?.savedStayIds ?? [])
     .map((id) => store.stays.find((s) => s.id === id))
     .filter((stay): stay is NonNullable<typeof stay> => Boolean(stay))
     .map((stay) => ({ key: stay.id, node: <SavedTile stay={stay} now={now} /> }));
-  const nextTripCards = nextTrip.map((stay) => ({ key: stay.id, node: <HouseCard stay={stay} host={findUser(store, stay.hostId)} crew={getCrew(store, stay)} /> }));
+  const nextTripCards = nextTrip.map((stay) => ({ key: stay.id, node: <HouseCard variant="shelf" stay={stay} host={findUser(store, stay.hostId)} crew={getCrew(store, stay)} /> }));
 
   // Never hosted, never joined: no dashboard, no cards – one calm invitation, and Houses for the first trip.
   if (!hasHosted && joined.length === 0 && past.length === 0 && didntWork.length === 0)
@@ -212,7 +203,6 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
     );
   // Every open task across your Houses, the payout account and the profile to set up – from lib/needsYou.ts, the same list as the header's
   // number on "Your houses" (ordered in TodoTile, config/todo.ts).
-  const overlaps = acceptedOverlaps(store);
   const todo: TodoEntry[] = needsYou.map((entry): TodoEntry => {
     switch (entry.kind) {
       case "overlap":
@@ -281,20 +271,17 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
   // The rows, in their order: Hosting (ending with the dashed "Open a House") · Going · Waiting · Lived in (with "Do it again") · For your next trip.
   const groupCards = (key: "hosting" | "going" | "waiting") => groups.find((g) => g.key === key)!.items.map((item) => ({ key: item.key, node: card(item) }));
   const rows: { key: YourRowKey; cards: { key: string; node: ReactNode }[]; extra?: ReactNode }[] = [
-    // The dashed "Open a House" only while you host fewer than two.
-    { key: "hosting", cards: groupCards("hosting"), extra: hosting.length < 2 ? <OpenHouseTile /> : undefined },
     { key: "going", cards: groupCards("going") },
     { key: "waiting", cards: groupCards("waiting") },
+    // Hosting ends with "Open a House" in the same size (a light placeholder with a plus).
+    { key: "hosting", cards: groupCards("hosting"), extra: <OpenHouseTile /> },
     { key: "livedIn", cards: livedIn.map((stay) => ({ key: stay.id, node: <LivedInCard stay={stay} /> })) },
     { key: "saved", cards: savedCards },
     { key: "nextTrip", cards: nextTripCards },
   ];
-  // Two tabs: Joining (Going · Waiting · Lived in · Saved, your saved people, For your next trip) and Hosting (your Houses and drafts with the
-  // dashed "Open a House", Your places, Earnings). Empty rows are left out – Hosting always shows (at least its dashed card).
-  const tabParam = params.get("tab");
-  const tab: "joining" | "hosting" = tabParam === "hosting" || tabParam === "joining" ? tabParam : hosts && joined.length === 0 ? "hosting" : "joining";
-  const setTab = (next: "joining" | "hosting") => router.replace(next === "joining" ? pathname : `${pathname}?tab=${next}`, { scroll: false });
-  const shown = rows.filter((row) => row.key !== "nextTrip" && (tab === "hosting" ? row.key === "hosting" : row.key !== "hosting" && row.cards.length > 0));
+  // No tabs (CLAUDE.md "Your houses – Reihen statt Reiter"): under the strip the rows Going · Waiting · Hosting · Your places · Lived in · Saved,
+  // a title without a count each; empty rows left out (Hosting only with Houses or drafts of your own).
+  const shown = rows.filter((row) => row.key !== "nextTrip" && row.cards.length > 0);
 
   // "See all": one row as a grid, under the way back.
   if (group) {
@@ -308,7 +295,8 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
         <RowHead id={`row-${group}`} title={tDash(`rows.${group}`)} count={row.cards.length} className="mt-3" />
         {/* Your own Houses as MyHouseTiles (5 · 4 · 3 a row; Lived in two more); For your next trip as Explore's grid. */}
         <ul className={cn(group === "nextTrip" ? EXPLORE_GRID : MY_GRID, "mt-4")}>
-          {row.cards.map((c) => (
+          {/* For your next trip in its grid: the grid's card with its gallery (the row's card shows the cover only). */}
+          {(group === "nextTrip" ? nextTrip.map((stay) => ({ key: stay.id, node: <HouseCard stay={stay} host={findUser(store, stay.hostId)} crew={getCrew(store, stay)} /> })) : row.cards).map((c) => (
             <li key={c.key}>{c.node}</li>
           ))}
           {row.extra && <li>{row.extra}</li>}
@@ -328,7 +316,8 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
         fullStrip
         mediaFit="upNext"
         // A breath of Up next's colour on the surface and the strip (lib/stageTint.ts); nothing planned: the plain tokens.
-        height="split:h-(--stage-image-h)"
+        // The strip: its content (~82px) with 28px above and below (CLAUDE.md "PageFrame – erster Bildschirm immer geschlossen").
+        stripHeight="138px"
         bodyClassName="split:pb-0"
         // The to-dos on the page's own surface – no colour of their own (CLAUDE.md "Ein Seiten-Gerüst").
         stageClassName="stage-page"
@@ -337,55 +326,43 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
             today={today}
             host={hasHosted}
             earnings={earnings}
-            payoutStatus={payout.status}
-            hostingCount={hosting.length}
+            hosting={hosting}
+            going={groups.find((g) => g.key === "going")!.items.map((item) => item.stay)}
+            waiting={groups.find((g) => g.key === "waiting")!.items.map((item) => item.stay)}
             livedIn={livedIn}
             payOk={payOk}
           />
         }
         media={<UpNextMedia stay={upNext} lastLived={livedIn[0]} request={upNext ? joined.find((j) => j.stay.id === upNext.id)?.request : undefined} now={now} news={upNext ? activity.get(upNext.id) : undefined} />}>
-        <TodoTile groups={payOk ? TODO_GROUPS : TODO_GROUPS.filter((g) => g !== "pay")} entries={todo} now={now} timeline={timelineFor(store, now).filter((e) => !overlaps.some(([a, b]) => a.id === e.stay.id || b.id === e.stay.id))} />
+        <TodoTile groups={payOk ? TODO_GROUPS : TODO_GROUPS.filter((g) => g !== "pay")} entries={todo} now={now} />
       </PageFrame>
-    <Container className={cn("explore-width explore-root", tab === "joining" && nextTripCards.length > 0 ? "pb-0" : "pb-16")}>
+    <Container className={cn("explore-width explore-root", nextTripCards.length > 0 ? "pb-0" : "pb-16")}>
       {probe}
-      {/* Calm rows, no heading over them: 32px under the band – the window's edge (--stage-peek) cuts under the first row's title, at most
-          through the top of its images –, 40px apart. For your next trip is the dark band after them. */}
-      <div className="mt-8 flex items-center justify-between gap-4">
-        <TabBar
-          label={tDash("tabs.label")}
-          value={tab}
-          onChange={setTab}
-          options={[
-            { value: "joining", label: tDash("tabs.joining") },
-            { value: "hosting", label: tDash("tabs.hosting") },
-          ]}
-        />
-        {tab === "hosting" && hasHosted && (
-          <Link href="/your-houses/payouts" className="inline-flex shrink-0 items-center gap-1 text-small font-semibold text-muted transition-colors hover:text-ink">
-            {tDash("tabs.earnings")}
-            <ArrowRight aria-hidden className="size-4" />
-          </Link>
-        )}
-      </div>
-      <div className="mt-8 flex flex-col gap-10">
-        {tab === "joining" && shown.length === 0 && <p className="text-body text-muted">{tDash("tabs.joiningEmpty")}</p>}
+      {/* The rows right under the strip: 32px down, 40px apart – each four tiles, more scroll sideways (the shelf of Explore) with "See all →". */}
+      <div className={cn(FRAME_BODY_TOP, "flex flex-col gap-10")}>
         {shown.map((row) => (
           <Fragment key={row.key}>
-            <YourGrid
+            <CardRow
               id={row.key}
               title={tDash(`rows.${row.key}`)}
               cards={row.cards}
-              extra={row.key === "hosting" ? (row.extra ?? (!hosts ? <OpenHouseTile /> : undefined)) : undefined}
+              extra={row.extra}
+              cols={myCols}
+              showCount={false}
+              slideClass="my-slide"
+              seeAll={row.key === "saved" ? "/saved" : `/your-houses/all/${row.key}`}
             />
-            {row.key === "hosting" && <YourPlaces today={today} />}
+            {row.key === "hosting" && placeCards.length > 0 && <CardRow id="places" title={tPlaces("title")} cards={placeCards} cols={myCols} showCount={false} slideClass="my-slide" />}
           </Fragment>
         ))}
-        {tab === "joining" && <SavedPeople />}
+        {/* Your places also without Houses of your own (the hosting row left out). */}
+        {!shown.some((row) => row.key === "hosting") && placeCards.length > 0 && <CardRow id="places" title={tPlaces("title")} cards={placeCards} cols={myCols} showCount={false} slideClass="my-slide" />}
+        <SavedPeople />
       </div>
       <PayoutSetupSheet open={payoutSheet} onClose={() => setPayoutSheet(false)} />
       <PickOneSheet pairs={picking} onClose={() => setPicking(null)} />
     </Container>
-    {tab === "joining" && nextTripCards.length > 0 && <NextTripBand cards={nextTripCards} cols={cols} title={tDash("rows.nextTrip")} />}
+    {nextTripCards.length > 0 && <NextTripBand cards={nextTripCards} cols={cols} title={tDash("rows.nextTrip")} />}
     </>
   );
 }
@@ -402,32 +379,22 @@ function NextTripBand({ cards, cols, title }: { cards: { key: string; node: Reac
   );
 }
 
-/** One section of Your houses (CLAUDE.md "Ein Seiten-Gerüst"): its head ("See all" when there are more than fit), then ONE grid of equal
- *  compact tiles (photo 4:3, title, date · place, status line) – 4 a row from 1100px, 3 on tablets, 2 on phones; at most two rows here. */
-const GRID_SHOWN = 8;
-function YourGrid({ id, title, cards, extra }: { id: YourRowKey; title: string; cards: { key: string; node: ReactNode }[]; extra?: ReactNode }) {
-  const shown = cards.slice(0, extra ? GRID_SHOWN - 1 : GRID_SHOWN);
-  return (
-    <section aria-labelledby={`row-${id}`}>
-      <RowHead id={`row-${id}`} title={title} count={cards.length} seeAll={cards.length > shown.length ? (id === "saved" ? "/saved" : `/your-houses/all/${id}`) : undefined} />
-      <ul className={cn(MY_GRID, "mt-4")}>
-        {shown.map((c) => (
-          <li key={c.key} className="min-w-0">
-            {c.node}
-          </li>
-        ))}
-        {extra && <li className="min-w-0">{extra}</li>}
-      </ul>
-    </section>
-  );
-}
 /** The one grid of your own tiles: equal columns, 4 · 3 · 2. */
 const MY_GRID = "grid grid-cols-2 gap-x-(--explore-gap) gap-y-8 md:grid-cols-3 split:grid-cols-4";
 
-/** A saved House as the compact tile: the date left, its state right ("2 spots left", "Crew complete"). */
+/** A saved House as the tile: its label "2 spots left" (or "Crew complete", "Happening now"). */
 function SavedTile({ stay, now }: { stay: Stay; now: string }) {
   const statusText = useStatusText();
-  return <MyHouseTile stay={stay} href={`/house/${stay.slug}`} status={<MyHouseStatus>{statusText(stay, now)}</MyHouseStatus>} />;
+  return <MyHouseTile stay={stay} href={`/house/${stay.slug}`} label={statusText(stay, now)} />;
+}
+
+/** What a task asks, as the tile's label: "Review 4 requests", "Pay · 48h", "Answer invite" (houses.home.task.*.action). */
+function useTaskLabel() {
+  const t = useTranslations("houses.home.task");
+  return (task: NonNullable<ReturnType<ReturnType<typeof useCardTask>>>, now: string) => {
+    const hours = task.date ? Math.max(1, Math.ceil((Date.parse(task.date) - Date.parse(now)) / 3_600_000)) : 0;
+    return t(`${task.kind}.action`, { count: task.count ?? 0, hours });
+  };
 }
 
 /**
@@ -458,32 +425,45 @@ function useStatusText() {
 
 
 /**
- * One of your Houses (Hosting · Going · Waiting): a MyHouseTile – no notch. Right in its status line exactly one thing: what's asked of you
- * ("● Review 4 requests", "Pay · 48h" in orange; it opens the action) or the status muted ("Waiting for host", "You're in", "Booked", "2 spots
- * left"). Unread news: an orange dot before the status. Opening it marks it read.
+ * One of your Houses (Going · Waiting · Hosting) as the tile (CLAUDE.md "Your houses – Reihen statt Reiter"). Its label, top left: what's
+ * asked of you with the small orange dot ("Review 4 requests", "Pay · 48h", "Answer invite" – the tile opens the House right there), else
+ * Going "in 66 days" (on now: "Happening now"), Waiting "Waiting for host" / "Waitlist #2", Hosting "2 of 4 in". Unread news: the dot too;
+ * opening it marks it read.
  */
 function YourHouseCard({ stay, now, request, unread = false, onRead }: { stay: Stay; now: string; request?: JoinRequest; unread?: boolean; onRead?: () => void }) {
   const t = useTranslations("houses.home");
-  const format = useFormat();
   const store = useStore();
   const statusText = useStatusText();
+  const taskLabel = useTaskLabel();
   const failed = request ? didntWorkOut(request) : false;
   const taskOf = useCardTask();
   const task = failed ? null : taskOf(stay, now);
   const hosting = stay.hostId === store.currentUserId;
   const today = now.slice(0, 10);
   const days = stay.startDate ? Math.round((Date.parse(stay.startDate) - Date.parse(today)) / 86_400_000) : null;
-  // Left: Hosting "2 of 4 in"; Going/Waiting "in 66 days" (running or no date: the date). No faces, no "+" circles.
-  const meta = hosting ? t("tileCrewIn", { filled: crewInOf(store, stay), total: stay.spotsTotal }) : days !== null && days >= 0 ? t("tileInDays", { days }) : stay.startDate ? format.stayDates(stay) : null;
-  // Hosting without a task: "Open for requests" while spots are open, else the status (complete, booked, happening).
-  const calm = hosting && openSpots(stay) > 0 && stay.acceptingRequests && stay.startDate > today ? t("tileOpen") : statusText(stay, now, request);
+  const going = request?.status === "accepted";
+  const calm = hosting
+    ? t("tileCrewIn", { filled: crewInOf(store, stay), total: stay.spotsTotal })
+    : going && days !== null && days > 0
+      ? t("tileInDays", { days })
+      : statusText(stay, now, request);
   return (
     <MyHouseTile
       stay={stay}
-      href={manageHref(stay, task ? focusOfTask(task.kind) : undefined)}
+      // Where each row leads (CLAUDE.md "Klare Ziele für alle House-Karten"): Hosting → the area's Manage tab; Going → the area's Chat (a task
+      // opens its place: Pay → Plan with the pay window); Waiting (asked, invited, waitlist) → the public House page, at its top.
+      href={
+        hosting
+          ? hostManageHref(stay, task ? focusOfTask(task.kind) : undefined)
+          : going
+            ? task
+              ? areaHref(stay, undefined, focusOfTask(task.kind))
+              : areaHref(stay, "chat")
+            : `/house/${stay.slug}`
+      }
       onClickCapture={unread ? onRead : undefined}
-      meta={meta}
-      status={task ? <CardTaskAction stay={stay} task={task} now={now} text /> : <MyHouseStatus attention={unread}>{calm}</MyHouseStatus>}
+      label={task ? taskLabel(task, now) : calm}
+      attention={Boolean(task) || unread}
     />
   );
 }
@@ -494,7 +474,6 @@ function YourHouseCard({ stay, now, request, unread = false, onRead }: { stay: S
  */
 function DraftCard({ stay, href, onDelete }: { stay: Stay; href: string; onDelete: () => void }) {
   const t = useTranslations("houses.home");
-  const router = useRouter();
   const showToast = useToast();
   const [confirming, setConfirming] = useState(false);
   return (
@@ -502,13 +481,8 @@ function DraftCard({ stay, href, onDelete }: { stay: Stay; href: string; onDelet
       <MyHouseTile
         stay={stay}
         href={href}
+        label={t("draftLabel")}
         menu={<MoreMenu label={t("draftOptions")} buttonClassName={iconButtonStyles("sm", undefined, "onImage")} items={[{ label: t("deleteDraft"), danger: true, onSelect: () => setConfirming(true) }]} />}
-        status={
-          <button type="button" onClick={() => router.push(href)} className="inline-flex items-center gap-1.5 text-small font-semibold text-ink underline-offset-4 hover:underline">
-            <span aria-hidden className="size-1.5 rounded-full bg-accent" />
-            {t("continueDraft")}
-          </button>
-        }
       />
       <ConfirmSheet
         open={confirming}
@@ -526,19 +500,20 @@ function DraftCard({ stay, href, onDelete }: { stay: Stay; href: string; onDelet
   );
 }
 
-/** Under Hosting, last (only while you host fewer than two): a MyHouseTile's size – the picture area dashed ink 15 % with "+", under it "Open a House" and "Your crew chips in". */
+/** Hosting's last tile: "Open a House" in the same size – a light placeholder with a plus, no dashed edge (CLAUDE.md "Your houses – Reihen statt Reiter"). */
 function OpenHouseTile() {
   const t = useTranslations("houses.home");
   const entry = useOpenHouseEntry();
   return (
-    <Link href={entry.href} data-house-card="open" className="group block min-w-0 rounded-2xl">
-      <span className="flex aspect-4/3 items-center justify-center rounded-2xl border-[1.5px] border-dashed border-ink/15 transition-colors duration-150 group-hover:border-ink/30 group-hover:bg-ink/3">
-        <span className="flex size-12 items-center justify-center rounded-full bg-ink/6 text-ink">
-          <Plus className="size-5" aria-hidden />
-        </span>
+    <Link
+      href={entry.href}
+      data-house-card="open"
+      className="group flex aspect-4/3 min-w-0 flex-col items-center justify-center gap-3 rounded-2xl bg-ink/4 transition-colors duration-150 hover:bg-ink/7 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)"
+    >
+      <span className="flex size-12 items-center justify-center rounded-full bg-ink/8 text-ink transition-transform duration-150 group-hover:scale-105 motion-reduce:transition-none">
+        <Plus className="size-5" aria-hidden />
       </span>
-      <span className="mt-3 block truncate text-body-lg font-semibold text-ink">{entry.allowed ? t("openHouse") : entry.label}</span>
-      <span className="block truncate text-small text-muted">{t("crewChipsIn")}</span>
+      <span className="text-body-lg font-semibold text-ink">{entry.allowed ? t("openHouse") : entry.label}</span>
     </Link>
   );
 }
@@ -695,7 +670,6 @@ const NEEDS_HEAD_H = 40;
 /** Phones: at most this many entries per column, then "+N more". */
 const NEEDS_PHONE_ROWS = 3;
 /** Coming up: at most this many events beside its label. */
-const UP_MAX = 3;
 
 /** A column's order: the shortest deadline first (none last). */
 const byDeadline = (a: TodoEntry, b: TodoEntry) => (a.due ?? "9999").localeCompare(b.due ?? "9999");
@@ -707,7 +681,7 @@ const byDeadline = (a: TodoEntry, b: TodoEntry) => (a.due ?? "9999").localeCompa
  * the last row "+N more →", which opens a sheet "{Column} · {n}" with all of them. An entry leads to its House (/h/[id]?step=…). Under the
  * columns one line "COMING UP" (56px). Phones: the columns under each other, three entries each at most.
  */
-function TodoTile({ groups: shownGroups = TODO_GROUPS, entries, now, timeline }: { /** The columns shown (before the launch and in the beta without Pay) */ groups?: readonly TodoGroup[]; entries: TodoEntry[]; now: string; timeline: TimelineEvent[] }) {
+function TodoTile({ groups: shownGroups = TODO_GROUPS, entries, now }: { /** The columns shown (before the launch and in the beta without Pay) */ groups?: readonly TodoGroup[]; entries: TodoEntry[]; now: string }) {
   const td = useTranslations("houses.home.dash");
   const [sheet, setSheet] = useState<TodoGroup | null>(null);
   const colsRef = useRef<HTMLDivElement>(null);
@@ -738,7 +712,18 @@ function TodoTile({ groups: shownGroups = TODO_GROUPS, entries, now, timeline }:
           {total > 0 ? td("needsCount", { count: total }) : td("needsTitle")}
         </h2>
         {/* Three equal columns across the whole Ember width, 1px cream 8 % between them, 32px inside each; heads all 32px high. */}
-        <div ref={colsRef} className={cn("grid min-h-0 flex-1 gap-y-6 overflow-hidden sm:gap-y-0 sm:divide-x sm:divide-ink/8", groups.length === 2 ? "sm:grid-cols-2" : "sm:grid-cols-3")}>
+        <div ref={colsRef} className="flex min-h-0 flex-1 flex-col">
+        {total === 0 ? (
+          // Nothing to do anywhere: one calm state instead of three "All done" columns.
+          <div className="flex flex-1 flex-col justify-center">
+            <p className="flex items-center gap-2 text-h2 text-ink">
+              {td("allCaughtUp")}
+              <Check aria-hidden className="size-6 text-ink/60" strokeWidth={2.25} />
+            </p>
+            <p className="mt-2 text-body text-ink/60">{td("allSetHint")}</p>
+          </div>
+        ) : (
+        <div className={cn("grid min-h-0 flex-1 gap-y-6 overflow-hidden sm:gap-y-0 sm:divide-x sm:divide-ink/8", groups.length === 2 ? "sm:grid-cols-2" : "sm:grid-cols-3")}>
           {groups.map(({ group, items }) => {
             const Icon = GROUP_ICONS[group];
             const overflow = items.length > fit;
@@ -778,8 +763,9 @@ function TodoTile({ groups: shownGroups = TODO_GROUPS, entries, now, timeline }:
             );
           })}
         </div>
+        )}
+        </div>
       </div>
-      {timeline.length > 0 && <ComingUp events={timeline.slice(0, UP_MAX)} now={now} />}
       <Sheet open={sheetGroup !== undefined} onClose={() => setSheet(null)} title={sheetGroup ? td("sheetTitle", { group: td(`group.${sheetGroup.group}`), count: sheetGroup.items.length }) : ""}>
         <ul className="-mx-2">
           {sheetGroup?.items.map((entry) => (
@@ -789,37 +775,6 @@ function TodoTile({ groups: shownGroups = TODO_GROUPS, entries, now, timeline }:
           ))}
         </ul>
       </Sheet>
-    </section>
-  );
-}
-
-/**
- * "COMING UP" as one line (56px): the label left, beside it up to three events – a dot (orange within 7 days, else cream 30 %), the date,
- * what · short name; each opens its House. Nothing coming: no line.
- */
-function ComingUp({ events, now }: { events: TimelineEvent[]; now: string }) {
-  const td = useTranslations("houses.home.dash");
-  const f = useFormat();
-  return (
-    <section aria-labelledby="coming-up" className="flex h-14 shrink-0 items-center gap-6 border-t border-ink/6">
-      <h3 id="coming-up" className="shrink-0 text-eyebrow uppercase text-ink/60">
-        {td("comingUp")}
-      </h3>
-      <ul className="flex min-w-0 flex-1 items-center gap-6 overflow-hidden">
-        {/* Phones: only the next one (three don't fit in one line). */}
-        {events.map((event, i) => (
-          <li key={event.key} className={cn("min-w-0 shrink", i > 0 && "max-sm:hidden")}>
-            <Link href={`/h/${event.stay.id}`} className="flex min-w-0 items-center gap-2 rounded-lg text-small transition-colors duration-150 hover:text-ink">
-              <span aria-hidden className={cn("size-2 shrink-0 rounded-full", daysUntil(event.at, now) <= 7 ? "bg-accent" : "bg-ink/30")} />
-              <span className="shrink-0 tabular-nums text-ink/60">{f.day(event.at)}</span>
-              <span className="min-w-0 truncate text-ink">
-                <span className="font-semibold">{td(`timeline.${event.kind}`)}</span>
-                <span className="text-ink/60"> · {shortNameOf(event.stay)}</span>
-              </span>
-            </Link>
-          </li>
-        ))}
-      </ul>
     </section>
   );
 }
@@ -904,63 +859,61 @@ function TodoRow({ entry, now, onDone, dark = false }: { entry: TodoEntry; now: 
 }
 
 /**
- * Payouts as the Needs you card's footer: across its whole width, a 1px cream 12 % line above it, 96px high. The figures side by side with
- * thin lines between them – "€1,251 earned this year" (large; a share host: "paid out this year"), "Next payout · Feb 13", "1 House hosting",
- * "100 % full" – and the arrow on the right; the whole footer opens Payouts (hover: a little lighter). Never hosted: "Host your own House ·
- * Your crew chips in for the stay" and the outline button "Open a House".
+ * The dark strip under Up next and the to-dos (CLAUDE.md "Your houses – Kennzahlen-Streifen klarer"): a quarter lower than the House page's
+ * (--stage-bar-h × 0.75), four equal blocks – each a small label (13px, capitals, muted), a large number (text-h1, ~36px) and one line
+ * (14px). Each block is one link as a whole (hover: a little lighter, pointer), no arrows. A host: EARNED THIS MONTH (money only once
+ * payments are on, else GOING) · HOSTING · YOUR HOUSE · YOUR PEOPLE; without a House hosted: GOING · WAITING · LIVED IN · YOUR PEOPLE.
+ * Phones: lower, the blocks one sideways-scrolling row (StripRow).
  */
-/**
- * The dark strip under Up next and the right side, across the full width (the stage rule), at most five values with lines between:
- * left always "Next: {House} in {X} days" (a link to the House); a guest adds Houses lived in · Your people; a host earned this year · the
- * payouts status (with its dot) · Houses hosting · fill rate (before the launch and in the beta no money values); someone who's both keeps the
- * host values and Your people. The whole strip opens the host area (Payouts) or, for a guest, the profile; an arrow on the right. Phones: two
- * lines (Next, then the values).
- */
-function StageStrip({ today, host, earnings, payoutStatus, hostingCount, livedIn, payOk }: { today: string; host: boolean; earnings: Earnings; payoutStatus: string | null; hostingCount: number; livedIn: Stay[]; payOk: boolean }) {
-  const td = useTranslations("houses.home.dash");
-  const ts = useTranslations("houses.home.dash.stage");
+function StageStrip({ today, host, earnings, hosting, going, waiting, livedIn, payOk }: { today: string; host: boolean; earnings: Earnings; hosting: Stay[]; going: Stay[]; waiting: Stay[]; livedIn: Stay[]; payOk: boolean }) {
+  const tb = useTranslations("houses.home.dash.blocks");
   const f = useFormat();
   const store = useStore();
   const viewer = usePreferredCurrency();
   const people = useYourPeople();
   const money = (eur: number) => f.price(Math.round(convertApprox(eur, "EUR", viewer)), viewer);
   const stats = host ? hostStatsFor(store, earnings, store.currentUserId ?? "", today) : null;
-  // The strip carries the numbers – "Next" is in the photo already. One scale: the number --stage-bar-num, its label --stage-bar-label.
-  type Fig = { key: string; value: string; label: string; sub?: string; dot?: boolean; href?: string };
+  type Block = { key: string; label: string; value: string; line: string; href: string };
   const month = earnings.months.find((m) => m.month === today.slice(0, 7))?.amount ?? 0;
   const year = stats?.type === "pro" ? stats.earningsThisYear : earnings.thisYear;
-  // Payouts only when something is to do: not set up, or Stripe needs a step.
-  const payoutsFig: Fig | null =
-    payOk && (payoutStatus === "action_required" || payoutStatus === "none" || payoutStatus === null)
-      ? { key: "payouts", value: payoutStatus === "action_required" ? ts("payoutsAction") : ts("payoutsSetUp"), label: ts("payoutsLabel"), dot: true, href: "/your-houses/payouts?setup=payouts" }
-      : null;
-  const peopleFig: Fig = { key: "people", value: String(people.length), label: ts("people"), href: "/people" };
-  const hostFigs: Fig[] = stats
+  const names = (stays: Stay[], empty: string) => (stays.length === 0 ? empty : stays.length === 1 ? shortNameOf(stays[0]) : tb("andMore", { name: shortNameOf(stays[0]), count: stays.length - 1 }));
+  const filled = hosting.reduce((sum, s) => sum + crewInOf(store, s), 0);
+  const total = hosting.reduce((sum, s) => sum + s.spotsTotal, 0);
+  const goingBlock: Block = { key: "going", label: tb("going"), value: String(going.length), line: names(going, tb("goingNone")), href: "/your-houses#row-going" };
+  const peopleBlock: Block = { key: "people", label: tb("people"), value: String(people.length), line: tb("peopleLine"), href: "/people" };
+  const blocks: Block[] = host
     ? [
-        ...(payOk ? [{ key: "month", value: money(month), label: ts("thisMonth"), sub: ts("thisYear", { amount: money(year) }), href: "/your-houses/payouts" }] : []),
-        ...(payoutsFig ? [payoutsFig] : []),
-        { key: "hosting", value: String(hostingCount), label: td("strip.hosting", { count: hostingCount }), href: "/your-houses?tab=hosting#row-hosting" },
-        // Never "0 % full": only once anyone's in.
-        ...(stats.houses > 0 && stats.fullShare > 0 ? [{ key: "fill", value: `${Math.round(stats.fullShare * 100)} %`, label: ts("fill"), href: "/your-houses?tab=hosting#row-hosting" }] : []),
-        peopleFig,
+        payOk ? { key: "earned", label: tb("earned"), value: money(month), line: tb("earnedYear", { amount: money(year) }), href: "/your-houses/payouts" } : goingBlock,
+        { key: "hosting", label: tb("hosting"), value: tb("houses", { count: hosting.length }), line: names(hosting, tb("hostingNone")), href: "/your-houses#row-hosting" },
+        {
+          key: "house",
+          label: tb("house", { count: hosting.length }),
+          value: total > 0 ? tb("full", { percent: Math.round((filled / total) * 100) }) : "–",
+          line: total > 0 ? tb("spots", { filled, total }) : tb("hostingNone"),
+          href: "/your-houses#row-hosting",
+        },
+        peopleBlock,
       ]
-    : [];
-  const countries = new Set(livedIn.map((s) => s.location.country).filter(Boolean)).size;
-  const figs: Fig[] = host
-    ? hostFigs.slice(0, 5)
     : [
-        { key: "livedIn", value: String(livedIn.length), label: ts("livedIn", { count: livedIn.length }) },
-        peopleFig,
-        { key: "countries", value: String(countries), label: ts("countries", { count: countries }) },
+        goingBlock,
+        { key: "waiting", label: tb("waiting"), value: String(waiting.length), line: names(waiting, tb("waitingNone")), href: "/your-houses#row-waiting" },
+        { key: "livedIn", label: tb("livedIn"), value: String(livedIn.length), line: tb("countries", { count: new Set(livedIn.map((s) => s.location.country).filter(Boolean)).size }), href: "/your-houses#row-livedIn" },
+        peopleBlock,
       ];
   return (
-    // Never the whole strip a link: each number is its own (→ after its label) – earnings and payouts to the Earnings page (payouts with its
-    // set-up window open), hosting and fill rate to the Hosting row, Your people to /people.
-    // Phones: lower than the 120px (16px above and below) and the numbers one sideways-scrolling row (StripRow).
-    <div data-surface="dark" className="ember ember-strip band-inset band-inset-full flex items-center py-4 md:h-(--stage-bar-h) md:py-0">
-      <StripRow className="flex-1 md:flex-nowrap">
-        {figs.map((fig) => (
-          <StripFig key={fig.key} value={fig.value} label={fig.label} sub={fig.sub} dot={fig.dot} href={fig.href} />
+    <div data-surface="dark" className="ember ember-strip band-inset band-inset-full flex items-stretch py-3 md:h-(--frame-strip-h) md:py-0">
+      <StripRow className="flex-1 items-stretch md:-mx-6 md:grid md:grid-cols-4">
+        {blocks.map((block) => (
+          <Link
+            key={block.key}
+            href={block.href}
+            // The whole block is the link (hover lighter); between the blocks a fine line that keeps clear of the strip's edges (24px).
+            className="relative flex min-w-44 shrink-0 cursor-pointer flex-col justify-center px-6 transition-colors duration-150 before:absolute before:inset-y-6 before:left-0 before:w-px before:bg-ink/12 first:before:hidden hover:bg-ink/6 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-(--focus-ring) md:min-w-0"
+          >
+            <span className="truncate text-small uppercase text-ink/60">{block.label}</span>
+            <span className="mt-1 truncate text-h1 tabular-nums text-ink">{block.value}</span>
+            <span className="mt-0.5 truncate text-nav font-normal text-ink/70">{block.line}</span>
+          </Link>
         ))}
       </StripRow>
     </div>
@@ -974,18 +927,9 @@ function StageStrip({ today, host, earnings, payoutStatus, hostingCount, livedIn
 function LivedInCard({ stay }: { stay: Stay }) {
   const td = useTranslations("houses.home.dash");
   const router = useRouter();
-  // Smaller (1:1), its status "Do it again" – Open a House with everything but the dates, the old crew picked in "Fill your House".
-  return (
-    <MyHouseTile
-      stay={stay}
-      href={manageHref(stay)}
-      status={
-        <button type="button" onClick={() => router.push(againHref(stay.id))} className="text-small font-semibold text-ink underline-offset-4 hover:underline">
-          {td("doItAgain")}
-        </button>
-      }
-    />
-  );
+  // The label "Do it again" is its own button: Open a House with everything but the dates, the old crew picked in "Fill your House".
+  // Lived in → the area's Moments tab (its dark strip has "Do it again" too).
+  return <MyHouseTile stay={stay} href={areaHref(stay, "moments")} label={td("doItAgain")} labelAction={() => router.push(againHref(stay.id))} />;
 }
 
 /** Houses you're part of: hosting, in the crew, or with a request or an invite of yours (any state). */

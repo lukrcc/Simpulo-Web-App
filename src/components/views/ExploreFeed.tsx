@@ -38,6 +38,8 @@ import { RowTile } from "@/components/ui/RowTile";
 import { useFormat } from "@/i18n/format";
 import { COLLECTIONS, shelfFor, type Collection, type Shelf } from "@/lib/collections";
 import { citySlugOf } from "@/lib/data/stays";
+import { forYouScore } from "@/lib/ranking";
+import { useYourPeople } from "@/lib/useYourPeople";
 import {
   activeCount,
   countryOf,
@@ -216,6 +218,30 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
   const currency = usePreferredCurrency() ?? "EUR";
   const sortOptions = SORT_KEYS.map((key) => ({ value: key, label: t(`sortOptions.${key}`) }));
 
+  // "For you" (lib/ranking.ts): the person's themes (interests, Houses joined, hosted or saved, what they're in for), Your people, open
+  // spots, how soon and how new – never Simpulo's fee or revenue. Unfiltered Explore always shows this order (no sort menu there).
+  const people = useYourPeople();
+  const me = getCurrentUser(store);
+  const forYou = useMemo(() => {
+    const themes = new Set<string>([
+      ...(me?.interests ?? []),
+      ...store.stays.filter((s) => s.hostId === me?.id || (me?.savedStayIds ?? []).includes(s.id)).map((s) => s.vibe),
+      ...store.joinRequests.filter((r) => r.userId === me?.id).flatMap((r) => store.stays.find((s) => s.id === r.stayId)?.vibe ?? []),
+      ...store.inFor.filter((x) => x.userId === me?.id).flatMap((x) => x.categories),
+    ]);
+    const ctx = {
+      today: new Date(today ?? 0).toISOString().slice(0, 10),
+      themes,
+      people: new Set(people.map((p) => p.user.id)),
+      crewOf: (s: Stay) => [s.hostId, ...getCrew(store, s).map((u) => u.id)],
+      openSpotsOf: openSpots,
+      shiftDays: shiftDaysOf,
+    };
+    return new Map(base.map((s) => [s.id, forYouScore(s, ctx)]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the store's Houses, requests and in-for decide it
+  }, [base, me, people, store.stays, store.joinRequests, store.inFor, today, shiftDaysOf]);
+  const scoreOf = (s: Stay) => forYou.get(s.id) ?? 0;
+  const order: SortKey = !scope && activeCount(filters) === 0 ? "forYou" : filters.sort;
   const results = base
     .filter((s) => matchesFilters(s, filters, undefined, verifiedHosts))
     .toSorted(
@@ -224,7 +250,7 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
         // the open ones, each group in the chosen order.
         Number(Boolean(a.isExample)) - Number(Boolean(b.isExample)) ||
         Number(!a.acceptingRequests) - Number(!b.acceptingRequests) ||
-        compareBy(filters.sort, a, b, shiftDaysOf),
+        compareBy(order, a, b, shiftDaysOf, scoreOf),
     );
   const countryCount = new Set(results.map(countryOf)).size;
   const resultLabel = tc("houses", { count: results.length });
@@ -264,7 +290,7 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
   // The bands of the rhythm (EXPLORE_RHYTHM): in their order, empty ones skipped, never the same House in two of them.
   const bands = useMemo((): Band[] => {
     if (!browsing) return [];
-    const sorted = base.toSorted((a, b) => Number(!a.acceptingRequests) - Number(!b.acceptingRequests) || compareBy(EMPTY_FILTERS.sort, a, b, shiftDaysOf));
+    const sorted = base.toSorted((a, b) => Number(!a.acceptingRequests) - Number(!b.acceptingRequests) || compareBy("soonest", a, b, shiftDaysOf));
     const taken = new Set(showPeople ? peopleGoing.map((s) => s.id) : []);
     return EXPLORE_RHYTHM.shelves.flatMap((id): Band[] => {
       const shelf = shelfFor(id, sorted, taken);
@@ -496,14 +522,19 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
                 {/* THE results head (explore/ActiveFilters ResultsHead): title + grey summary + sort; the active filters; one line of
                     description ("See all" pages: the collection's line). */}
                 <div ref={headRef} data-results-head>
+                  {/* Unfiltered Explore (CLAUDE.md "Startseite-Raster ohne Zahlen und Sortierung"): the title alone, small and calm – no count, no
+                      sort menu, the order is "For you". Results and "See all" pages: title, "N houses · M countries" and the sort. */}
                   <ResultsHead
                     title={headTitle}
-                    summary={headSummary}
+                    calm={!searchView && !scoped}
+                    summary={searchView || scoped ? headSummary : undefined}
                     description={collection && !searchView ? tCollections(`${collection.id}.subline`) : undefined}
                     sort={
-                      <SortCapsule variant="tertiary" label={t(`sortOptions.${filters.sort}`)}>
-                        <SortList options={sortOptions} value={filters.sort} onChange={(sort) => update({ sort })} />
-                      </SortCapsule>
+                      searchView || scoped ? (
+                        <SortCapsule variant="tertiary" label={t(`sortOptions.${filters.sort}`)}>
+                          <SortList options={sortOptions} value={filters.sort} onChange={(sort) => update({ sort })} />
+                        </SortCapsule>
+                      ) : undefined
                     }
                     chips={activeChips.length > 0 ? <ActiveFilterChips chips={activeChips} label={tf("sectionActive")} removeLabel={(label) => tf("remove", { label })} clearLabel={tf("clearAll")} onRemove={(chip) => update(chip.patch)} onClear={clearFilters} /> : undefined}
                   />
@@ -635,8 +666,10 @@ const SLOW_HOST_SHIFT_DAYS = 7;
  * recommended order): a host who answers under 70 % of requests counts as starting a week later there, a House at the depth that fits the
  * viewer a few days earlier (`shiftDays`) – higher or lower, never hidden.
  */
-function compareBy(sort: SortKey, a: Stay, b: Stay, shiftDays?: (s: Stay) => number): number {
-  if (sort === "soonest") {
+function compareBy(sort: SortKey, a: Stay, b: Stay, shiftDays?: (s: Stay) => number, scoreOf?: (s: Stay) => number): number {
+  // "For you" (the default): the higher score first (lib/ranking.ts – never Simpulo's fee or revenue); ties: the sooner start.
+  if (sort === "forYou" && scoreOf) return scoreOf(b) - scoreOf(a) || a.startDate.localeCompare(b.startDate);
+  if (sort === "soonest" || sort === "forYou") {
     const start = (s: Stay) => Date.parse(s.startDate) + (shiftDays?.(s) ?? 0) * 86_400_000;
     return start(a) - start(b) || a.startDate.localeCompare(b.startDate);
   }

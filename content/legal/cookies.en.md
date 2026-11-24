@@ -26,6 +26,7 @@ Your browser keeps these on your device. They never leave it unless you send som
 | --- | --- | --- |
 | simpulo:currency | The currency you picked. | Until you clear it |
 | simpulo:currency-hint | That we already told you which currency prices are in. | Until you clear it |
+| simpulo:house-photo-hint | That we already showed you, once, that a House's photo slides to the next one. | Until you clear it |
 | simpulo:install-prompt:v2 | When we last suggested the app, and "Don't show again". | Until you clear it |
 | simpulo:push-asked | When we asked about notifications – at most twice. | Until you clear it |
 | simpulo:install-seen:{id} | Which of your bookings already showed the app hint, so it doesn't repeat. | Until you clear it |

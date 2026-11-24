@@ -5,7 +5,7 @@
 import { X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { Button } from "@/components/ui/ActionButton";
 import { GlassPanel } from "@/components/ui/GlassPanel";
 import { IconButton } from "@/components/ui/IconButton";
@@ -21,7 +21,16 @@ const QUIET = ["/settings/profile", "/welcome", "/create", "/admin", "/preview",
 /** Where the host checklist already stands (Earnings, a House's Manage) – no second reminder there. */
 const HOST_QUIET = ["/your-houses/payouts", "/h/", "/apply"];
 
+/** Reads the URL (usePathname) – its own Suspense boundary, so it never blocks prerendering (it sits in the root layout). */
 export function ResumeCard() {
+  return (
+    <Suspense fallback={null}>
+      <ResumeCardInner />
+    </Suspense>
+  );
+}
+
+function ResumeCardInner() {
   const hydrated = useHydrated();
   const store = useStore();
   const me = getCurrentUser(store);

@@ -59,9 +59,8 @@ const nextConfig: NextConfig = {
       // Messages was "Chats · Updates": the updates are Your houses' Activity now.
       { source: "/messages", has: [{ type: "query", key: "tab", value: "updates" }], destination: "/your-houses", permanent: true },
       { source: "/houses", destination: "/your-houses", permanent: true },
-      { source: "/houses/:id/manage", destination: "/your-houses/:id", permanent: true },
-      // The category pages are gone: a category is a filter on Explore.
-      { source: "/houses/:slug", destination: "/explore?category=:slug", permanent: true },
+      // /houses/[id] is a House's private area now (members and the host); its old management path opens the Manage tab.
+      { source: "/houses/:id/manage", destination: "/houses/:id?tab=manage", permanent: true },
       { source: "/my-stays", has: [{ type: "query", key: "id", value: "(?<id>.+)" }], destination: "/your-houses/:id", permanent: true },
       { source: "/my-stays", destination: "/your-houses", permanent: true },
       { source: "/my-stays/:id/edit", destination: "/your-houses/:id/edit", permanent: true },

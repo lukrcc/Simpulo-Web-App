@@ -953,6 +953,7 @@ const en = {
       "90d": "Next 3 months"
     },
     "sortOptions": {
+      "forYou": "For you",
       "soonest": "Soonest first",
       "price": "Lowest price",
       "newest": "Just opened"
@@ -1630,6 +1631,9 @@ const en = {
       }
     },
     "area": {
+      "yourStay": "Your stay",
+      "livedInLabel": "Lived in",
+      "doItAgain": "Do it again",
       "tabsLabel": "Your House",
       "tabs": { "chat": "Chat", "crew": "Crew", "plan": "Plan", "moments": "Moments", "me": "Me", "manage": "Manage" },
       "phase": {
@@ -1834,6 +1838,9 @@ const en = {
     },
     "unlistedHint": "Your House is live via your link. It appears on Explore once Simpulo opens in your city.",
     "page": {
+      "waitingForHost": "Request sent · waiting for the host",
+      "invitedAnswerBy": "Invited · answer by {date}",
+      "invitedAnswer": "Invited · answer soon",
       "space": {
         "title": "The space",
         "bedrooms": "{count, plural, =0 {No separate bedroom} one {# bedroom} other {# bedrooms}}",
@@ -2065,6 +2072,7 @@ const en = {
       "accepted": "You're in – open the House chat",
       "closed": "This House is closed",
       "pending": "Request sent · waiting for host",
+      "messageWhileWaiting": "Message the host",
       "declined": "Didn't work out",
       "crewSet": "House is set – message the host",
       "join": "Request to join",
@@ -2923,6 +2931,28 @@ const en = {
         "groupEmpty": "Nothing here right now.",
         "openForRequests": "Open for requests",
         "comingUp": "Coming up",
+        "comingUpAll": "See all",
+        "comingUpLess": "Show less",
+        "allCaughtUp": "All caught up",
+        "blocks": {
+          "earned": "Earned this month",
+          "earnedYear": "{amount} this year",
+          "hosting": "Hosting",
+          "houses": "{count, plural, one {# House} other {# Houses}}",
+          "hostingNone": "No House open right now",
+          "house": "{count, plural, one {Your House} other {Your Houses}}",
+          "full": "{percent} % full",
+          "spots": "{filled} of {total} spots",
+          "people": "Your people",
+          "peopleLine": "lived with you",
+          "going": "Going",
+          "goingNone": "Nothing booked yet",
+          "waiting": "Waiting",
+          "waitingNone": "No open requests",
+          "livedIn": "Lived in",
+          "countries": "{count, plural, one {# country} other {# countries}}",
+          "andMore": "{name} +{count}"
+        },
         "timeline": {
           "pay_opens": "Pay opens",
           "pay_due": "Pay due",
@@ -3181,7 +3211,8 @@ const en = {
       "crewChipsIn": "Your crew chips in",
       "tileInDays": "{days, plural, =0 {Today} one {Tomorrow} other {in # days}}",
       "tileCrewIn": "{filled} of {total} in",
-      "tileOpen": "Open for requests"
+      "tileOpen": "Open for requests",
+      "draftLabel": "Draft"
     },
     "earnings": {
       "title": "Payouts",
@@ -3692,6 +3723,11 @@ const en = {
       "title": "Your places",
       "meta": "{kind} · {rooms, plural, one {# free room} other {# free rooms}} · {rent} a month",
       "rental": "Rented {range}",
+      "freeRooms": "{count, plural, one {# free room} other {# free rooms}}",
+      "back": "Your houses",
+      "windowsTitle": "Windows",
+      "windowPast": "Lived in",
+      "windowComing": "Coming up",
       "openWindow": "Open a window",
       "openAgain": "Open again",
       "openAgainLabel": "Open {title} again",
@@ -3828,6 +3864,15 @@ const en = {
       "unreadEmpty": "All read."
     },
     "thread": {
+      "openHouseArea": "Open {house}",
+      "inCount": "{filled} of {total} in",
+      "houseSettings": "House settings",
+      "yourStaySettings": "Your stay",
+      "mute": "Mute",
+      "unmute": "Unmute",
+      "mutedLabel": "Muted",
+      "mutedToast": "Chat muted",
+      "unmutedToast": "Chat unmuted",
       "loginTitle": "Log in to see this chat",
       "crewOnly": "This chat is for the House only",
       "crewOnlyDescription": "You'll get access once the host accepts your request.",

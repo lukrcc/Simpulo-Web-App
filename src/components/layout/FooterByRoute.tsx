@@ -6,7 +6,7 @@ import { footerOf } from "@/config/footer";
 
 /**
  * The one footer of the route (config/footer.ts): large · slim · none. Without one the page ends right above the tab bar (globals.css
- * html[data-footer="none"] main: --tabbar-clear) – a one-screen page like the profile then needs no scrolling.
+ * html[data-footer="none"] main: --tabbar-safe) – a one-screen page like the profile then needs no scrolling.
  */
 export function FooterByRoute({ large, slim }: { large: ReactNode; slim: ReactNode }) {
   const variant = footerOf(usePathname(), useSearchParams());

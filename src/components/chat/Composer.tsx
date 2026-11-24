@@ -208,8 +208,9 @@ export function Composer({ threadId, placeholder, replyTo, onCancelReply, onSend
           e.preventDefault();
           send();
         }}
-        // The field: #3A3633 (--chat-input), a 1px cream 10 % edge (focus 22 %), fully round, 52px – it grows to five lines.
-        className="flex min-h-13 items-end gap-1 rounded-[26px] border border-ink/10 bg-(--chat-input) p-[5px] transition-colors duration-150 focus-within:border-ink/22"
+        // A flat line (CLAUDE.md "Messenger – flaches Eingabefeld"): no capsule, no edge, no fill – the fine line to the messages is the
+        // frame's (ThreadFrame); 52px, it grows to five lines.
+        className="flex min-h-13 items-end gap-1 py-[5px]"
       >
         <input ref={fileRef} type="file" accept="image/*,application/pdf" multiple hidden onChange={onFiles} />
         <button

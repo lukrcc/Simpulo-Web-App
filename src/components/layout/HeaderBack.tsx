@@ -4,7 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useSyncExternalStore } from "react";
+import { Suspense, useSyncExternalStore } from "react";
 import { useBack } from "@/components/ui/BackButton";
 import { headerBackFor } from "@/config/backNav";
 import { useIsStandalone } from "@/lib/install";
@@ -22,7 +22,16 @@ const subscribeHash = (onChange: () => void) => {
  * sub-page that has no arrow of its own (config/backNav.ts). In a browser tab none – the browser has its own back. Settings on a phone with
  * an area open has its own "‹ Settings": none there either.
  */
-export function HeaderBack({ className }: { className?: string }) {
+/** Reads the URL (usePathname) – its own Suspense boundary, so it never blocks prerendering (it also sits in the headers' fallbacks). */
+export function HeaderBack(props: { className?: string }) {
+  return (
+    <Suspense fallback={null}>
+      <HeaderBackInner {...props} />
+    </Suspense>
+  );
+}
+
+function HeaderBackInner({ className }: { className?: string }) {
   const t = useTranslations("common");
   const pathname = usePathname();
   const standalone = useIsStandalone();

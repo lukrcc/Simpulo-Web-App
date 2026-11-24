@@ -45,7 +45,7 @@ export function ActiveFilterChips({ chips, label, removeLabel, clearLabel, onRem
 }
 
 /** The results head: title + grey summary + sort; the active filters; one line of description. `compact`: the bar's one line. */
-export function ResultsHead({ title, summary, sort, chips, description, compact = false, className }: { title: string; summary?: string; sort?: ReactNode; chips?: ReactNode; description?: string; compact?: boolean; className?: string }) {
+export function ResultsHead({ title, summary, sort, chips, description, compact = false, calm = false, className }: { title: string; summary?: string; sort?: ReactNode; chips?: ReactNode; description?: string; compact?: boolean; /** Unfiltered Explore: the title smaller and calm (text-row), alone */ calm?: boolean; className?: string }) {
   if (compact)
     return (
       <div className={cn("flex h-full min-w-0 items-center gap-3", className)}>
@@ -59,7 +59,7 @@ export function ResultsHead({ title, summary, sort, chips, description, compact 
     <div className={className}>
       <div className="flex items-baseline justify-between gap-4">
         <div className="flex min-w-0 items-baseline gap-3">
-          <h1 className="min-w-0 truncate text-section text-ink">{title}</h1>
+          <h1 className={cn("min-w-0 truncate text-ink", calm ? "text-row" : "text-section")}>{title}</h1>
           {summary && <p className="shrink-0 text-body text-muted max-md:hidden">{summary}</p>}
         </div>
         {sort && <div className="shrink-0">{sort}</div>}

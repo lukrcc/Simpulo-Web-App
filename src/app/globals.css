@@ -472,6 +472,9 @@
    It counts by default (also in the server HTML); a route without the bar sets html[data-tabbar="none"]. */
 :root {
   --tabbar-clear: 0px;
+  /* The light end of every page (CLAUDE.md "Einheitlicher heller Abschluss"): the tab bar's height + 2 × its distance to the window edge –
+     scrolled to the very bottom the bar sits in the middle of it. Phones: the bar is docked (distance 0) – just the bar. 0 without a bar. */
+  --tabbar-safe: var(--tabbar-clear);
 }
 @media (max-width: 743.98px) {
   :root {
@@ -486,6 +489,7 @@
   /* The House page (visitor, host): its booking bar replaces the tab bar at the bottom (HouseHero) – the page keeps that height free. */
   html[data-house-bar] {
     --tabbar-clear: var(--house-bar-h, 96px);
+    --tabbar-safe: var(--house-bar-h, 96px);
   }
   html[data-house-bar] [data-tab-bar] {
     display: none;
@@ -496,13 +500,16 @@
 @media (min-width: 46.5rem) and (max-width: 68.74rem) {
   :root {
     --tabbar-clear: calc(44px + 12px + var(--safe-bottom));
+    --tabbar-safe: calc(46px + 2 * 12px + var(--safe-bottom));
   }
   html[data-tabbar="none"],
   html[data-tabbar-tablet="none"] {
     --tabbar-clear: 0px;
+    --tabbar-safe: 0px;
   }
   html[data-house-bar] {
     --tabbar-clear: var(--house-bar-h, 96px);
+    --tabbar-safe: var(--house-bar-h, 96px);
   }
   html[data-house-bar] [data-tab-bar] {
     display: none;
@@ -513,10 +520,12 @@
 @media (min-width: 68.75rem) {
   :root {
     --tabbar-clear: calc(44px + 12px + var(--safe-bottom));
+    --tabbar-safe: calc(46px + 2 * 12px + var(--safe-bottom));
   }
   html[data-tabbar="none"],
   html[data-tabbar-tablet="none"] {
     --tabbar-clear: 0px;
+    --tabbar-safe: 0px;
   }
 }
 /* ONE fixed glass from 1100px (CLAUDE.md "Tab-Leiste und Kopfleiste – festes Glas"): the tab bar, the header (at the top and scrolled
@@ -742,7 +751,7 @@ html.sim-standalone {
 }
 @media (min-width: 90rem) {
   :root {
-    --my-cols: 5;
+    --my-cols: 4;
     --explore-cols: 4;
   }
 }
@@ -932,8 +941,9 @@ html.sim-standalone {
 }
 /* The chat's head: messages scroll under it. */
 /* The chat's head: glass – the chat's own ground, half see-through, blur 20px; the messages scroll under it. */
+/* The chat's head (CLAUDE.md "Messenger ruhig"): solid in the chat's ground – messages scroll under it without showing through. */
 .chat-glass {
-  background-color: color-mix(in oklab, var(--chat-bg) 62%, transparent);
+  background-color: var(--chat-bg);
   -webkit-backdrop-filter: blur(20px);
   backdrop-filter: blur(20px);
 }
@@ -1093,6 +1103,24 @@ html.sim-standalone {
 }
 
 /* Payouts' bars grow in on showing, staggered by their own animation-delay (40ms each). Only transform. */
+/* The House page's photo, once per device (stay/HousePhotos.tsx): it glides ~40px to the left and back – there's more to see. */
+@keyframes photo-nudge {
+  0%,
+  100% {
+    transform: none;
+  }
+  45% {
+    transform: translateX(-40px);
+  }
+}
+.photo-nudge > * {
+  animation: photo-nudge 600ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .photo-nudge > * {
+    animation: none;
+  }
+}
 @keyframes bar-grow {
   from { transform: scaleY(0); }
 }
@@ -2352,11 +2380,11 @@ body:has([data-last-tone="dark"]) footer.footer-dark {
 }
 
 /* The Spotlight's head (CLAUDE.md "Spotlight-Kopftexte – feste Typo-Hierarchie", explore/SpotlightIntro.tsx): fixed sizes, no fitting. The
-   small lines 13px capitals, 0.08em, the secondary grey; the one large line 56px semibold; the theme's sentence 22px medium, two lines kept
+   small lines 13px capitals, 0.08em, the secondary grey; the one large line 48px medium in --display-ink; the theme's sentence 22px medium, two lines kept
    (--spot-line-box); its link 15px. */
 :root {
   --spot-kicker-size: 13px;
-  --spot-title-size: 56px;
+  --spot-title-size: 48px;
   --spot-line-size: 22px;
   --spot-line-leading: 1.3;
   --spot-line-box: calc(2 * var(--spot-line-size) * var(--spot-line-leading));
@@ -2374,9 +2402,10 @@ body:has([data-last-tone="dark"]) footer.footer-dark {
   font-family: var(--font-display);
   font-size: var(--spot-title-size);
   line-height: 1.05;
-  font-weight: 600;
+  /* Calmer (CLAUDE.md "Hauptzeile ruhiger"): 48px medium, its own warm ink. */
+  font-weight: 500;
   letter-spacing: -0.025em;
-  color: var(--text);
+  color: var(--display-ink);
 }
 .spot-line {
   font-size: var(--spot-line-size);
@@ -2394,8 +2423,13 @@ body:has([data-last-tone="dark"]) footer.footer-dark {
 
 /* No footer (config/footer.ts "none" – your own areas): the page ends right above the tab bar, no --footer-gap below it (CLAUDE.md "Footer nur auf
    öffentlichen Seiten") – the profile fits one screen. */
-@media (min-width: 46.5rem) {
-  html[data-footer="none"] main:not(:has([data-app-pane])) {
-    padding-bottom: var(--tabbar-clear);
-  }
+/* CLAUDE.md "Einheitlicher heller Abschluss": every page without a footer ends with exactly --tabbar-safe of the page's own colour – the page
+   wrappers (Container page, the House area's section) drop their own bottom padding there, so the end is the same on every page. */
+html[data-footer="none"] main:not(:has([data-app-pane])) {
+  padding-bottom: var(--tabbar-safe);
+}
+html[data-footer="none"] main:not(:has([data-app-pane])) > .page-container:last-child,
+html[data-footer="none"] main:not(:has([data-app-pane])) > .page-container:last-child > :last-child {
+  padding-bottom: 0;
+  margin-bottom: 0;
 }

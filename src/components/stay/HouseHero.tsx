@@ -14,7 +14,7 @@ import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { CrewRow } from "@/components/CrewRow";
 import { ContextHelp } from "@/components/help/HelpFeedback";
-import { HeroBand, HeroPhotos } from "@/components/HeroBand";
+import { HousePhotos } from "@/components/stay/HousePhotos";
 import { SaveButton } from "@/components/ui/SaveButton";
 import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode, type Ref } from "react";
 import { showsAge } from "@/config/privacy";
@@ -141,10 +141,9 @@ export function HouseHero({ stay, host, crew, cta, secondary, actions, stage, sh
       stagePad
       stageClassName="stage-cream stage-mood"
       style={stageMoodStyle(housePhotos(stay, host)[0])}
-      height="split:h-(--stage-image-h)"
       media={
         <>
-          <HeroPhotos photos={housePhotos(stay, host)} />
+          <HousePhotos photos={housePhotos(stay, host)} title={stay.title} />
           <span className="absolute right-2 top-2 z-10 flex">
             <SaveButton stay={stay} />
           </span>

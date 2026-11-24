@@ -2,7 +2,7 @@
 
 import { hidesPhotoUntilAccepted, hostPageInSearch, hostsPublicly } from "@/lib/privacy";
 import { useMyApplication } from "@/components/platform/HostApply";
-import { Bell, Check, HelpCircle, Languages, LogOut, MessageCircle, LayoutDashboard, ChevronLeft, ChevronRight, CircleUser, CreditCard, Lock, Plus, Search, Settings2, ShieldCheck, SunMoon, Wallet, type LucideIcon } from "lucide-react";
+import { Bell, Check, HelpCircle, Languages, LogOut, LayoutDashboard, ChevronLeft, ChevronRight, CircleUser, CreditCard, Lock, Plus, Search, Settings2, ShieldCheck, SunMoon, Wallet, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
@@ -16,7 +16,6 @@ import { PayoutSetupSheet, useStartOnboarding } from "@/components/payouts/Payou
 import { RefundLine } from "@/components/payments/Refund";
 import { IconTile, RowSelect, SettingsGroup, SettingsRow } from "@/components/settings/SettingsList";
 import { ThemeSwitch } from "@/components/settings/ThemeSwitch";
-import { ChatBackgroundPicker } from "@/components/chat/ChatBackground";
 import { SideNav } from "@/components/settings/SideNav";
 import { Button } from "@/components/ui/ActionButton";
 import { Avatar } from "@/components/ui/Avatar";
@@ -47,7 +46,7 @@ import { MEDIA } from "@/config/breakpoints";
 
 /** The areas, in the side list's order (CLAUDE.md "Profil ohne Pop-up": Account · Notifications · Appearance · Privacy · Language first,
  *  then the rest); each is its URL hash (#payments), a page behind one is "#payments/history". */
-const SECTIONS = ["account", "notifications", "appearance", "privacy", "language", "payments", "chats", "general"] as const;
+const SECTIONS = ["account", "notifications", "appearance", "privacy", "language", "payments", "general"] as const;
 type Section = (typeof SECTIONS)[number];
 const SUBPAGES = ["payments/history", "general/currency", "general/language"] as const;
 type Subpage = (typeof SUBPAGES)[number];
@@ -60,7 +59,6 @@ const SECTION_ICONS: Record<Section, LucideIcon> = {
   account: CircleUser,
   payments: CreditCard,
   notifications: Bell,
-  chats: MessageCircle,
   appearance: SunMoon,
   privacy: ShieldCheck,
   language: Languages,
@@ -147,7 +145,6 @@ function SettingsContent({ me }: { me: User }) {
             {section === "account" && <AccountArea me={me} />}
             {section === "payments" && (subpage === "payments/history" ? <PaymentHistory me={me} /> : <PaymentsArea me={me} />)}
             {section === "notifications" && <NotificationsArea me={me} />}
-            {section === "chats" && <ChatsArea />}
             {section === "appearance" && <AppearanceArea />}
             {section === "language" && <LanguageArea />}
             {section === "privacy" && <PrivacyArea me={me} />}
@@ -196,7 +193,6 @@ function SettingsHome({ isAdmin }: { isAdmin: boolean }) {
       </ul>
       <ul>
         {area("payments")}
-        {area("chats")}
         {area("general")}
         {isAdmin && (
           <li className="border-b border-line last:border-b-0">
@@ -452,22 +448,6 @@ function PaymentHistory({ me }: { me: User }) {
 
 // ─── Notifications ─────────────────────────────────────────────────────────────
 
-/** Chats: the background every chat starts with (config/chat-themes.ts); a chat's own "…" › Chat background goes over it. */
-function ChatsArea() {
-  const t = useTranslations("messages.chatTheme");
-  const tNav = useTranslations("settings.ui.nav");
-  const saved = useSaved();
-  return (
-    <div className="space-y-8">
-      <AreaTitle title={tNav("chats")} />
-      <SettingsGroup title={t("allChats")} footer={t("allChatsHint")}>
-        <div className="p-4">
-          <ChatBackgroundPicker threadId={null} onPicked={saved} />
-        </div>
-      </SettingsGroup>
-    </div>
-  );
-}
 
 /**
  * Notifications (CLAUDE.md "Settings"): "Requests & bookings" on top – always on, and why; then each group with its channels as three

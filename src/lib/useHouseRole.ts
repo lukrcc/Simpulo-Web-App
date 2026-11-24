@@ -8,15 +8,19 @@ import { useDevSetting } from "./devSettings";
 
 export type HouseRole = "visitor" | "member" | "host";
 
-/** `ended`: was in the House, then removed by the host or the 48 hours to pay ran out – still a member's area, Me says what happened. */
-export function useHouseRole(id: string): { role: HouseRole; stage: MemberStage | null; ended?: "removed" | "paymentLapsed" | "moderation" } {
+/**
+ * `ended`: was in the House, then removed by the host or the 48 hours to pay ran out – still a member's area, "Your stay" says what happened.
+ * `area`: may enter the House's private area (/houses/[id], CLAUDE.md "Klare Ziele für alle House-Karten"): the host, a guest who's in
+ * (accepted, paying, paid) or whose time in it ended – not someone who only asked or was invited (they wait on the public page).
+ */
+export function useHouseRole(id: string): { role: HouseRole; stage: MemberStage | null; ended?: "removed" | "paymentLapsed" | "moderation"; area: boolean } {
   const store = useStore();
   // Dev menu "House role" (dev only, always "auto" elsewhere): this view, whatever the real role is.
   const override = useDevSetting("houseRole");
   const real = realRole(store, id);
-  if (override === "auto") return real;
-  if (override === "member") return { role: "member", stage: real.stage ?? "requested" };
-  return { role: override, stage: null };
+  if (override === "auto") return { ...real, area: real.role === "host" || Boolean(real.ended) || (real.stage !== null && real.stage !== "requested") };
+  if (override === "member") return { role: "member", stage: real.stage ?? "accepted", area: true };
+  return { role: override, stage: null, area: override === "host" };
 }
 
 function realRole(store: ReturnType<typeof useStore>, id: string): { role: HouseRole; stage: MemberStage | null; ended?: "removed" | "paymentLapsed" | "moderation" } {

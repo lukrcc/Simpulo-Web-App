@@ -18,7 +18,7 @@ import { firstName } from "@/lib/utils";
 export function OnboardingDone() {
   const t = useTranslations("onboarding.done");
   return (
-    <RequireLogin title={t("title")}>
+    <RequireLogin title={t("metaTitle")}>
       <DoneContent />
     </RequireLogin>
   );

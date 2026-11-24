@@ -35,7 +35,10 @@ type TaskData = StoreData & { payments: Payment[] };
 /** Where a House's detail page opens (?focus=): pay opens the pay sheet, requests/invite/booking/chat scroll there and light it up. */
 export type HouseFocus = "pay" | "requests" | "invite" | "booking" | "chat";
 /** The host's tasks: the House area's Manage tab (/h/[id]?tab=manage). */
-export const hostManageHref = (stay: Pick<Stay, "id">, focus?: HouseFocus) => `/h/${stay.id}?tab=manage${focus ? `&focus=${focus}` : ""}`;
+export const hostManageHref = (stay: Pick<Stay, "id">, focus?: HouseFocus) => `/houses/${stay.id}?tab=manage${focus ? `&focus=${focus}` : ""}`;
+/** The House's private area (members and the host, CLAUDE.md "Klare Ziele für alle House-Karten"), on a tab. */
+export const areaHref = (stay: Pick<Stay, "id">, tab?: "chat" | "plan" | "crew" | "moments" | "manage", focus?: HouseFocus) =>
+  `/houses/${stay.id}${tab || focus ? "?" : ""}${[tab ? `tab=${tab}` : "", focus ? `focus=${focus}` : ""].filter(Boolean).join("&")}`;
 /** A guest's tasks: the House page (/h/[id]), which shows their way through it. */
 export const manageHref = (stay: Pick<Stay, "id">, focus?: HouseFocus) => `/h/${stay.id}${focus ? `?focus=${focus}` : ""}`;
 /** Needs you: an entry leads to its House page with the step to show (?step=pay|requests|invite|booking|chat); the page scrolls its head into view. */

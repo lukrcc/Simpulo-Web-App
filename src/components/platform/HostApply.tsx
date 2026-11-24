@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/ActionButton";
 import { Input, Textarea } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { canOpenHouseAs, usePlatformPhase } from "@/config/platform";
+import { useNow } from "@/lib/useNow";
 import { useFormat } from "@/i18n/format";
 import { useAdminData } from "@/lib/admin/store";
 import { track } from "@/lib/analytics";
@@ -83,9 +84,10 @@ export function ApplicationStatus({ application, justSent = false }: { applicati
   );
 }
 
-/** The next 12 months as "YYYY-MM". */
-function nextMonths(): string[] {
-  const now = new Date();
+/** The next 12 months as "YYYY-MM" – from the browser clock (useNow): `new Date()` while prerendering is a Next.js error ("1 Issue" on /apply). */
+function nextMonths(nowMs: number | null): string[] {
+  if (nowMs === null) return [];
+  const now = new Date(nowMs);
   return Array.from({ length: 12 }, (_, i) => new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + i, 1)).toISOString().slice(0, 7));
 }
 
@@ -108,6 +110,7 @@ function ApplyForm({ onSent }: { onSent: (application: HostApplication) => void 
   const f = useFormat();
   const format = useFormatter();
   const store = useStore();
+  const nowMs = useNow();
   const me = getCurrentUser(store);
   const [form, setForm] = useState({ name: me?.name.split(" ")[0] ?? "", email: me?.email ?? "", link: "", reach: "", topic: "" as Vibe | "", place: "", when: "", why: "" });
   const [touched, setTouched] = useState(false);
@@ -182,7 +185,7 @@ function ApplyForm({ onSent }: { onSent: (application: HostApplication) => void 
         <Field label={t("when")}>
           <Select value={form.when} onChange={(e) => set({ when: e.target.value })}>
             <option value="">{t("whenAny")}</option>
-            {nextMonths().map((m) => (
+            {nextMonths(nowMs).map((m) => (
               <option key={m} value={m}>
                 {format.dateTime(new Date(`${m}-01T00:00:00Z`), { month: "long", year: "numeric", timeZone: "UTC" })}
               </option>

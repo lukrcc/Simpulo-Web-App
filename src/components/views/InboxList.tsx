@@ -1,6 +1,6 @@
 "use client";
 
-import { listFillStyle, stayAccentOf } from "@/lib/stageTint";
+import { ChatInfoBar } from "@/components/chat/ChatInfoBar";
 import { useReloadOnReturn } from "@/lib/useReloadOnReturn";
 import { ChevronRight, LifeBuoy, MessageCircle, Search } from "lucide-react";
 import Link from "next/link";
@@ -39,8 +39,6 @@ interface ThreadRow {
   past: boolean;
   /** Simpulo Support: its mark in a circle instead of a photo */
   support?: boolean;
-  /** The House's colour – the chosen row's soft fill (lib/stageTint.ts listFillStyle) */
-  accent?: string;
 }
 
 export function InboxList() {
@@ -89,14 +87,14 @@ function InboxContent() {
     const over = stay.endDate !== "" && stay.endDate < today;
     const cover = housePhotos(stay, findUser(store, stay.hostId))[0];
     if (thread.type === "house") {
-      return [{ thread, title: stay.title, cover, accent: stayAccentOf(stay, cover), subtitle: t("houseLine", { dates: f.shortRange(stay.startDate, stay.endDate), filled: crewInOf(store, stay), total: stay.spotsTotal }), past: over }];
+      return [{ thread, title: stay.title, cover, subtitle: t("houseLine", { dates: f.shortRange(stay.startDate, stay.endDate), filled: crewInOf(store, stay), total: stay.spotsTotal }), past: over }];
     }
     const other = findUser(store, thread.participantIds.find((id) => id !== me) ?? "");
     // Blocked: the chat is gone (crew chats stay – their messages collapse instead).
     if (other && isBlocked(store, other.id)) return [];
     const last = thread.messages.at(-1)?.createdAt;
     const quiet = last !== undefined && now - Date.parse(last) > DIRECT_MESSAGE_POLICY.archiveAfterDays * DAY_MS;
-    return [{ thread, title: other?.name.split(" ")[0] ?? t("unknown"), subtitle: t("about", { name: shortNameOf(stay) }), avatar: other, cover, accent: stayAccentOf(stay, cover), past: over || quiet }];
+    return [{ thread, title: other?.name.split(" ")[0] ?? t("unknown"), subtitle: t("about", { name: shortNameOf(stay) }), avatar: other, cover, past: over || quiet }];
   });
 
   // Simpulo Support: the person's requests and ideas with the answers – one row, there once something was sent (lib/support/conversation.ts).
@@ -117,7 +115,7 @@ function InboxContent() {
   const activeId = rows.some((r) => r.thread.id === selectedId) ? selectedId : (ordered[0]?.thread.id ?? null);
 
   const list = (items: ThreadRow[]) => (
-    <ul className="flex flex-col gap-1">
+    <ul className="flex flex-col">
       {items.map((row) => (
         <li key={row.thread.id}>
           <ThreadRowLink row={row} active={isDesktop && row.thread.id === activeId} isDesktop={isDesktop} />
@@ -142,7 +140,7 @@ function InboxContent() {
       />
     ) : (
       <>
-        {current.length > 0 && <div className="mt-4">{list(current)}</div>}
+        {current.length > 0 && <div className="mt-4 md:mt-0">{list(current)}</div>}
         {current.length === 0 && past.length === 0 && q === "" && <p className="mt-6 text-small text-muted">{t("housesEmpty")}</p>}
         {past.length > 0 && (
           <section className="mt-5">
@@ -186,11 +184,14 @@ function InboxContent() {
             </label>
           )}
           {/* No footer and no legal line on Messages – the one dark page, nothing light under it. */}
-          <div className="md:scroll-pane md:-mr-3 md:min-h-0 md:flex-1 md:pr-3 md:pt-1">{chats}</div>
+          {/* The rows reach the list's edges (--bleed-l/-r: the column's inner padding) – the chosen chat a calm fill across the whole row. */}
+          <div className="[--bleed-l:var(--page-margin)] [--bleed-r:var(--page-margin)] md:scroll-pane md:-ml-(--bleed-l) md:-mr-(--bleed-r) md:min-h-0 md:flex-1 md:pl-(--bleed-l) md:pr-(--bleed-r) md:pt-1 md:[--bleed-l:16px] md:[--bleed-r:16px] split:[--bleed-l:var(--list-gutter)] split:[--bleed-r:24px]">{chats}</div>
         </>
       }
       // Mounted from 744px only: on phones it would mark the chat as read without anyone seeing it.
       detail={isDesktop && activeId ? <ThreadPanel threadId={activeId} /> : null}
+      // From 744px: the info bar across list and chat (the House or person of the open chat, the crew, settings, "…").
+      bar={isDesktop ? <ChatInfoBar threadId={activeId} /> : undefined}
     />
   );
 }
@@ -228,10 +229,8 @@ function ThreadRowLink({ row, active, isDesktop }: { row: ThreadRow; active: boo
       href={isDesktop ? `/messages?id=${thread.id}` : `/messages/${thread.id}`}
       scroll={false}
       aria-current={active ? "page" : undefined}
-      // Chosen: the outline capsule in ink (ui/listSelection) – Messages is light like every page.
-      // Chosen: a soft fill of the House colour (no edge), hover half of it (tokens.css .chat-row).
-      className="chat-row block px-4"
-      style={listFillStyle(row.accent)}
+      // Chosen: a calm fill across the whole row, no capsule (tokens.css .chat-row, CLAUDE.md "Messenger ruhig").
+      className="chat-row -ml-(--bleed-l) -mr-(--bleed-r) block pl-(--bleed-l) pr-(--bleed-r)"
     >
       <span className="flex items-center gap-3 py-3">
         {row.support ? (
@@ -262,10 +261,10 @@ function ThreadRowLink({ row, active, isDesktop }: { row: ThreadRow; active: boo
             {time && <span className="shrink-0 text-small text-ink/40">{time}</span>}
           </span>
           {subtitle && <span className="block truncate text-small text-muted">{subtitle}</span>}
-          {/* Unread: the preview in ink semibold, and the orange dot. */}
+          {/* Unread: the preview semibold, and a small neutral dot. */}
           <span className={cn("block truncate text-small", unread ? "font-semibold text-ink" : "text-muted")}>{preview}</span>
         </span>
-        {unread && <span className="size-2 shrink-0 rounded-full bg-accent" role="img" aria-label={t("unread")} />}
+        {unread && <span className="size-2 shrink-0 rounded-full bg-ink/45" role="img" aria-label={t("unread")} />}
       </span>
     </Link>
   );

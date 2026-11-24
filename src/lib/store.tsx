@@ -251,6 +251,7 @@ type StoreAction =
   | { type: "resetConsents" }
   | { type: "setArcStep"; houseId: string; stepId: string; state: "done" | "skipped" | "open"; note?: string }
   | { type: "setArcMuted"; muted: boolean }
+  | { type: "toggleMuteThread"; threadId: string }
   | { type: "setIntention"; houseId: string; intention: ArcIntention }
   | { type: "setArrival"; houseId: string; arrival: ArcArrival | null }
   | { type: "setPractical"; stayId: string; patch: StayPractical }
@@ -449,6 +450,8 @@ interface StoreActions {
   setArcStep: (houseId: string, stepId: string, state: "done" | "skipped" | "open", note?: string) => void;
   /** "Mute Simpulo tips": no arc cards in any House chat */
   setArcMuted: (muted: boolean) => void;
+  /** Mute a chat or unmute it ("…" › Mute): a muted chat doesn't count as unread in the badge */
+  toggleMuteThread: (threadId: string) => void;
   /** The arc's intention for a House (the crew sees it) */
   setIntention: (houseId: string, intention: ArcIntention) => void;
   /** How you get to a House (the crew sees it; null removes it) */
@@ -2232,6 +2235,19 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
       return livedWith === state.livedWith ? state : { ...state, livedWith };
     }
 
+    case "toggleMuteThread": {
+      const me = state.currentUserId;
+      if (!me) return state;
+      return {
+        ...state,
+        users: state.users.map((u) => {
+          if (u.id !== me) return u;
+          const muted = settingsOf(u).mutedThreads ?? [];
+          const next = muted.includes(action.threadId) ? muted.filter((id) => id !== action.threadId) : [...muted, action.threadId];
+          return { ...u, settings: { ...settingsOf(u), mutedThreads: next.length ? next : undefined } };
+        }),
+      };
+    }
     case "setArcMuted": {
       if (!me) return state;
       return { ...state, users: state.users.map((u) => (u.id === me ? { ...u, settings: { ...settingsOf(u), arcMuted: action.muted || undefined } } : u)) };
@@ -3284,6 +3300,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const resetConsents = useCallback(() => dispatch({ type: "resetConsents" }), []);
   const setArcStep = useCallback((houseId: string, stepId: string, state: "done" | "skipped" | "open", note?: string) => dispatch({ type: "setArcStep", houseId, stepId, state, note }), []);
   const setArcMuted = useCallback((muted: boolean) => dispatch({ type: "setArcMuted", muted }), []);
+  const toggleMuteThread = useCallback((threadId: string) => dispatch({ type: "toggleMuteThread", threadId }), []);
   const setIntention = useCallback((houseId: string, intention: ArcIntention) => dispatch({ type: "setIntention", houseId, intention }), []);
   const setArrival = useCallback((houseId: string, arrival: ArcArrival | null) => dispatch({ type: "setArrival", houseId, arrival }), []);
   const setPractical = useCallback((stayId: string, patch: StayPractical) => dispatch({ type: "setPractical", stayId, patch }), []);
@@ -3514,6 +3531,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       resetConsents,
       setArcStep,
       setArcMuted,
+      toggleMuteThread,
       setIntention,
       setArrival,
       setPractical,
@@ -3636,6 +3654,7 @@ export function settingsOf(user: Pick<User, "settings"> | undefined): UserSettin
     arc: user?.settings?.arc,
     arcNotes: user?.settings?.arcNotes,
     arcMuted: user?.settings?.arcMuted,
+    mutedThreads: user?.settings?.mutedThreads,
     intentions: user?.settings?.intentions,
     arrivals: user?.settings?.arrivals,
     arrived: user?.settings?.arrived,
@@ -3732,8 +3751,9 @@ export function unreadThreadCount(store: Pick<StoreState, "threads" | "lastReadA
   const me = store.currentUserId;
   if (!me) return 0;
   // Simpulo's own "updates" chat isn't a chat any more: what it says is in Messages › Updates (the notifications).
+  const muted = settingsOf(store.users.find((u) => u.id === me)).mutedThreads ?? [];
   return store.threads.filter(
-    (t) => t.type !== "updates" && t.participantIds.includes(me) && isThreadUnread(store, t) && !(t.type === "direct" && t.participantIds.some((id) => id !== me && isBlocked(store, id))),
+    (t) => t.type !== "updates" && t.participantIds.includes(me) && !muted.includes(t.id) && isThreadUnread(store, t) && !(t.type === "direct" && t.participantIds.some((id) => id !== me && isBlocked(store, id))),
   ).length;
 }
 

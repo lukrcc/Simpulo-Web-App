@@ -496,7 +496,7 @@ export function HouseMore({ stay }: { stay: Stay }) {
         <Shelf variant="flat" top={EXPLORE_SPACING.headContent}>
           {more.map((s) => (
             <div key={s.id} className="explore-slide shrink-0">
-              <HouseCard stay={s} host={findUser(store, s.hostId)} crew={getCrew(store, s)} />
+              <HouseCard variant="shelf" stay={s} host={findUser(store, s.hostId)} crew={getCrew(store, s)} />
             </div>
           ))}
         </Shelf>

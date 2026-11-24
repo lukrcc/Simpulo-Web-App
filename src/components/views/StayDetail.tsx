@@ -35,7 +35,9 @@ import { MyShare } from "@/components/payments/MyShare";
 import { Container } from "@/components/layout/Container";
 import { CrewVotes } from "@/components/stay/CrewVotes";
 import { HouseHero } from "@/components/stay/HouseHero";
+import { FRAME_BODY_TOP } from "@/components/PageFrame";
 import { HouseArea } from "@/components/stay/HouseArea";
+import { HouseSkeleton } from "@/components/skeletons/HouseSkeleton";
 import { InviteSheet } from "@/components/InviteSheet";
 import { useCanInvite } from "@/lib/invites";
 import { useHouseRole } from "@/lib/useHouseRole";
@@ -79,6 +81,26 @@ export function StayDetail({ params }: { params: Promise<{ slug: string }> }) {
   if (stay.takenDownAt && stay.hostId !== store.currentUserId) return <StayUnavailable reason="removed" exceptId={stay.id} />;
 
   return <StayDetailContent stay={stay} />;
+}
+
+/**
+ * /houses/[id] – a House's private area (CLAUDE.md "Klare Ziele für alle House-Karten"): the host and the guests who are in (or whose time in
+ * it ended) see the area with its tabs; anyone else is sent to the public House page (/house/[slug]). Waits for the restored session.
+ */
+export function HouseAreaPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  const store = useStore();
+  const router = useRouter();
+  const stay = store.stays.find((s) => s.id === id || s.slug === id);
+  const { role, ended, area } = useHouseRole(stay?.id ?? id);
+  const ready = store.sessionRestored;
+  useEffect(() => {
+    if (ready && stay && !area) router.replace(`/house/${stay.slug}`);
+  }, [ready, stay, area, router]);
+  if (!stay) return ready ? <StayUnavailable reason="notFound" /> : <HouseSkeleton />;
+  if (isBlocked(store, stay.hostId)) return <StayUnavailable reason="blocked" exceptId={stay.id} />;
+  if (!ready || !area) return <HouseSkeleton />;
+  return <HouseArea stay={stay} role={role === "host" ? "host" : "member"} ended={ended} />;
 }
 
 const UNAVAILABLE_ICONS = { notFound: SearchX, closed: DoorClosed, blocked: UserX, removed: ShieldX } as const;
@@ -201,8 +223,14 @@ function StayDetailContent({ stay }: { stay: Stay }) {
   const summaryRef = useRef<HTMLElement>(null);
   const stage = previewing ? null : memberStage(store, stay, store.currentUserId);
   // Who's looking (lib/useHouseRole.ts): a member (requested, accepted, paying, paid) gets their way through the House instead of "Request to join".
-  const { role: liveRole, ended } = useHouseRole(stay.id);
+  const { role: liveRole, area } = useHouseRole(stay.id);
   const role = previewing ? "visitor" : liveRole;
+  // The short link /h/[id]: who may enter the House's private area goes there (/houses/[id], with the query); everyone else stays on the
+  // public page – also someone who asked or was invited (CLAUDE.md "Klare Ziele für alle House-Karten"). /house/[slug] is always public.
+  const toArea = !previewing && area && pathname.startsWith("/h/");
+  useEffect(() => {
+    if (toArea && store.sessionRestored) router.replace(`/houses/${stay.id}${window.location.search}`);
+  }, [toArea, store.sessionRestored, router, stay.id]);
   // ?focus= (Needs you, notifications): a member's "pay" opens the pay sheet; the host is sent on to the management page with it.
   const [focusParam, setFocusParam] = useState<string | null>(null);
   useEffect(() => {
@@ -210,7 +238,7 @@ function StayDetailContent({ stay }: { stay: Stay }) {
     // The step in view: the head (the member's Ember step, the host's status) scrolls up under the header.
     summaryRef.current?.scrollIntoView({ block: "start" });
     // The host: to the management page – except "invite", which opens the invite sheet right here.
-    if (role === "host" && focusParam !== "invite") router.replace(`/h/${stay.id}?tab=manage&focus=${focusParam}`);
+    if (role === "host" && focusParam !== "invite") router.replace(`/houses/${stay.id}?tab=manage&focus=${focusParam}`);
   }, [focusParam, role, router, stay.id]);
   // A member's ?focus=pay opens the pay sheet once (closing it clears the focus).
   const payOpen = paying || (role === "member" && focusParam === "pay");
@@ -400,6 +428,16 @@ function StayDetailContent({ stay }: { stay: Stay }) {
     />
   );
   const cta = ctaFor(true);
+  // Waiting (CLAUDE.md "Klare Ziele für alle House-Karten"): Your houses' Waiting cards open this page at its top – the dark strip says where
+  // things stand, the button beside it is the one that fits (the request's "Request sent", an invite's Accept · Decline).
+  const waitingNotice =
+    myRequest?.status === "pending"
+      ? t("page.waitingForHost")
+      : myRequest?.status === "invited"
+        ? myRequest.reservedUntil
+          ? t("page.invitedAnswerBy", { date: `${format.day(myRequest.reservedUntil)} ${format.time(myRequest.reservedUntil)}` })
+          : t("page.invitedAnswer")
+        : undefined;
 
   // The crew-only and host-only panels: between the facts and the House's own story.
   const showOpenYourOwn = !isHost && !isMember && !invite && stay.status !== "closed" && stay.status !== "completed" && (didntWorkOut(myRequest) || (!myRequest && (!stay.acceptingRequests || spotsLeft === 0)));
@@ -408,15 +446,14 @@ function StayDetailContent({ stay }: { stay: Stay }) {
   // Under the host's price only what needs them: "● 1 request to review" (orange dot) → Manage. The crew stands in the right column.
   const hostStatus =
     openRequests > 0 ? (
-      <Link href={`/h/${stay.id}?tab=manage&focus=requests`} className="inline-flex items-center gap-2 font-semibold text-ink underline-offset-4 hover:underline">
+      <Link href={`/houses/${stay.id}?tab=manage&focus=requests`} className="inline-flex items-center gap-2 font-semibold text-ink underline-offset-4 hover:underline">
         <span aria-hidden className="size-2 rounded-full bg-accent" />
         {t("page.requestsToReview", { count: openRequests })}
       </Link>
     ) : undefined;
 
-  // Members (a request, a yes, a paid share – or removed / their time to pay ran out) and the host: the House area with its tabs
-  // (stay/HouseArea.tsx). Visitors and the host's "Preview as guest" keep this page.
-  if (!previewing && (role === "member" || role === "host")) return <HouseArea stay={stay} role={role} ended={ended} />;
+  // On its way to the private area (/h/[id] → /houses/[id]).
+  if (toArea) return <HouseSkeleton />;
 
   return (
     <PreviewProvider active={previewing}>
@@ -481,7 +518,7 @@ function StayDetailContent({ stay }: { stay: Stay }) {
           stage={stage}
           // The beta: a reserved spot isn't paid for – said once, under the actions.
           note={example ? tPlatform("example.note", { month: launch.targetMonth }) : (ctaNote ?? (phaseAction?.kind === "reserve" || myRequest?.reserved ? t("page.phase.noPaymentUntilLaunch") : undefined))}
-          notice={example ? undefined : isHost ? hostStatus : audience === "blocked" || audience === "unknown" ? t("page.audienceWomen") : overlapNotice}
+          notice={example ? undefined : isHost ? hostStatus : (waitingNotice ?? (audience === "blocked" || audience === "unknown" ? t("page.audienceWomen") : overlapNotice))}
           showSteps={!isHost && !invite && stage !== "paid" && (stage !== null || canJoin) && requestsOpen && !example}
           actions={
             <HouseActions
@@ -506,7 +543,7 @@ function StayDetailContent({ stay }: { stay: Stay }) {
     <Container className="explore-width">
       {/* Under the band, 32px down – so the window's edge (--stage-peek) cuts under the headings, never through a line of text: the sections
           in one order, 40px apart, right on the page's background. Text reads at most 760px wide. */}
-      <div className="mt-8 flex flex-col gap-10">
+      <div className={cn(FRAME_BODY_TOP, "flex flex-col gap-10")}>
         {/* What only applies to you right now: declined or full, an invite, the host's hints, the crew group, your share, a photo. */}
         <div className="flex flex-col gap-6 empty:hidden md:max-w-[760px]">
           {/* Declined, or the crew is full (and the waitlist has no room): the same trip, as their own House. */}
@@ -873,11 +910,11 @@ function StayCta({ stay, isHost, request, paymentDue, onPay, spotsLeft, invited,
       </div>
     );
   }
+  // Asked, waiting for the host: the strip says so (its notice) – the button is the one thing to do meanwhile: write to the host.
   if (request?.status === "pending") {
     return (
-      <Button variant={variant} size={size} disabled>
-        <Check aria-hidden />
-        {t("pending")}
+      <Button variant={outline} size={size} onClick={onMessageHost}>
+        {t("messageWhileWaiting")}
       </Button>
     );
   }

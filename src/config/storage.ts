@@ -27,6 +27,7 @@ export const STORAGE: readonly StorageEntry[] = [
   // ── localStorage ──
   { name: "simpulo:currency", kind: "localStorage", purpose: "Selbst gewählte Währung", necessary: true, scope: "product" },
   { name: "simpulo:currency-hint", kind: "localStorage", purpose: "Hinweis „Prices in …“ schon gezeigt", necessary: true, scope: "product" },
+  { name: "simpulo:house-photo-hint", kind: "localStorage", purpose: "House-Seite: Hinweis „weitere Fotos“ (Bild gleitet kurz) schon gezeigt", necessary: true, scope: "product" },
   { name: "simpulo:install-prompt:v2", kind: "localStorage", purpose: "App-Hinweis: zuletzt gezeigt und „Don't show again“", necessary: true, scope: "product" },
   { name: "simpulo:push-asked", kind: "localStorage", purpose: "Wann nach Benachrichtigungen gefragt wurde (höchstens zweimal)", necessary: true, scope: "product" },
   { name: "simpulo:install-seen:{id}", kind: "localStorage", purpose: "Welche Zusagen/Zahlungen den App-Hinweis schon ausgelöst haben", necessary: true, scope: "product" },

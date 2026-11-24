@@ -221,6 +221,8 @@ export interface UserSettings {
   chatTheme?: ChatThemeId;
   /** …and per chat ({ [threadId]: theme }), over the one for all */
   chatThemes?: Record<string, ChatThemeId>;
+  /** Chats this person muted ("…" › Mute): they don't count as unread in the tab bar's badge */
+  mutedThreads?: string[];
   /**
    * What this person agreed to (config/consent.ts): every agreement with its version and time – the latest of a kind counts, older ones stay
    * as the history (Settings › Privacy & safety › Agreements). Legal basis: contract (config/data-points.ts consent.*).

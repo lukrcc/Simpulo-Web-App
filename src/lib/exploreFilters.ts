@@ -12,8 +12,9 @@ import type { Stay, Vibe } from "./types";
 import { openSpots } from "./utils";
 
 /** soonest: start date · price: lowest per person first (≈ EUR; no price yet: last) · newest: just opened */
-export type SortKey = "soonest" | "price" | "newest";
-export const SORT_KEYS: readonly SortKey[] = ["soonest", "price", "newest"];
+// "For you" first and the default (lib/ranking.ts rankForYou – never Simpulo's fee or revenue).
+export type SortKey = "forYou" | "soonest" | "price" | "newest";
+export const SORT_KEYS: readonly SortKey[] = ["forYou", "soonest", "price", "newest"];
 
 /** A House's length: weekend ≤ 5 nights · weeks 6–17 nights ("1–2 weeks") · long 18+ nights ("3+ weeks"). */
 export type LengthKey = "weekend" | "weeks" | "long";
@@ -69,7 +70,7 @@ export interface ExploreFilters {
   sort: SortKey;
 }
 
-export const EMPTY_FILTERS: ExploreFilters = { vibes: [], place: null, month: null, languages: [], budget: null, lengths: [], spots: null, crewSizes: [], who: null, age: null, accommodation: null, hostExperience: null, verifiedOnly: false, depth: null, sub: null, sort: "soonest" };
+export const EMPTY_FILTERS: ExploreFilters = { vibes: [], place: null, month: null, languages: [], budget: null, lengths: [], spots: null, crewSizes: [], who: null, age: null, accommodation: null, hostExperience: null, verifiedOnly: false, depth: null, sub: null, sort: "forYou" };
 
 /** "Bali, Indonesia" → "Indonesia" */
 export const countryOf = (stay: Pick<Stay, "region">) => stay.region.split(",").at(-1)?.trim() ?? stay.region;
@@ -96,7 +97,7 @@ export function parseFilters(params: URLSearchParams, knownVibes: readonly strin
     verifiedOnly: params.get("verified") === "1",
     depth: DEPTH_KEYS.find((key) => key === params.get("depth")) ?? null,
     sub: SUB_THEMES.find((x) => x.id === params.get("sub") && x.status === "active")?.id ?? null,
-    sort: SORT_KEYS.find((key) => key === params.get("sort")) ?? "soonest",
+    sort: SORT_KEYS.find((key) => key === params.get("sort")) ?? "forYou",
   };
 }
 
@@ -121,7 +122,7 @@ export function withFilters(params: URLSearchParams, filters: ExploreFilters): s
   // A sub theme only beside its own top theme (another theme picked elsewhere drops it).
   const subParent = SUB_THEMES.find((x) => x.id === filters.sub)?.parent;
   set("sub", filters.sub && subParent && filters.vibes.includes(subParent) ? [filters.sub] : []);
-  set("sort", filters.sort === "soonest" ? [] : [filters.sort]);
+  set("sort", filters.sort === "forYou" ? [] : [filters.sort]);
   const query = next.toString();
   return query ? `?${query.replace(/%2C/g, ",")}` : "";
 }
