@@ -7,12 +7,16 @@ const listeners = new Set<Listener>();
 /** A panel opened: it is the one now; the others close. */
 export function claimPanel(id: string) {
   current = id;
+  // The bottom bar (BottomTabBar) never lies over an open panel: html[data-panel-open] hides it.
+  if (typeof document !== "undefined") document.documentElement.dataset.panelOpen = id;
   for (const listener of listeners) listener(id);
 }
 
 /** A panel closed (only if it is still the current one). */
 export function releasePanel(id: string) {
-  if (current === id) current = null;
+  if (current !== id) return;
+  current = null;
+  if (typeof document !== "undefined") delete document.documentElement.dataset.panelOpen;
 }
 
 /** Another panel than `id` is open right now. */

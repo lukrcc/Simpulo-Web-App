@@ -6,10 +6,11 @@ import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { SpotlightGreeting, type LaunchHero } from "@/components/explore/SpotlightIntro";
 import { markSpotlightIntroDone } from "@/components/explore/useMarkBreath";
-import { EXPLORE_SPACING, SPOTLIGHT_AUTOPLAY_MS, SPOTLIGHT_INTRO_KEY } from "@/config/explore";
-import { useSpotlightThemeLines } from "@/components/explore/themeLines";
-import { Container } from "@/components/layout/Container";
+import { SPOTLIGHT_AUTOPLAY_MS, SPOTLIGHT_INTRO_KEY } from "@/config/explore";
+import { HOME } from "@/config/home";
+import { PassiveWheelGestures } from "@/lib/passiveWheelGestures";
 import { HouseCard } from "@/components/HouseCard";
+import { Container } from "@/components/layout/Container";
 import { IconButton } from "@/components/ui/IconButton";
 import { StageBand } from "@/components/ui/StageBand";
 import { BAND_HEIGHT } from "@/lib/appMode";
@@ -18,12 +19,11 @@ import { rememberedSpotlight, rememberSpotlight } from "@/lib/houseTransition";
 import { findUser, getCrew, getCurrentUser, useStore } from "@/lib/store";
 import type { Stay, Vibe } from "@/lib/types";
 import { cn, firstName } from "@/lib/utils";
-import { PassiveWheelGestures } from "@/lib/passiveWheelGestures";
 
 /*
  * Spotlight sizes – do not change without explicit instruction.
  *
- * Embla Carousel (loop, centred, wheel gestures). It goes on by itself every 7s: paused under the mouse, for 20s
+ * Embla Carousel (loop, centred, wheel gestures). It goes on by itself every 6.5s (a soft ~600ms glide): paused under the mouse or the keyboard's focus, for 20s
  * after any interaction, off screen and in a hidden tab. The carousel as tall as its centre card, all cards on one axis, nothing under them, full-bleed, on the stage
  * gradient, which starts right at the bar; no shadow under them. Slides --spot-w × --spot-h: clamp(440px, 100vh − header − 160px,
  * 680px) tall, 3:4, so all of it fits the window. The text (logged out title + subline, logged in the greeting left and the centre
@@ -31,7 +31,7 @@ import { PassiveWheelGestures } from "@/lib/passiveWheelGestures";
  * centre card (48px). It fits itself in (clamp(44px, 3.6vw, 64px) → 36px, then 15px under it); if it can't, it goes centred above and pushes the
  * carousel down. By
  * distance from the centre, on every scroll frame, straight on the DOM (never React state), along a cubic focus curve: at
- * rest scale 1 · 0.78 · 0.66, black overlay 0 · 0.25 · 0.38, moved inwards so the visible gap between the scaled cards is
+ * rest scale 1 · 0.84 · 0.72 (the centre at most 1.2 × its neighbours), black overlay 0 · 0.25 · 0.38, moved inwards so the visible gap between the scaled cards is
  * 20px in every frame. The card nearest the centre lies on top. All cards show the
  * same content in the same place, host tab included: it scales with its card and never fades on its own. No badge, no share / heart here. Arrows 44px, vertically centred. No CSS transition on
  * any slide's transform.
@@ -45,36 +45,22 @@ const slideHeightFor = (windowHeight: number) => Math.min(680, Math.max(440, win
 const LAYOUT_GAP = 24;
 /** The gap you see between the scaled cards. */
 const GAP = 20;
-/** The title's sizes to try beside the centre card, largest first: from --text-stage, clamp(44px, 3.6vw, 64px), down to 36px. */
-const titleSizes = (windowWidth: number) => {
-  const start = Math.round(Math.min(64, Math.max(44, 0.036 * windowWidth)));
-  return [start, ...[60, 56, 52, 48, 44, 40, 36].filter((size) => size < start)];
-};
-/** Logged in, the theme's sentence at each of them. Logged out, at the last one the text under the title goes down to body. */
-const FIT_THEME = [28, 24, 20];
-/** Between the text and the left neighbour's host tab. */
-const TEXT_ABOVE_TAB = 32;
-/** Logged in: from the bottom of "Where to next?" to the neighbour's tab. */
-const GREETING_ABOVE_TAB = 40;
-/** The text sets the carousel's place: 40px under the header's one bar (headerHeight()) – no more centring, so the cards sit high. */
-const GREETING_UNDER_TAB = 40;
-/** At least this much under the centre card, or the text gets smaller. */
-const WINDOW_BOTTOM = 32;
-/** Logged in: how far the letters of "Hi …" sit below their line's top, in its size; the theme block comes down this much less 1.5px (its eyebrow's own room). */
-const HI_ABOVE_LETTERS = 0.18;
-const GREETING_EYEBROW_DROP = (hiSize: number) => hiSize * 0.15 - 1.5;
-/** The theme block on the right hangs down from the same top edge; at least this far above the neighbour's card. */
-const THEME_CLEARANCE = 4;
-/** From the title's line box down to its letters' bottom edge, in its size (the same in the translate on the block below). */
-const TITLE_BELOW_LETTERS = 0.16;
-/** The theme block around its sentence: eyebrow 16 + 6, then 10 + the link 23. */
-const THEME_AROUND_SENTENCE = 16 + 6 + 10 + 23;
+/** The smallest the centre card gets when a taller text needs the room. */
+const MIN_CARD = 320;
+/** From the text's foot to the cards' top (the neighbours' in "step"). */
+const TEXT_TO_CARD = 40;
+/** The largest the centre card gets (large windows: it ends 24px above the floating bar up to this). */
+const MAX_CARD = 820;
 /** At rest: centre, neighbour, outer. */
 const SCALE_CENTRE = 1;
-const SCALE_NEIGHBOUR = 0.78;
-const SCALE_OUTER = 0.66;
-const DIM_NEIGHBOUR = 0.25;
-const DIM_OUTER = 0.38;
+// The centre ≈ 1.15 × its neighbours (CLAUDE.md "Flüssiges, ruhiges horizontales Scrollen"): 1 / 0.87.
+/** The Spotlight's mode (config/home.ts): "uniform" – every card the same size, no scaling, no veil; "step" – ONE step, the centre 1.15 ×. */
+const UNIFORM = HOME.spotlightMode === "uniform";
+const SCALE_NEIGHBOUR = UNIFORM ? 1 : HOME.stepNeighbourScale;
+// "step": only one step – every card off the centre the same size and veil (no further shrinking outwards).
+const SCALE_OUTER = SCALE_NEIGHBOUR;
+const DIM_NEIGHBOUR = UNIFORM ? 0 : 0.25;
+const DIM_OUTER = DIM_NEIGHBOUR;
 
 /**
  * The focus curve, by distance from the centre (0 centre, 1 neighbour): cubic, so a card stays near 0 until just before
@@ -95,10 +81,23 @@ const offsetAt = (d: number, w: number): number =>
   d <= 1 ? (w / 2) * (scaleAt(d) - SCALE_CENTRE) + (w + GAP) * d : offsetAt(d - 1, w) + (w / 2) * (scaleAt(d - 1) + scaleAt(d)) + GAP;
 
 const MAX_VISIBLE_DISTANCE = 2;
-const PAUSE_AFTER_INTERACTION_MS = 20_000;
+/** Beyond this many places from the centre a card is off the window: not touched on every frame. */
+const FAR = 3.5;
 /** A drag or swipe that moved the row at least this far goes on by one card, however slow. */
 const MOVE_ON_FROM_PX = 40;
-const EMBLA_OPTIONS = { loop: true, align: "center", containScroll: false, dragFree: false, skipSnaps: true, duration: 22, dragThreshold: 8 } as const;
+const EMBLA_OPTIONS = { loop: true, align: "center", containScroll: false, dragFree: false, skipSnaps: false, duration: HOME.emblaDuration, dragThreshold: 8 } as const;
+/**
+ * A mouse wheel's notch: discrete steps of lines/pages (deltaMode), or one big whole step (≥ 50px) on the legacy 120 raster. A trackpad gives
+ * small, frequent pixel deltas – those go to Embla's wheel plugin. (wheelDeltaX alone isn't enough: Chromium reports −120 for every small
+ * pixel delta too – measured.)
+ */
+const isMouseWheelNotch = (e: WheelEvent) => {
+  if (e.deltaMode !== 0) return true;
+  const legacy = (e as WheelEvent & { wheelDeltaX?: number }).wheelDeltaX;
+  return Number.isInteger(e.deltaX) && Math.abs(e.deltaX) >= 50 && typeof legacy === "number" && legacy !== 0 && legacy % 120 === 0;
+};
+/** After a mouse wheel's notch moved a card, the next one only after this long. */
+const WHEEL_LOCK_MS = HOME.wheelLockMs;
 const EASE = "cubic-bezier(0.32, 0.72, 0, 1)";
 /** The entrance, once per session: each visible card comes from the right, one after the other; then the text. Under a second for the cards. */
 const INTRO_CARD_MS = 600;
@@ -126,6 +125,8 @@ export function SpotlightCoverflow({ stays, countOf, onPickVibe, launchHero }: {
     });
     return Array.from({ length: rounds }, (_, round) => houses.map((house) => ({ ...house, key: round === 0 ? house.stay.id : `${house.stay.id}-copy${round > 1 ? round : ""}` }))).flat();
   }, [stays, store, rounds]);
+  // "uniform" scrolls natively, without a loop: each House once.
+  const baseItems = useMemo(() => items.filter((item) => !item.key.includes("-copy")), [items]);
   useEffect(() => {
     const measure = () => setRounds(roundsFor(stays.length, window.innerWidth, window.innerHeight));
     measure();
@@ -134,7 +135,9 @@ export function SpotlightCoverflow({ stays, countOf, onPickVibe, launchHero }: {
   }, [stays.length]);
   // Created once: new plugin objects would make Embla re-init. With reduced motion it never goes on by itself.
   const reducedMotion = useMemo(() => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches, []);
-  const plugins = useMemo(() => [PassiveWheelGestures()], []);
+  // Trackpad swipes follow the fingers (Embla's wheel plugin, behind a passive bridge – lib/passiveWheelGestures.ts); a mouse wheel's notches
+  // are left to the one-card step below.
+  const plugins = useMemo(() => [PassiveWheelGestures({ skip: isMouseWheelNotch })], []);
   const [viewportRef, emblaApi] = useEmblaCarousel(EMBLA_OPTIONS, plugins);
   const sectionRef = useRef<HTMLElement>(null);
   const me = getCurrentUser(store);
@@ -142,8 +145,7 @@ export function SpotlightCoverflow({ stays, countOf, onPickVibe, launchHero }: {
   const [settledVibe, setSettledVibe] = useState<Vibe | null>(null);
   const themeVibe = settledVibe ?? items[0]?.stay.vibe;
   // The clock behind "goes on by itself": it only counts while nothing is holding it.
-  const clock = useRef({ elapsed: 0, last: 0, frame: 0, hovered: false, interacted: false, onScreen: true, intro: true, sync: () => {} });
-  const resumeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const clock = useRef({ elapsed: 0, last: 0, frame: 0, hovered: false, focused: false, interacted: false, onScreen: true, intro: true, sync: () => {} });
   const ids = useRef<string[]>([]);
   const vibes = useRef<Vibe[]>([]);
   useEffect(() => {
@@ -155,15 +157,10 @@ export function SpotlightCoverflow({ stays, countOf, onPickVibe, launchHero }: {
   const pauseAutoplay = useCallback(() => {
     const c = clock.current;
     c.elapsed = 0;
+    // Your own interaction stops it for good, for this visit (CLAUDE.md "Spotlight neu ausbalancieren").
     c.interacted = true;
     c.sync();
-    clearTimeout(resumeTimer.current);
-    resumeTimer.current = setTimeout(() => {
-      c.interacted = false;
-      c.sync();
-    }, PAUSE_AFTER_INTERACTION_MS);
   }, []);
-  useEffect(() => () => clearTimeout(resumeTimer.current), []);
 
   useEffect(() => {
     const section = sectionRef.current;
@@ -179,7 +176,7 @@ export function SpotlightCoverflow({ stays, countOf, onPickVibe, launchHero }: {
       c.frame = requestAnimationFrame(tick);
     };
     c.sync = () => {
-      const held = c.hovered || c.interacted || c.intro || !c.onScreen || document.hidden;
+      const held = c.hovered || c.focused || c.interacted || c.intro || !c.onScreen || document.hidden;
       if (held) {
         cancelAnimationFrame(c.frame);
         c.frame = 0;
@@ -305,6 +302,7 @@ export function SpotlightCoverflow({ stays, countOf, onPickVibe, launchHero }: {
 
   useEffect(() => {
     if (!emblaApi) return;
+    const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     /** Scale, offset and overlay of every slide, from where the scroll is now. On the inner element: Embla's loop moves the slide itself. */
     const tween = () => {
       const snaps = emblaApi.scrollSnapList();
@@ -316,10 +314,16 @@ export function SpotlightCoverflow({ stays, countOf, onPickVibe, launchHero }: {
         const raw = (snaps[i] - progress) * count;
         const d = ((raw + count / 2) % count + count) % count - count / 2;
         const away = Math.abs(d);
+        // Far off the window (the loop's copies): written once at the outer card's rest and then left alone – each frame only touches the
+        // cards that can be seen (CLAUDE.md "Flüssiges, ruhiges horizontales Scrollen").
+        const far = away > FAR;
+        if (far && slide.dataset.far === "1") return;
+        slide.dataset.far = far ? "1" : "";
         const side = Math.sign(d);
         const f = focusOf(away);
         const inner = slide.firstElementChild as HTMLElement;
-        inner.style.transform = `translateX(${(side * (offsetAt(away, slideW) - away * (slideW + LAYOUT_GAP))).toFixed(2)}px) scale(${scaleAt(away).toFixed(4)})`;
+        // Reduced motion: no scaling – the cards keep their size, only the overlay tells the centre (offsetAt then lays them out at full size).
+        inner.style.transform = still || UNIFORM ? "none" : `translateX(${(side * (offsetAt(away, slideW) - away * (slideW + LAYOUT_GAP))).toFixed(2)}px) scale(${scaleAt(away).toFixed(4)})`;
         // The old card never lies over the new one.
         slide.style.zIndex = String(Math.round(f * 1000));
         const dim = slide.querySelector<HTMLElement>("[data-cf-dim]");
@@ -336,6 +340,9 @@ export function SpotlightCoverflow({ stays, countOf, onPickVibe, launchHero }: {
       const count = emblaApi.slideNodes().length;
       emblaApi.slideNodes().forEach((slide, i) => {
         (slide.firstElementChild?.firstElementChild as HTMLElement).inert = i !== selected;
+        // The hover lift is the neighbours' only (globals.css .cf-slide:not([data-centre])).
+        if (i === selected) slide.dataset.centre = "";
+        else delete slide.dataset.centre;
       });
       const shown = [...new Set(ids.current.filter((_, i) => {
         const d = Math.abs(i - selected);
@@ -343,8 +350,12 @@ export function SpotlightCoverflow({ stays, countOf, onPickVibe, launchHero }: {
       }))];
       if (shown.length > 0) markHeroSeen(shown);
     };
+    // The theme text follows the centre card the moment it is chosen (Embla "select"), not when the glide comes to rest: it fades out while
+    // the cards move and the new one fades in at the same place – in step with the card, never on its own.
     const settle = () => setSettledVibe(vibes.current[emblaApi.selectedScrollSnap()] ?? null);
     const all = () => {
+      // A new layout (reInit, resize): every card placed again, the far ones too.
+      for (const slide of emblaApi.slideNodes()) delete slide.dataset.far;
       tween();
       select();
       settle();
@@ -353,92 +364,87 @@ export function SpotlightCoverflow({ stays, countOf, onPickVibe, launchHero }: {
     const remembered = rememberedSpotlight();
     if (remembered !== null && remembered < emblaApi.scrollSnapList().length) emblaApi.scrollTo(remembered, true);
     all();
-    emblaApi.on("scroll", tween).on("slideFocus", tween).on("reInit", all).on("select", select).on("settle", settle);
+    // will-change only while the cards move (CLAUDE.md "Flüssiges, ruhiges horizontales Scrollen"): set on the first scroll frame, taken off
+    // once Embla has settled – a layer per card for the glide, none at rest.
+    let moving = false;
+    const layers = (on: boolean) => {
+      if (moving === on) return;
+      moving = on;
+      // No hover lift while the cards move.
+      if (on) emblaApi.rootNode().dataset.moving = "";
+      else delete emblaApi.rootNode().dataset.moving;
+      for (const slide of emblaApi.slideNodes()) {
+        // Only the cards in sight get their own layer; the far copies none.
+        if (on && slide.dataset.far === "1") continue;
+        const inner = slide.firstElementChild as HTMLElement | null;
+        if (inner) inner.style.willChange = on ? "transform" : "";
+        const dim = slide.querySelector<HTMLElement>("[data-cf-dim]");
+        if (dim) dim.style.willChange = on ? "opacity" : "";
+      }
+    };
+    const startMoving = () => layers(true);
+    const stopMoving = () => layers(false);
+    emblaApi.on("scroll", tween).on("scroll", startMoving).on("settle", stopMoving).on("slideFocus", tween).on("reInit", all).on("select", select).on("select", settle);
     return () => {
-      emblaApi.off("scroll", tween).off("slideFocus", tween).off("reInit", all).off("select", select).off("settle", settle);
+      emblaApi.off("scroll", tween).off("scroll", startMoving).off("settle", stopMoving).off("slideFocus", tween).off("reInit", all).off("select", select).off("select", settle);
     };
   }, [emblaApi]);
 
-  // The text beside the centre card: as large as fits the free space, else above the carousel. Only ever looks at the side
-  // block and at sizes worked out from the window, so the carousel moving down can't change the answer.
-  const sideTextRef = useRef<HTMLDivElement>(null);
-  const [textPlace, setTextPlace] = useState<"side" | "above" | null>(null);
-  // Logged in and out share the greeting layout (visitors: "Share a place." · "Find your people.").
-  const greeting = true;
-  const { lines: themeLines } = useSpotlightThemeLines(!me);
+  // A real mouse wheel's notches (Shift + wheel: discrete steps, isMouseWheelNotch): one card per notch, then WHEEL_LOCK_MS before the next.
+  // Trackpads never come here – their swipes go to Embla's wheel plugin (PassiveWheelGestures above): the cards follow the fingers with the
+  // swipe's own momentum and settle on a card, ready again at once. Passive, only mostly-sideways movement – a vertical turn always scrolls the
+  // page. While the pointer is over it, the page's sideways overscroll is off (no accidental "back").
+  useEffect(() => {
+    const viewport = emblaApi?.rootNode();
+    if (!emblaApi || !viewport) return;
+    const root = document.documentElement;
+    let lockedUntil = 0;
+    const onWheel = (e: WheelEvent) => {
+      if (Math.abs(e.deltaX) <= Math.abs(e.deltaY) || !isMouseWheelNotch(e)) return;
+      const now = performance.now();
+      if (now < lockedUntil) return;
+      pauseAutoplay();
+      if (e.deltaX > 0) emblaApi.scrollNext();
+      else emblaApi.scrollPrev();
+      lockedUntil = now + WHEEL_LOCK_MS;
+    };
+    const guard = () => root.style.setProperty("overscroll-behavior-x", "none");
+    const release = () => root.style.removeProperty("overscroll-behavior-x");
+    viewport.addEventListener("wheel", onWheel, { passive: true });
+    viewport.addEventListener("pointerenter", guard);
+    viewport.addEventListener("pointerleave", release);
+    return () => {
+      viewport.removeEventListener("wheel", onWheel);
+      viewport.removeEventListener("pointerenter", guard);
+      viewport.removeEventListener("pointerleave", release);
+      release();
+    };
+  }, [emblaApi, pauseAutoplay]);
+
+  // The stage fills the window under the header (CLAUDE.md "Spotlight neu ausbalancieren"): header → text 40px, text → the centre card's top
+  // 40px, its foot → the floating bar 40px (the bar 24px above the window's edge). The cards' height is what's left: "step" the centre card
+  // that tall (3:4, its neighbours 1.12 smaller), "uniform" every card (4:5). The text stays on the page's grid – it never moves.
+  const areaRef = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
-    const block = sideTextRef.current;
-    const section = sectionRef.current;
-    if (!block || !section) return;
+    const area = areaRef.current;
+    const stage = area?.closest<HTMLElement>("[data-glow-section]");
+    if (!area || !stage) return;
     const fit = () => {
-      const cardH = section.offsetHeight;
-      if (cardH === 0) return;
-      const title = block.querySelector("h2");
-      const hi = block.querySelector<HTMLElement>("[data-spotlight-greeting-left] > p");
-      const hiSize = hi ? parseFloat(getComputedStyle(hi).fontSize) : 0;
-      // The right side must stay clear of its neighbour with any sentence, not only the one showing now.
-      const theme = block.querySelector<HTMLElement>("[data-spotlight-greeting-right] > *");
-      let probe: HTMLElement | null = null;
-      if (greeting && theme) {
-        probe = document.createElement("p");
-        probe.className = "text-h2";
-        probe.style.cssText = "position:absolute;visibility:hidden;font-size:var(--fit-theme,28px)";
-        theme.append(probe);
-      }
-      const sentenceHeight = () => {
-        if (!probe || !theme) return 0;
-        // Single letters run a little wider than the text in one piece.
-        probe.style.width = `${theme.clientWidth * 0.97}px`;
-        return Math.max(...Object.values(themeLines).map((line) => {
-          probe!.textContent = line;
-          return probe!.offsetHeight;
-        }));
-      };
-      const themeFits = () => {
-        if (!probe || !title) return true;
-        const titleSize = parseFloat(getComputedStyle(title).fontSize);
-        return GREETING_EYEBROW_DROP(hiSize) + sentenceHeight() + THEME_AROUND_SENTENCE <= block.offsetHeight - TITLE_BELOW_LETTERS * titleSize + GREETING_ABOVE_TAB - THEME_CLEARANCE;
-      };
-      const fits = () => (title?.scrollWidth ?? 0) <= (title?.clientWidth ?? 0) && themeFits() && total() + GREETING_UNDER_TAB + WINDOW_BOTTOM <= area;
-      const stage = block.closest<HTMLElement>("[data-glow-section]");
-      // Text and carousel together, in the middle between the tab and the window's bottom. The text sets the card's place: its gap to the neighbour's tab, and
-      // that tab is this far into the card.
-      const gapToTab = greeting ? GREETING_ABOVE_TAB : TEXT_ABOVE_TAB;
-      const tabInCard = ((1 - SCALE_NEIGHBOUR) / 2) * cardH;
-      const tabBottom = headerHeight();
-      const area = window.innerHeight - BAND_HEIGHT - tabBottom;
-      const textHeight = () => block.offsetHeight - (greeting && title ? TITLE_BELOW_LETTERS * parseFloat(getComputedStyle(title).fontSize) : 0) - (greeting ? HI_ABOVE_LETTERS * hiSize : 0);
-      const total = () => textHeight() + gapToTab + cardH - tabInCard;
-      const done = (place: "side" | "above") => {
-        probe?.remove();
-        if (place === "side" && title) {
-          const textTop = BAND_HEIGHT + tabBottom + GREETING_UNDER_TAB;
-          stage?.style.setProperty("--spot-top", `${Math.round(textTop + textHeight() + gapToTab - tabInCard)}px`);
-        } else stage?.style.removeProperty("--spot-top");
-        setTextPlace(place);
-      };
-      block.style.setProperty("--fit-body", "var(--text-body-lg)");
-      for (const size of titleSizes(window.innerWidth)) {
-        block.style.setProperty("--fit-title", `${size}px`);
-        for (const theme of greeting ? FIT_THEME : [0]) {
-          if (greeting) block.style.setProperty("--fit-theme", `${theme}px`);
-          if (fits()) return done("side");
-        }
-      }
-      block.style.setProperty("--fit-body", "var(--text-body)");
-      done(fits() ? "side" : "above");
+      const avail = area.clientHeight - (parseFloat(getComputedStyle(area).paddingBottom) || 0) - TEXT_TO_CARD;
+      if (avail <= 0) return;
+      const height = Math.max(MIN_CARD, Math.min(MAX_CARD, avail));
+      const width = UNIFORM ? (height * 4) / 5 : (height * 3) / 4;
+      stage.style.setProperty("--spot-h", `${Math.round(height)}px`);
+      stage.style.setProperty("--spot-w", `${Math.round(width)}px`);
+      area.style.setProperty("--spot-card-top", `${TEXT_TO_CARD}px`);
     };
     fit();
     const observer = new ResizeObserver(fit);
-    observer.observe(section);
-    window.addEventListener("resize", fit);
+    observer.observe(area);
+    observer.observe(stage);
     void document.fonts?.ready.then(fit);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", fit);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- themeLines follows `me`
-  }, [greeting, me?.name]);
+    return () => observer.disconnect();
+  }, []);
 
   // Without a loop the arrows go at the row's ends.
   const [ends, setEnds] = useState({ prev: true, next: true });
@@ -494,7 +500,7 @@ export function SpotlightCoverflow({ stays, countOf, onPickVibe, launchHero }: {
         >
           <div className="pointer-events-auto h-full">
             <div className="h-full">
-              <HouseCard stay={stay} host={host} crew={crew} spotlight />
+              <HouseCard stay={stay} host={host} crew={crew} spotlight eager={i < 3 || i >= items.length - 2} />
             </div>
           </div>
         </div>
@@ -507,77 +513,274 @@ export function SpotlightCoverflow({ stays, countOf, onPickVibe, launchHero }: {
   return (
     // From 744px (tablets upright too, CLAUDE.md "Tablet"): the same carousel as the desktop – the centre card with its host notch, the
     // neighbours peeking in left and right. Phones keep SpotlightHero.
-    <StageBand
-      from="lg"
-      className={cn(
-        "hidden md:block [&>.stage-gradient]:md:block",
-        // Until it's measured (server render): by the window's width.
-        textPlace === "side" ? EXPLORE_SPACING.spotlightTop : textPlace === "above" ? EXPLORE_SPACING.spotlightTextTop : cn(EXPLORE_SPACING.spotlightTextTop, "min-[82.5rem]:pt-[calc(var(--spot-top)-var(--band-h)-var(--header-h)+8px)]"),
-      )}
-    >
-      <div data-spot-text className={cn(EXPLORE_SPACING.spotlightIntroBottom, textPlace === "side" ? "hidden" : textPlace === null && "min-[82.5rem]:hidden")}>
+    <StageBand from="lg" className="hidden h-[calc(100dvh-var(--header-total))] flex-col pt-10 md:flex [&>.stage-gradient]:md:block">
+      {/* The text on top: left "Hi {name}." and "Where to next?", right the centre card's theme – one row (SpotlightGreeting). */}
+      {/* On the page's grid (Container): left flush left, right flush right; it never moves with the cards. */}
+      <div data-spot-text className="relative z-2 shrink-0">
         {themeVibe && (
           <Container>
             <SpotlightGreeting launch={launchHero} name={me ? firstName(me) : null} vibe={themeVibe} countOf={countOf} onPick={onPickVibe} />
           </Container>
         )}
       </div>
-      <div className="relative">
-        {/* Beside the carousel, not in it: the section clips its overflow, and this reaches above its top edge. */}
-        {/* Out of the flow, from above the left neighbour's host tab upwards. Hidden, not gone, while it's above the carousel: it's what gets measured.
-            Above the carousel's drag area, for the greeting's link; it takes the pointer alone. */}
-        <div data-spot-text className={cn("pointer-events-none absolute inset-x-0 z-2", "bottom-[calc(var(--spot-h)*0.89+40px)]", textPlace === "above" ? "invisible" : textPlace === null && "max-[82.5rem]:invisible")}>
-          <Container>
-            <div ref={sideTextRef} className="translate-y-[calc(var(--fit-title,var(--text-stage))*0.16)]">
-              {themeVibe && <SpotlightGreeting launch={launchHero} name={me ? firstName(me) : null} vibe={themeVibe} countOf={countOf} onPick={onPickVibe} sideClassName={TEXT_BESIDE} />}
-            </div>
-          </Container>
-        </div>
-
+      {/* The cards, centred in the room left under the text. */}
+      {/* The cards 24px under the text, as tall as the room allows; the foot keeps clear of the floating bar (BottomTabBar): its height and 24px
+          more, so the cards end 24px above it. */}
+      <div ref={areaRef} data-spot-area className="relative flex min-h-0 flex-1 items-start pb-[calc(var(--tabbar-clear)+40px)]">
+      {UNIFORM ? (
+        <UniformRow items={baseItems} label={t("featuredHouses")} prevLabel={tc("previousShort")} nextLabel={tc("nextShort")} onVibe={setSettledVibe} />
+      ) : (
       <section
-        ref={sectionRef}
-        aria-label={t("featuredHouses")}
-        aria-roledescription="carousel"
-        onMouseEnter={() => {
-          clock.current.hovered = true;
-          clock.current.sync();
-        }}
-        onMouseLeave={() => {
-          clock.current.hovered = false;
-          clock.current.sync();
-        }}
-        className="relative h-(--spot-h) overflow-x-clip"
-      >
-        {/* Wider than the window: the cards are drawn closer to the centre than Embla lays them out, so it has to keep
-            them in place past the window's edge too – up to 1.8× as far out at the outer cards' spacing. The section clips it. */}
-        {/* 96px taller above and below than the cards, the track padded back by the same: the cards stay put, their shadows (Spotlight depth,
-            up to ~84px below) aren't cut by the clip. Only the cards take the pointer – the padding never covers what's above or below. */}
-        <div ref={viewportRef} data-spotlight-viewport className="pointer-events-none absolute -inset-y-24 -left-[40vw] -right-[40vw] z-1 overflow-hidden">
-          <div className="flex h-full touch-pan-y items-start py-24 select-none [&>*]:pointer-events-auto [&_a]:[-webkit-user-drag:none] [&_img]:[-webkit-user-drag:none]">
-            {slides}
+          ref={sectionRef}
+          aria-label={t("featuredHouses")}
+          aria-roledescription="carousel"
+          onMouseEnter={() => {
+            clock.current.hovered = true;
+            clock.current.sync();
+          }}
+          onMouseLeave={() => {
+            clock.current.hovered = false;
+            clock.current.sync();
+          }}
+          // Paused while the keyboard is in it too (CLAUDE.md "ruhige Spotlight-Bühne"): focus on a card or an arrow holds the clock.
+          onFocusCapture={() => {
+            clock.current.focused = true;
+            clock.current.sync();
+          }}
+          onBlurCapture={(e) => {
+            if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
+            clock.current.focused = false;
+            clock.current.sync();
+          }}
+          className="relative mt-(--spot-card-top) h-(--spot-h) w-full overflow-x-clip"
+        >
+          {/* Wider than the window: the cards are drawn closer to the centre than Embla lays them out, so it has to keep
+              them in place past the window's edge too – up to 1.8× as far out at the outer cards' spacing. The section clips it. */}
+          {/* 96px taller above and below than the cards, the track padded back by the same: the cards stay put, their shadows (Spotlight depth,
+              up to ~84px below) aren't cut by the clip. Only the cards take the pointer – the padding never covers what's above or below. */}
+          <div ref={viewportRef} data-spotlight-viewport className="pointer-events-none absolute -inset-y-24 -left-[40vw] -right-[40vw] z-1 overflow-hidden">
+            {/* The track takes the pointer as ONE surface – cards and the gaps between them, and the room above and below the cards: a swipe or a
+                drag anywhere there moves the row (CLAUDE.md "Spotlight-Scrollen reparieren"). It was pointer-events: none with only the cards
+                taking the pointer, while the wheel listeners sat on the viewport – a gesture over a gap reached nothing (dead zones). A vertical
+                turn is never caught (passive listeners, touch-pan-y): the page scrolls over all of it. */}
+            <div className="pointer-events-auto flex h-full touch-pan-y items-start py-24 select-none [&>*]:pointer-events-auto [&_a]:[-webkit-user-drag:none] [&_img]:[-webkit-user-drag:none]">
+              {slides}
+            </div>
           </div>
-        </div>
-
-        <IconButton variant="raised" size="lg" onClick={() => {
-            pauseAutoplay();
-            emblaApi?.scrollPrev();
-          }} aria-label={tc("previousShort")} className={cn(ARROW, "left-4", !ends.prev && ARROW_GONE)}>
-          <ChevronLeft className="size-5" aria-hidden />
-        </IconButton>
-        <IconButton variant="raised" size="lg" onClick={() => {
-            pauseAutoplay();
-            emblaApi?.scrollNext();
-          }} aria-label={tc("nextShort")} className={cn(ARROW, "right-4", !ends.next && ARROW_GONE)}>
-          <ChevronRight className="size-5" aria-hidden />
-        </IconButton>
-      </section>
+  
+          <IconButton variant="raised" size="lg" onClick={() => {
+              pauseAutoplay();
+              emblaApi?.scrollPrev();
+            }} aria-label={tc("previousShort")} className={cn(ARROW, "spot-arrow left-4", !ends.prev && ARROW_GONE)}>
+            <ChevronLeft className="size-5" aria-hidden />
+          </IconButton>
+          <IconButton variant="raised" size="lg" onClick={() => {
+              pauseAutoplay();
+              emblaApi?.scrollNext();
+            }} aria-label={tc("nextShort")} className={cn(ARROW, "spot-arrow right-4", !ends.next && ARROW_GONE)}>
+            <ChevronRight className="size-5" aria-hidden />
+          </IconButton>
+        </section>
+      )}
       </div>
     </StageBand>
   );
 }
 
-/** Half a row beside the centre card: 48px from it. */
-const TEXT_BESIDE = "w-[calc(50%-var(--spot-w)/2-48px)]";
 const ARROW = "absolute top-1/2 z-10 -translate-y-1/2";
 /** The end of the row (only if Embla ever turns the loop off). */
 const ARROW_GONE = "pointer-events-none opacity-0";
+
+/**
+ * "uniform" (CLAUDE.md "Spotlight uniform: natürliches Scrollen", "Spotlight final"): every card the same size, a NATIVE horizontal scroller –
+ * free scrolling with the trackpad's own momentum, no scroll-snap. Endless: the Houses are rendered three times in a row (the outer copies
+ * aria-hidden, their links out of the Tab order – not inert, which would stop the pointer and the wheel on them) and it starts in the middle copy; once the view has run into the first or the last copy,
+ * scrollLeft moves by exactly one copy's width – invisibly, no animation, the momentum goes on (Safari: only at scrollend or after a short
+ * rest, where moving it mid-flight would stop the momentum). ‹ › move one card width, smooth, endlessly both ways. The theme text follows the
+ * card nearest the middle (IntersectionObserver on a 1 % strip), 300ms after the scrolling has ended. It goes on by itself every
+ * SPOTLIGHT_AUTOPLAY_MS (paused on hover, off screen, in a hidden tab; never with reduced motion) and stops for good for this visit once you
+ * scroll it yourself or press an arrow. Hover like Apple TV: the card under the pointer 1.03 with a softer, larger shadow (200ms) – never
+ * while scrolling, never with reduced motion (globals.css .spot-uni-card).
+ */
+function UniformRow({ items, label, prevLabel, nextLabel, onVibe }: { items: { stay: Stay; host: NonNullable<ReturnType<typeof findUser>>; crew: ReturnType<typeof getCrew>; key: string }[]; label: string; prevLabel: string; nextLabel: string; onVibe: (vibe: Vibe) => void }) {
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const n = items.length;
+  const state = useRef({ stopped: false, hovered: false, centre: n + Math.min(2, n - 1), programmatic: 0 });
+  const vibes = useMemo(() => items.map((item) => item.stay.vibe), [items]);
+  const onVibeRef = useRef(onVibe);
+  useEffect(() => {
+    onVibeRef.current = onVibe;
+  });
+
+  // No entrance here: the page shows the cards and the text at once.
+  useEffect(() => {
+    document.documentElement.removeAttribute("data-spot-intro");
+    markSpotlightIntroDone();
+  }, []);
+
+  useLayoutEffect(() => {
+    const el = scrollerRef.current;
+    if (!el || n === 0) return;
+    const safari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    // The third card of the middle copy in the middle – again whenever the cards' size changes, until someone has scrolled.
+    const centre = () => {
+      if (state.current.stopped) return;
+      el.scrollLeft = (n + Math.min(2, n - 1)) * stepOf(el);
+    };
+    centre();
+    // The outer copies: out of the Tab order (they stay clickable and scrollable – inert would make them dead to the pointer and the wheel).
+    el.querySelectorAll("[data-uni-card][aria-hidden] :is(a, button, [tabindex])").forEach((node) => node.setAttribute("tabindex", "-1"));
+    const card = el.querySelector("[data-uni-card]");
+    const resize = new ResizeObserver(centre);
+    if (card) resize.observe(card);
+
+    /** Back into the middle copy, by exactly one copy's width – the same picture, so nothing jumps. */
+    const wrap = () => {
+      const copy = n * stepOf(el);
+      if (copy <= 0) return;
+      // Keep the view between half a copy and two and a half: the middle copy and room either side – never near the row's ends.
+      if (el.scrollLeft < copy * 0.5) el.scrollLeft += copy;
+      else if (el.scrollLeft > copy * 2.5) el.scrollLeft -= copy;
+    };
+
+    // The card on the middle line.
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) if (entry.isIntersecting) state.current.centre = Number((entry.target as HTMLElement).dataset.index);
+      },
+      { root: el, rootMargin: "0px -49.5% 0px -49.5%", threshold: 0 },
+    );
+    el.querySelectorAll("[data-uni-card]").forEach((node) => io.observe(node));
+
+    // Scrolling: the wrap (at once, but never inside a smooth scroll we started, and in Safari only at rest), the theme 300ms after it ends,
+    // and data-scrolling for the hover (no lift while it moves).
+    let settle: ReturnType<typeof setTimeout> | undefined;
+    let rest: ReturnType<typeof setTimeout> | undefined;
+    const onScroll = () => {
+      el.dataset.scrolling = "";
+      const ours = performance.now() < state.current.programmatic;
+      if (!safari && !ours) wrap();
+      clearTimeout(rest);
+      rest = setTimeout(() => {
+        delete el.dataset.scrolling;
+        wrap();
+      }, REST_MS);
+      clearTimeout(settle);
+      settle = setTimeout(() => {
+        const vibe = vibes[state.current.centre % n];
+        if (vibe) onVibeRef.current(vibe);
+      }, THEME_AFTER_SCROLL_MS);
+    };
+    const onScrollEnd = () => wrap();
+    el.addEventListener("scroll", onScroll, { passive: true });
+    el.addEventListener("scrollend", onScrollEnd);
+    const first = vibes[state.current.centre % n];
+    if (first) onVibeRef.current(first);
+
+    // Your own scrolling stops the clock for good.
+    const stop = () => {
+      state.current.stopped = true;
+    };
+    const inputs = ["wheel", "pointerdown", "touchstart", "keydown"] as const;
+    inputs.forEach((name) => el.addEventListener(name, stop, { passive: true }));
+    return () => {
+      resize.disconnect();
+      io.disconnect();
+      clearTimeout(settle);
+      clearTimeout(rest);
+      el.removeEventListener("scroll", onScroll);
+      el.removeEventListener("scrollend", onScrollEnd);
+      inputs.forEach((name) => el.removeEventListener(name, stop));
+    };
+  }, [n, vibes]);
+
+  // The clock: one card on every SPOTLIGHT_AUTOPLAY_MS while nothing holds it – endlessly.
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let onScreen = true;
+    const io = new IntersectionObserver(([entry]) => {
+      onScreen = entry.isIntersecting;
+    });
+    io.observe(el);
+    const id = window.setInterval(() => {
+      const s = state.current;
+      if (s.stopped || s.hovered || !onScreen || document.hidden) return;
+      glide(el, 1, s);
+    }, SPOTLIGHT_AUTOPLAY_MS);
+    return () => {
+      window.clearInterval(id);
+      io.disconnect();
+    };
+  }, []);
+
+  const move = (direction: 1 | -1) => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    state.current.stopped = true;
+    glide(el, direction, state.current);
+  };
+
+  return (
+    <section
+      aria-label={label}
+      onMouseEnter={() => {
+        state.current.hovered = true;
+      }}
+      onMouseLeave={() => {
+        state.current.hovered = false;
+      }}
+      className="relative mt-(--spot-card-top) h-(--spot-h) w-full"
+    >
+      {/* 144px of room above and below for the cards' soft shadows (they reach ~112px; the negative inset takes it back); only the cards take
+          the pointer – a wheel or a swipe on them still scrolls this. */}
+      <div
+        ref={scrollerRef}
+        data-spot-scroller
+        className="pointer-events-none absolute inset-x-0 -inset-y-36 overflow-x-auto overflow-y-hidden overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
+        <div className="flex h-full w-max items-start gap-6 px-[calc(50%-var(--spot-w)/2)] py-36 [&_a]:[-webkit-user-drag:none] [&_img]:[-webkit-user-drag:none]">
+          {[0, 1, 2].flatMap((copy) =>
+            items.map(({ stay, host, crew, key }, i) => (
+              // The outer copies are the loop's scenery: hidden from screen readers, out of the Tab order (tabindex -1, set in the effect).
+              <div
+                key={`${key}-${copy}`}
+                data-uni-card
+                data-index={copy * n + i}
+                aria-hidden={copy === 1 ? undefined : true}
+                className="spot-uni-card pointer-events-auto shrink-0"
+                style={{ width: "var(--spot-w)", height: "var(--spot-h)" }}
+              >
+                <HouseCard stay={stay} host={host} crew={crew} spotlight eager={copy === 1 && i < 5} />
+              </div>
+            )),
+          )}
+        </div>
+      </div>
+      <IconButton variant="raised" size="lg" onClick={() => move(-1)} aria-label={prevLabel} className={cn(ARROW, "spot-arrow left-4")}>
+        <ChevronLeft className="size-5" aria-hidden />
+      </IconButton>
+      <IconButton variant="raised" size="lg" onClick={() => move(1)} aria-label={nextLabel} className={cn(ARROW, "spot-arrow right-4")}>
+        <ChevronRight className="size-5" aria-hidden />
+      </IconButton>
+    </section>
+  );
+}
+/** "uniform": one card's step – its width and the gap. */
+const stepOf = (el: HTMLElement) => (el.querySelector<HTMLElement>("[data-uni-card]")?.offsetWidth ?? 0) + UNIFORM_GAP;
+
+/** "uniform": a smooth scroll of ours, one card either way; the wrap waits until it's done. */
+function glide(el: HTMLElement, direction: 1 | -1, state: { programmatic: number }) {
+  const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  state.programmatic = performance.now() + (still ? 0 : GLIDE_MS);
+  el.scrollBy({ left: direction * stepOf(el), behavior: still ? "auto" : "smooth" });
+}
+
+/** "uniform": the gap between cards (gap-6). */
+const UNIFORM_GAP = 24;
+/** "uniform": the theme text changes this long after the scrolling has stopped. */
+const THEME_AFTER_SCROLL_MS = 300;
+/** "uniform": no scroll event for this long counts as rest (the wrap in Safari, the hover back on). */
+const REST_MS = 140;
+/** "uniform": how long a smooth scroll of ours takes at most – the wrap waits for it. */
+const GLIDE_MS = 700;

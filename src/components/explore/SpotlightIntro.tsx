@@ -2,35 +2,18 @@
 
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useSpotlightThemeLines } from "./themeLines";
 import { useFormat } from "@/i18n/format";
 import { EMPTY_FILTERS, withFilters } from "@/lib/exploreFilters";
 import type { Vibe } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/ActionButton";
-import { FlipText, FlowText } from "./FlipText";
-import { useMarkBreath } from "./useMarkBreath";
 
-/** Beside the centre card the sizes come from the fit (SpotlightCoverflow): --fit-title, logged in and out --fit-theme. */
-const SIDE_TITLE = { fontSize: "var(--fit-title, var(--text-stage))" };
-
-/**
- * The greeting line ("Hi Sam." / "Share a place."): the stage headline's gradient as that one shows at rest – 135deg, twice as wide, from its
- * start – but still (no wandering) and at 45 % opacity. Inline, so it never waits for a stylesheet; without background-clip: text the
- * colour stays ink (at the same 45 %).
- */
-const GREETING_GRADIENT: CSSProperties = {
-  color: "var(--text)",
-  backgroundImage: "var(--headline-gradient)",
-  backgroundSize: "200% 100%",
-  backgroundPosition: "0 0",
-  backgroundRepeat: "no-repeat",
-  WebkitBackgroundClip: "text",
-  backgroundClip: "text",
-  WebkitTextFillColor: "transparent",
-  opacity: 0.45,
-};
+/** The main line on the left ("Hi Sam, where to next?"): about 44px, one line – smaller steps only if it wouldn't fit its half. */
+const TITLE_SIZES = [44, 40, 36, 32];
+/** The main line on the right (the category's sentence): about 32px, one line – smaller steps only if the longest wouldn't fit. */
+const SENTENCE_SIZES = [32, 30, 28, 26, 24, 22];
 
 interface GreetingProps {
   /** Logged in: "Hi {name}." · "Where to next?"; null (visitors): "Share a place." · "Find your people." */
@@ -41,8 +24,6 @@ interface GreetingProps {
   countOf: (vibe: Vibe) => number;
   /** Sets that category's chip and scrolls to the grid */
   onPick: (vibe: Vibe) => void;
-  /** Each half's width beside the centre card; none: half the row, above the carousel */
-  sideClassName?: string;
   /** Before the launch and in the beta (config/platform.ts): the launch line above "Find your people.", and on the right "Come for the place,
    *  stay for the people." with "Join the waitlist" and "Become a Founding Host" instead of the category sentence */
   launch?: LaunchHero;
@@ -61,26 +42,62 @@ export interface LaunchHero {
  * category: its name, a sentence (visitors get the more inviting one) and the way to its Houses. Only the link takes the pointer: the
  * carousel's drag area is around it.
  */
-export function SpotlightGreeting({ name, vibe, countOf, onPick, sideClassName, launch }: GreetingProps) {
+export function SpotlightGreeting({ name, vibe, countOf, onPick, launch }: GreetingProps) {
   const t = useTranslations("explore.spotlightGreeting");
   const tIntro = useTranslations("explore.spotlightIntro");
-  const breath = useMarkBreath();
   const { lines, fallback } = useSpotlightThemeLines(name === null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const title = launch ? tIntro("second") : name ? t("hiWhereNext", { name }) : t("whereNext");
+  // Mirrored (CLAUDE.md "Kopftexte gespiegelt"): one grid of two halves – row 1 the small lines (left "FIND YOUR PEOPLE", right the category),
+  // row 2 the main lines (left the title, right the sentence), row 3 the link on the right. align-items: baseline puts the small lines on one
+  // line and the main lines on one baseline – no measuring. Only the sizes are fitted: the title and the longest sentence each on one line in
+  // its half (--title-size, --theme-size).
+  const sentences = Object.values(lines).join("\n");
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const fit = () => {
+      const half = root.clientWidth / 2 - 12;
+      const probe = document.createElement("span");
+      probe.className = "text-h2";
+      probe.style.cssText = "position:absolute;visibility:hidden;white-space:nowrap;";
+      root.append(probe);
+      const widest = (texts: string[], size: number, family?: string) => {
+        probe.style.fontSize = `${size}px`;
+        if (family) probe.style.fontFamily = family;
+        return Math.max(...texts.map((text) => ((probe.textContent = text), probe.offsetWidth)));
+      };
+      const titleEl = root.querySelector<HTMLElement>("[data-spot-title]");
+      const titleFamily = titleEl ? getComputedStyle(titleEl).fontFamily : undefined;
+      const titleSize = TITLE_SIZES.find((size) => widest([title], size, titleFamily) <= half) ?? TITLE_SIZES[TITLE_SIZES.length - 1];
+      probe.style.fontFamily = "";
+      const sentenceSize = SENTENCE_SIZES.find((size) => widest(sentences.split("\n"), size) <= half) ?? SENTENCE_SIZES[SENTENCE_SIZES.length - 1];
+      probe.remove();
+      root.style.setProperty("--title-size", `${titleSize}px`);
+      root.style.setProperty("--theme-size", `${sentenceSize}px`);
+    };
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(root);
+    void document.fonts?.ready.then(fit);
+    return () => observer.disconnect();
+  }, [sentences, title]);
   return (
-    <div data-spotlight-greeting className="pointer-events-none flex items-start justify-between gap-6">
-      <div data-spotlight-greeting-left className={cn("min-w-0", sideClassName ?? "flex-1")}>
-        {/* The headline's gradient, still and at 45 % (GREETING_GRADIENT). Optically flush with the W, and about 6px of air from its letters down to the W's
-            top (measured at 1280–1728): the big line's box has room above its capitals, the greeting's below its baseline – the margin takes both back. */}
-        <p className="-ml-px truncate text-greeting" style={GREETING_GRADIENT}>
-          {launch ? launch.label : name === null ? tIntro("first") : t("hi", { name })}
-        </p>
-        <FlowText ref={breath} text={launch || name === null ? tIntro("second") : t("whereNext")} style={SIDE_TITLE} className="text-stage mt-[calc(8px-0.33em)] w-fit whitespace-nowrap" />
-      </div>
-      {/* Beside the card it hangs from the common top edge: the left side alone sets the height, which puts "Where to next?" where it belongs. Its eyebrow's
-          capitals level with those of "Hi …": the greeting's letters sit lower in their line, so the block comes down by that (GREETING_EYEBROW_DROP). */}
-      <div data-spotlight-greeting-right className={cn("flex min-w-0 justify-end pt-[calc(var(--text-greeting)*0.15-1.5px)]", sideClassName ? cn(sideClassName, "h-0") : "flex-1")}>
-        {launch ? <LaunchBlock launch={launch} /> : <ThemeBlock vibe={vibe} countOf={countOf} onPick={onPick} lines={lines} fallback={fallback} />}
-      </div>
+    <div ref={rootRef} data-spotlight-greeting className="pointer-events-none relative grid grid-cols-2 items-baseline gap-x-6">
+      {/* Row 1: the small lines – grey, capitals. */}
+      <p data-align-top className="text-eyebrow uppercase text-muted">
+        {launch ? launch.label : t("findYourPeople")}
+      </p>
+      {/* Rows 1–3 on the right: the category, its sentence, the link (ThemeBlock – one fade for all three). */}
+      {launch ? (
+        <LaunchBlock launch={launch} />
+      ) : (
+        <ThemeBlock vibe={vibe} countOf={countOf} onPick={onPick} lines={lines} fallback={fallback} />
+      )}
+      {/* Row 2 left: the main line, one colour, no gradient. */}
+      <h2 data-spot-title style={TITLE_SIZE} className="stage-title col-start-1 row-start-2 mt-2 whitespace-nowrap text-ink">
+        {title}
+      </h2>
     </div>
   );
 }
@@ -111,16 +128,17 @@ function ThemeBlock({ vibe, countOf, onPick, lines, fallback }: Pick<GreetingPro
     return () => window.clearTimeout(id);
   }, [out, target]);
   const sentenceOf = (v: Vibe) => lines[v] ?? fallback(countOf(v));
+  // Three cells of the greeting's grid (right column, rows 1–3), right-aligned; one fade for all three (data-out).
+  const cell = cn("col-start-2 text-right transition-opacity duration-[250ms] ease-in-out motion-reduce:transition-none", out && "opacity-0");
   return (
-    <div
-      data-theme-block
-      data-out={out || undefined}
-      aria-live="polite"
-      className="w-full max-w-[360px] min-h-[calc(16px+6px+2*1.15*var(--fit-theme,28px)+10px+23px)] text-right transition-opacity duration-[250ms] ease-in-out motion-reduce:transition-none data-out:opacity-0"
-    >
-      <p className="text-eyebrow uppercase text-ink/55">{format.vibe(shown)}</p>
-      <FlipText as="p" text={sentenceOf(shown)} style={THEME_SIZE} className="text-h2 mt-1.5 ml-auto w-max max-w-full" />
-      <div className="mt-2.5">
+    <>
+      <p data-theme-eyebrow aria-live="polite" className={cn(cell, "row-start-1 text-eyebrow uppercase text-muted")}>
+        {format.vibe(shown)}
+      </p>
+      <p data-theme-sentence style={THEME_SIZE} className={cn(cell, "row-start-2 mt-2 whitespace-nowrap text-h2 text-ink")}>
+        {sentenceOf(shown)}
+      </p>
+      <div data-theme-link className={cn(cell, "row-start-3 mt-2")}>
         <Link
           href={`/?${withFilters(new URLSearchParams(), { ...EMPTY_FILTERS, vibes: [shown] })}`}
           onClick={(e) => {
@@ -132,7 +150,7 @@ function ThemeBlock({ vibe, countOf, onPick, lines, fallback }: Pick<GreetingPro
           {lines[shown] ? t("open", { count: countOf(shown) }) : t("seeHouses")}
         </Link>
       </div>
-    </div>
+    </>
   );
 }
 // The swap a breath after the 250ms fade-out, so the old text is fully gone.
@@ -141,14 +159,16 @@ const FADE_MS = 260;
 /** Before the launch and in the beta: the place of the category sentence – "Come for the place, stay for the people." and the two actions. */
 function LaunchBlock({ launch }: { launch: LaunchHero }) {
   const t = useTranslations("platform");
+  // The right column's main line and actions (rows 2 and 3 of the greeting's grid).
   return (
-    // As high as the category block it replaces (two lines of sentence and one row of actions): the Spotlight's fit stays the same.
-    <div className="w-full max-w-[400px] min-h-[calc(16px+6px+2*1.15*var(--fit-theme,28px)+10px+23px)] text-right">
-      <p className="text-h2 ml-auto w-fit max-w-full text-ink" style={THEME_SIZE}>
+    <>
+      <p data-theme-sentence style={THEME_SIZE} className="col-start-2 row-start-2 mt-2 text-right text-h2 text-ink">
         {t("hero.sub")}
       </p>
-      <LaunchActions launch={launch} oneRow className="mt-3 justify-end" />
-    </div>
+      <div className="col-start-2 row-start-3 mt-3 flex justify-end">
+        <LaunchActions launch={launch} oneRow />
+      </div>
+    </>
   );
 }
 
@@ -181,4 +201,5 @@ export function LaunchIntro({ launch, className }: { launch: LaunchHero; classNa
   );
 }
 
-const THEME_SIZE = { fontSize: "var(--fit-theme, 28px)" };
+const THEME_SIZE = { fontSize: "var(--theme-size, 32px)" };
+const TITLE_SIZE = { fontSize: "var(--title-size, 44px)", lineHeight: 1.05 };

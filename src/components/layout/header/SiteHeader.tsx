@@ -3,25 +3,15 @@ import { HeaderBack } from "@/components/layout/HeaderBack";
 import { useOpenHouseEntry } from "@/components/platform/useOpenHouseEntry";
 import { CompactSearch } from "./CompactSearch";
 import { HeaderCenterNav } from "./HeaderCenter";
-import { cn } from "@/lib/utils";
 import { setAdminHeaderSlot, setHeaderSlot } from "@/lib/headerSlot";
-import { UserRound } from "lucide-react";
+import { Plus } from "lucide-react";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { usePathname } from "next/navigation";
 import { Suspense, useEffect } from "react";
-import { useRequireAuth } from "@/components/auth/AuthProvider";
 import { headerActionStyles } from "@/components/ui/ActionButton";
 import { Logo } from "@/components/layout/Logo";
-import { isNavActive, navItemsFor } from "@/components/layout/nav";
-import { useMessagesUnread } from "@/components/notifications/useNotifications";
-import { getCurrentUser, useStore } from "@/lib/store";
-import { NavIcon } from "./FilledNavIcons";
-import { useNeedsYou } from "@/lib/needsYou";
-import { TODO_GROUP, type TodoKind } from "@/config/todo";
-import { useNow } from "@/lib/useNow";
-import { AvatarMenu } from "./AvatarMenu";
+import { useStore } from "@/lib/store";
 
 /*
  * Header sizes – do not change without explicit instruction.
@@ -60,27 +50,16 @@ function SiteHeaderByRoute() {
 }
 
 function SiteHeaderView({ pathname }: { pathname: string | null }) {
-  const t = useTranslations("nav");
   // "Open a House" – before the launch without an accepted application "Apply to host" (to /apply).
   const openEntry = useOpenHouseEntry();
   const store = useStore();
-  const requireAuth = useRequireAuth();
-  const router = useRouter();
-  const me = getCurrentUser(store);
-  // One dot on Messages for anything unread there: chats or Updates (the notifications live in Messages now – no bell).
-  const unreadIn = useMessagesUnread();
-  // Messages is chats only: its dot shows unread chats (the notifications are in Your houses › Activity).
-  const unread = unreadIn.chats;
-  // "Your houses": no sign in the bar – the count (only what's time-critical) is for its aria-label: open payments and what you must answer (Pay + Reply), from the same list as the page
-  // (lib/needsYou.ts, columns from config/todo.ts). "Set up" doesn't count.
-  const nowMs = useNow();
-  const tasks = useNeedsYou(nowMs === null ? null : new Date(nowMs).toISOString()).filter((task) => {
-    const group = TODO_GROUP[task.kind as TodoKind];
-    return group === "pay" || group === "reply";
-  }).length;
   // Explore's header (its quick search in the bar's slot): /explore, and / once signed in – visitors get the start page there (Landing), with
   // the "Where to next?" search of every other page.
-  const explorePage = pathname === "/explore" || (pathname === "/" && Boolean(store.sessionRestored && store.currentUserId));
+  // Explore's header (its quick search in the bar's slot, driving the page's own filters): /explore, / once signed in, and every "See all"
+  // page (/collections/…, CLAUDE.md "Aufräumen – ein Design").
+  const explorePage = pathname === "/explore" || Boolean(pathname?.startsWith("/collections/")) || (pathname === "/" && Boolean(store.sessionRestored && store.currentUserId));
+  // Only "⌕ Search" on the pages of one thing of yours or one House: the House page, Your houses, Messages, the profile, Open a House.
+  const compactCenter = Boolean(pathname && /^\/(house|h|your-houses|messages|profile|u|me|create)(\/|$)/.test(pathname));
   // The admin: the same compact bar (--header-bar-h, data-admin → --header-h in globals.css) and its own search (⌘K, AdminCommandSearch portalled into the slot).
   const adminPage = pathname === "/admin" || Boolean(pathname?.startsWith("/admin/"));
   // At the very top (scrollY < 8) the glass is a little more opaque: an IntersectionObserver on AppShell's 1px mark – no scroll listener; only
@@ -96,44 +75,30 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
     };
   }, []);
 
-  // The avatar: the account menu (AvatarMenu – Your profile · Saved · Your people · Settings · Help · Share an idea · Get the app · Admin ·
-  // Log out). Logged out a person in a circle opening the login.
-  const profile = me ? (
-    <AvatarMenu me={me} />
-  ) : (
-    <button
-      type="button"
-      onClick={() => requireAuth(undefined, { reason: "login" })}
-      aria-label={t("logIn")}
-      data-header-avatar
-      className="press flex size-10 items-center justify-center rounded-full bg-(--hdr-corner-bg) text-ink transition-colors duration-150 hover:bg-(--hdr-corner-hover)"
-    >
-      <UserRound aria-hidden className="size-4" />
-    </button>
-  );
-  // The text tabs: 36px, padding 0 14px, 15px medium; from 1100px text buttons without a surface (CLAUDE.md "Kopfleiste leichter"): a light
-  // surface only on hover, the page you're on a light one and semibold (--hdr-tab-* in globals.css).
-  // Below 1100px the words go and each tab is a 40px circle with its icon (the tooltip is its aria-label).
-  const tab = "press relative inline-flex h-(--header-pill-h) shrink-0 items-center justify-center gap-2 rounded-full px-3 text-nav-main transition-colors duration-150";
 
   return (
     // ONE bar on every page: the wordmark · in the middle Explore's quick search (ExploreFeed's portal) or, elsewhere, the capsule "Where to
     // next?" · right the tabs Explore · Your houses · Messages, the avatar and "Open a House".
     <header data-site-header data-admin={adminPage || undefined} className="header-glass fixed inset-x-0 top-(--band-h) z-40 hidden h-(--header-h) md:block">
       {/* Logo · 32px · the groups, 20px apart, left-aligned from the logo · what's left over · 20px at least · the right group, flush right. */}
-      <div data-header-row className="bar-width flex h-full items-center">
-        {/* The installed app (tablets, desktop): the way back on sub-pages, left of the wordmark (HeaderBack). */}
-        <HeaderBack className="mr-2" />
-        <Logo className="mr-6 shrink-0" />
+      {/* From 1100px a three-part grid (CLAUDE.md "Kopfleiste zentriert"): 1fr auto 1fr – the logo flush left, the right group flush right,
+          the middle exactly in the window's middle (it moves together before it would move off the middle, HeaderCenter). */}
+      <div data-header-row className="bar-width flex h-full items-center split:grid split:grid-cols-[1fr_auto_1fr]">
+        <div data-header-left className="flex shrink-0 items-center split:justify-self-start">
+          {/* The installed app (tablets, desktop): the way back on sub-pages, left of the wordmark (HeaderBack). */}
+          <HeaderBack className="mr-2" />
+          <Logo className="mr-6 shrink-0 split:mr-0" />
+        </div>
         {/* Three groups over the full width (CLAUDE.md "Kopfleiste neu geordnet"): the logo · the middle, centred between the logo and the
             right group (Explore's quick search, or the same entries leading to Explore on every other page) · the navigation. */}
         {explorePage ? (
-          <div ref={setHeaderSlot} data-explore-slot className="flex min-w-0 flex-1 items-center justify-center max-split:hidden [--control-h:36px]" />
+          <div ref={setHeaderSlot} data-explore-slot className="flex min-w-0 flex-1 items-center justify-center max-split:hidden split:justify-self-center [--control-h:36px]" />
         ) : adminPage ? (
           <div ref={setAdminHeaderSlot} data-admin-slot className="flex min-w-0 flex-1 max-split:hidden" />
         ) : (
-          <div data-center-slot className="flex min-w-0 flex-1 items-center justify-center max-split:hidden">
-            <HeaderCenterNav />
+          <div data-center-slot className="flex min-w-0 flex-1 items-center justify-center max-split:hidden split:justify-self-center">
+            {/* The full group – compact ("⌕ Search" alone) only on the House page, Your houses, Messages, the profile, Open a House. */}
+            <HeaderCenterNav compact={compactCenter} />
           </div>
         )}
         {/* Below 1100px (tablets): ONE light search field across the width with the filter button inside (CompactSearch) – Explore's quick
@@ -142,52 +107,14 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
         {/* Right, in this order: the tabs Explore · Your houses · Messages · the avatar · "Open a House" – 8px apart. */}
         {/* Below 1100px (tablets) the tab bar at the bottom carries the navigation (BottomTabBar) – the header holds the logo, the search and
             Explore's filters only. */}
-        <nav aria-label={t("compactLabel")} className="ml-6 flex shrink-0 items-center gap-1 max-split:hidden">
-          {navItemsFor(me !== undefined, "header").map((item) => {
-            const label = t(`items.${item.headerLabelKey ?? item.labelKey}`);
-            // A small number in the capsule: Messages – unread chats (not messages); Your houses – open tasks. None at 0.
-            const count = me === undefined ? 0 : item.labelKey === "messages" ? unread : item.labelKey === "houses" ? tasks : 0;
-            const gated = me === undefined && item.audience === "member";
-            const current = isNavActive(item.href, pathname);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                aria-label={count > 0 ? t(item.labelKey === "messages" ? "itemUnread" : "itemTasks", { label, count }) : label}
-                aria-current={current ? "page" : undefined}
-                onClick={
-                  gated
-                    ? (e) => {
-                        e.preventDefault();
-                        requireAuth(() => router.push(item.href), { reason: item.labelKey === "messages" ? "messages" : "yourHouses" });
-                      }
-                    : undefined
-                }
-                // The tab you're on in the full text colour and semibold, no capsule; the others grey, full colour on hover.
-                className={cn(tab, explorePage ? "max-split:size-10 max-split:px-0" : "max-lg:size-10 max-lg:px-0", current ? "font-semibold text-ink" : "text-muted hover:text-ink")}
-              >
-                {/* Icons below 1100px; a tablet's wider window (1024–1099px) shows the words – except on Explore, whose filters need the room. */}
-                <span className={explorePage ? "hidden max-split:contents" : "hidden max-lg:contents"}>
-                  <NavIcon item={item} active={current} line />
-                </span>
-                <span className={explorePage ? "max-split:hidden" : "max-lg:hidden"}>{label}</span>
-                {/* No numbers in the header. Messages only: unread chats show a 6px dot in --brand-action inside the capsule, 6px after the word
-                    (the tab's 8px gap − 2px), centred on the text. Below 1100px (icons) the same dot inside the circle, top right of the icon.
-                    Your houses shows nothing; both keep the count in their aria-label. */}
-                {count > 0 && item.labelKey === "messages" && (
-                  <span aria-hidden data-unread-dot className={cn("-ml-0.5 size-1.5 shrink-0 rounded-full bg-(--hdr-dot)", explorePage ? "max-split:absolute max-split:right-2 max-split:top-2 max-split:ml-0" : "max-lg:absolute max-lg:right-2 max-lg:top-2 max-lg:ml-0")} />
-                )}
-              </Link>
-            );
-          })}
-          {/* "Open a House" (headerActionStyles: graphite on the light glass, light grey on the dark), then the profile at the very right
-              (CLAUDE.md "Profil ganz rechts") – the same 8px before each. Only on Explore below 1100px its "+" alone (tooltip "Open a House"). */}
-          {/* Words only, no plus (CLAUDE.md "Open a House weicher"). */}
-          <Link href={openEntry.href} className={cn(headerActionStyles, "ml-2")}>
+        {/* Right only "＋ Open a House" (CLAUDE.md "Persönliche Navigation als schwebende Leiste unten"): Your houses, Messages and the avatar
+            live in the floating bar at the bottom (BottomTabBar). */}
+        <div data-header-right className="ml-6 flex shrink-0 items-center max-split:hidden split:justify-self-end">
+          <Link href={openEntry.href} className={headerActionStyles}>
+            <Plus aria-hidden />
             {openEntry.label}
           </Link>
-          <span className="ml-2 flex">{profile}</span>
-        </nav>
+        </div>
       </div>
     </header>
   );

@@ -2,42 +2,39 @@
 
 import { depthOf, depthShiftDays } from "@/config/depth";
 import { boostShiftDays } from "@/lib/houseHelp";
-import { blockHighlight } from "@/lib/highlight";
-import { useTodayIso } from "@/lib/birthDate";
+import { feedLayout, type FeedItem } from "@/lib/highlight";
 import { useHeaderSlot } from "@/lib/headerSlot";
 import { createPortal } from "react-dom";
 import { HeaderCenter } from "@/components/layout/header/HeaderCenter";
-import Link from "next/link";
+import { useHeaderPanel } from "@/components/layout/header/HeaderPanel";
+import { ActiveFilterChips, ResultsBar, ResultsHead } from "@/components/explore/ActiveFilters";
 import { useTranslations } from "next-intl";
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import { SpotlightCoverflow } from "@/components/SpotlightCoverflow";
 import { LoadMore } from "@/components/ui/LoadMore";
 import { usePagedList } from "@/lib/usePagedList";
 import { CollectionRow } from "@/components/explore/CollectionRow";
 import { PeopleGoingRow, usePeopleGoing } from "@/components/explore/PeopleGoingRow";
-import { BarCategories, CategoryRow, FiltersButton, SortCapsule, SortList } from "@/components/explore/Filters";
-import { EXPLORE_GRID, EXPLORE_RHYTHM, EXPLORE_SPACING, exploreBlockSize, explorePageSize, HIGHLIGHT_MIN_COLS, SPOTLIGHT_MIN, TOP_CATEGORIES, VIBE_ICONS, VISIBLE_CHIPS } from "@/config/explore";
+import { CategoryRow, SortCapsule, SortList } from "@/components/explore/Filters";
+import { EXPLORE_GRID, EXPLORE_RHYTHM, EXPLORE_SPACING, explorePageSize, HIGHLIGHT_MIN_COLS, SPOTLIGHT_MIN, VIBE_ICONS, VISIBLE_CHIPS } from "@/config/explore";
 import { Container } from "@/components/layout/Container";
-import { ExploreFilterBar, scrollUnderHeader } from "@/components/explore/ExploreFilterBar";
+import { scrollUnderHeader } from "@/lib/scrollUnderHeader";
 import { ExplorePrelaunch } from "@/components/explore/ExplorePrelaunch";
 import { BeFirstHere, InForTile, NearbyShelf, NoHouseYet, NotifyLine, OpenHereTile } from "@/components/explore/NoHouseYet";
 import { getVisibleHouses } from "@/lib/data/visibleHouses";
-import { launch, showsExamples, showsPersonalRows, useDepthChoice, usePlatformPhase } from "@/config/platform";
+import { canPay, launch, showsExamples, showsPersonalRows, useDepthChoice, usePlatformPhase } from "@/config/platform";
 import { HOST_APPLY_HREF, useJoinWaitlist } from "@/components/platform/useJoinWaitlist";
 import { LaunchIntro } from "@/components/explore/SpotlightIntro";
-import { SearchField, ShortTripsToggle, SlimBolt, useMonthName } from "@/components/explore/SearchFields";
+import { SlimBolt, useMonthName } from "@/components/explore/SearchFields";
 import { Chip } from "@/components/ui/Chip";
 import { useIsDesktop } from "@/lib/useIsDesktop";
 import { registerFeed } from "@/lib/exploreBridge";
 import { FilterSheets } from "@/components/explore/FilterSheets";
-import { FitChips } from "@/components/explore/FitChips";
 import { SpotlightHero } from "@/components/SpotlightHero";
 import { HouseCard } from "@/components/HouseCard";
-import { buttonStyles } from "@/components/ui/ActionButton";
-import { SectionHeader } from "@/components/ui/SectionHeader";
 import { useFeatureFlag } from "@/lib/featureFlags";
 import { FullBleedSection } from "@/components/ui/FullBleedSection";
-import { DarkBand } from "@/components/ui/DarkBand";
+import { RowTile } from "@/components/ui/RowTile";
 import { useFormat } from "@/i18n/format";
 import { COLLECTIONS, shelfFor, type Collection, type Shelf } from "@/lib/collections";
 import { citySlugOf } from "@/lib/data/stays";
@@ -54,7 +51,6 @@ import {
   type SortKey,
 } from "@/lib/exploreFilters";
 import { setExploreFilters, useExploreFilters } from "@/lib/exploreFilterState";
-import { X } from "lucide-react";
 import { onePerHost, useHeroStays } from "@/lib/heroRotation";
 import { usePreferredCurrency } from "@/lib/usePreferredCurrency";
 import { SPOTLIGHT_VISIBLE, withoutSpotlightUpFront } from "@/lib/exploreLayout";
@@ -64,7 +60,7 @@ import { VIBES } from "@/lib/catalog";
 import { hasHeadStart, isListedStay, isPreLaunch } from "@/lib/launch";
 import { findUser, getCrew, getCurrentUser, settingsOf, useStore } from "@/lib/store";
 import type { Stay, Vibe } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import { cn, openSpots } from "@/lib/utils";
 import { answersSlowly, responseRate } from "@/lib/requests";
 import { useNow } from "@/lib/useNow";
 import { useGridColumns } from "@/lib/useGridColumns";
@@ -90,8 +86,6 @@ interface ExploreFeedProps {
   scope?: FeedScope;
   /** The page brings its own heading and layout (city / vibe pages): no H1, no Container of its own */
   headless?: boolean;
-  /** A theme page's introduction (2–3 sentences) under its title (config/seo.ts) */
-  intro?: string;
 }
 
 /**
@@ -99,7 +93,7 @@ interface ExploreFeedProps {
  * are multi-select (OR within one, AND across them) and live in the URL. Spotlight and collection rows only on the
  * unscoped, unfiltered Explore.
  */
-export function ExploreFeed({ scope, headless = false, intro }: ExploreFeedProps = {}) {
+export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) {
   const t = useTranslations("explore");
   const tf = useTranslations("explore.filtersUi");
   const tCollections = useTranslations("explore.collections");
@@ -134,16 +128,26 @@ export function ExploreFeed({ scope, headless = false, intro }: ExploreFeedProps
   const collection = scope && "collection" in scope ? COLLECTIONS.find((c) => c.id === scope.collection) : undefined;
 
   const resultsRef = useRef<HTMLDivElement>(null);
+  // The results' head ("16 houses", the active filters): where every filter change glides to (CLAUDE.md "Filtern ohne Springen").
+  const headRef = useRef<HTMLDivElement>(null);
+  const scrollPending = useRef(false);
   const gridEndRef = useRef<HTMLDivElement>(null);
   // Every change goes into the URL right away (no navigation), so it can be shared and survives a reload. The page then
   // glides to the start of the House list, its top just under the header (with its filter row).
   const setFilters = useCallback((next: ExploreFilters, key?: string) => {
     setExploreFilters(next, key);
-    // Behind the panel the page is locked: it goes to the grid when the panel has gone.
+    // Behind the panel the page is locked: it goes to the head when the panel has gone. Otherwise once the new results are drawn (below).
     if (panelOpenRef.current) scrollAfterPanel.current = true;
-    else requestAnimationFrame(() => scrollUnderHeader(resultsRef.current));
+    else scrollPending.current = true;
   }, []);
   const update = (patch: Partial<ExploreFilters>) => setFilters({ ...filters, ...patch }, Object.keys(patch).join(","));
+  // After any filter change (Short trips, Themes, the panel, Where · When, the sort): once the new results are drawn, the page glides to the
+  // results' head – the count and the active filters in view (CLAUDE.md "Filtern ohne Springen").
+  useEffect(() => {
+    if (!scrollPending.current) return;
+    scrollPending.current = false;
+    return glideToHead(headRef, 0);
+  }, [filters]);
 
   // Houses of people you blocked never show up.
   const blocked = settingsOf(getCurrentUser(store)).blockedUserIds;
@@ -224,6 +228,8 @@ export function ExploreFeed({ scope, headless = false, intro }: ExploreFeedProps
     );
   const countryCount = new Set(results.map(countryOf)).size;
   const resultLabel = tc("houses", { count: results.length });
+  // The head's grey line beside the title: "7 houses · 7 countries".
+  const headSummary = t("summary", { houses: resultLabel, countries: tc("countries", { count: countryCount }) });
 
   // Layout: a plain grid of equal cards, cut into sections of complete rows (see lib/exploreLayout). Everything below
   // follows from the real counts – the mock's data presets only change what's there.
@@ -263,7 +269,6 @@ export function ExploreFeed({ scope, headless = false, intro }: ExploreFeedProps
     const sorted = base.toSorted((a, b) => Number(!a.acceptingRequests) - Number(!b.acceptingRequests) || compareBy(EMPTY_FILTERS.sort, a, b, shiftDaysOf));
     const taken = new Set(showPeople ? peopleGoing.map((s) => s.id) : []);
     return EXPLORE_RHYTHM.shelves.flatMap((id): Band[] => {
-      if (id === "peopleGoing") return showPeople ? [{ key: id, kind: "people" }] : [];
       const shelf = shelfFor(id, sorted, taken);
       if (!shelf) return [];
       shelf.stays.forEach((s) => taken.add(s.id));
@@ -296,20 +301,29 @@ export function ExploreFeed({ scope, headless = false, intro }: ExploreFeedProps
     ...(filters.verifiedOnly ? [{ key: "verified", label: tf("verifiedChip"), patch: { verifiedOnly: false } }] : []),
     ...(filters.depth ? [{ key: "depth", label: `${tf("depth")} · ${tf(`depthOptions.${filters.depth}`)}`, patch: { depth: null } }] : []),
   ];
-  // Browsing Explore: the grid comes in parts of two rows each, the bands between them.
-  // A band after every block of EXPLORE_RHYTHM.rowsPerBlock rows (16 cards at 4 columns, 12 at 3).
-  // One block: rowsPerBlock rows; with the highlight (3+ columns) one card fewer, since it takes two cells.
-  const blocksHighlight = browsing && !few && cols >= HIGHLIGHT_MIN_COLS;
-  const chunk = blocksHighlight ? exploreBlockSize(cols) : EXPLORE_RHYTHM.rowsPerBlock * (cols || 4);
+  // Browsing Explore (CLAUDE.md "Rhythmus aus Raster und Reihen"): Spotlight → signed in "Your people are going" → a block of 2 rows → "Just
+  // opened" → a block → "Short trips" → a block → the further rows in the same pattern. The grid laid out in advance (lib/highlight.ts):
+  // blocks of full rows (a wide card – a real last spot, 3+ columns, at most one per 8 – counts as two cells), a House from the row right
+  // before a block waits for a later one, and while more pages are to come a last half row stays out (it comes with the next page).
+  const chunk = EXPLORE_RHYTHM.rowsPerBlock * (cols || 4);
   const interleave = browsing && cards.length > chunk && !few;
-  const highlightOn = interleave && blocksHighlight;
-  const chunks = interleave ? Array.from({ length: Math.ceil(cards.length / chunk) }, (_, i) => cards.slice(i * chunk, (i + 1) * chunk)) : [cards];
+  const isWide = (stay: Stay) => cols >= HIGHLIGHT_MIN_COLS && canPay(phase) && !stay.isExample && openSpots(stay) === 1;
+  const peopleIds = useMemo(() => new Set(showPeople ? peopleGoing.map((s) => s.id) : []), [showPeople, peopleGoing]);
+  const chunks: FeedItem[][] =
+    browsing && !few && cols > 0
+      ? feedLayout(cards, cols, interleave ? EXPLORE_RHYTHM.rowsPerBlock : Number.POSITIVE_INFINITY, isWide, {
+          // Block 0 follows "Your people are going", block i the row bands[i − 1].
+          avoid: (block) => (block === 0 ? peopleIds : bands[block - 1]?.kind === "collection" ? new Set((bands[block - 1] as Extract<Band, { kind: "collection" }>).shelf.stays.map((s) => s.id)) : undefined),
+          fullRowsOnly: cards.length < paging.total,
+        })
+      : [cards.map((stay) => ({ stay, wide: false }))];
+  const shownCount = chunks.reduce((n, part) => n + part.length, 0);
   // The list's end (the header's tab closes here) and, 48px under it, how far you are and "Show 24 more".
   const gridEnd = () => (
     <>
       <div ref={gridEndRef} aria-hidden className="h-0" />
       <LoadMore
-        shown={cards.length}
+        shown={shownCount}
         total={paging.total}
         nextCount={paging.nextCount}
         loading={paging.loading}
@@ -325,15 +339,17 @@ export function ExploreFeed({ scope, headless = false, intro }: ExploreFeedProps
   const rowOptions = rowVibes.map((key) => vibeOptions.find((o) => o.value === key)!).filter(Boolean);
   const moreOptions = vibeOptions.filter((o) => !rowVibes.includes(o.value));
 
-  // Explore (not the city / vibe pages): from md the chips, Sort and Filters are Open Houses' row and the header's tab (ExploreFilterBar);
-  // on phones they are a sticky row of their own at the top.
+  // From 1100px the header carries the search, the themes and the filters (HeaderCenter); below, the chip row at the top of the page.
   const md = useMediaQuery(MD_QUERY);
   const desktop = useIsDesktop();
+  // From 744px the header's panel: hover 200ms or click, stays open once you work in it (HeaderPanel). Phones: the button opens the sheet.
+  const filterPanel = useHeaderPanel(sheetOpen && md, setSheetOpen);
   // After the bar's All filters closes (from md): to the grid, if something changed there (phones: the Sheet's onClosed).
   useEffect(() => {
     if (sheetOpen || !md || !scrollAfterPanel.current) return;
     scrollAfterPanel.current = false;
-    requestAnimationFrame(() => scrollUnderHeader(resultsRef.current));
+    // Once the panel has gone and the page is unlocked again (its closing takes 260ms).
+    return glideToHead(headRef, 300);
   }, [sheetOpen, md]);
   // From 1100px the quick search sits in the desktop header's bar; below it the chip row under the header (phones and tablets).
   const inBar = !headless && desktop;
@@ -344,7 +360,6 @@ export function ExploreFeed({ scope, headless = false, intro }: ExploreFeedProps
 
   /** The category chips – the filter row's (32px) or the compact bar's (32px); one choice in the row (several only
    *  in the panel), a pick from More takes the last slot. */
-  const tHeaderThemes = useTranslations("explore.barThemes");
   const vibeRow = {
     label: t("filterByVibe"),
     allLabel: t("all"),
@@ -370,23 +385,14 @@ export function ExploreFeed({ scope, headless = false, intro }: ExploreFeedProps
   const preLaunch = !scoped && isPreLaunch(store.stays);
   // Explore itself (not a city / vibe / collection page, not before the launch): scrolled down, header and filters become one compact bar.
   // Explore itself (not a city / vibe / collection page, not before the launch): the quick search lives in the header's bar.
-  const quickSearch = !scoped && !headless && !preLaunch;
+  // Explore and every "See all" page (/collections/…, CLAUDE.md "Aufräumen – ein Design") – the full middle; not the city / vibe landing pages.
+  const quickSearch = !headless && !preLaunch;
   // Before the launch: no Spotlight, no grid. The slogan and the same search, ending where an empty result ends.
   if (preLaunch) return <ExplorePrelaunch />;
 
   // "All filters" toggles: from md it grows out of the bar (ui/BarSheet), on phones the bottom sheet.
   const openPanel = () => setSheetOpen((o) => !o);
   const closePanel = () => setSheetOpen(false);
-  const fields = (
-    <>
-      <SearchField place={filters.place} month={filters.month} onChange={update} />
-      <ShortTripsToggle
-        label={tf("shortTrips")}
-        active={filters.lengths.includes("weekend")}
-        onToggle={() => update({ lengths: filters.lengths.includes("weekend") ? filters.lengths.filter((l) => l !== "weekend") : [...filters.lengths, "weekend"] })}
-      />
-    </>
-  );
   const Wrap = headless ? Fragment : Container;
   const RowWrap = headless ? "div" : Container;
   return (
@@ -412,11 +418,27 @@ export function ExploreFeed({ scope, headless = false, intro }: ExploreFeedProps
               filterCount={panelCount}
               filtersOpen={panelOpen}
               onFilters={openPanel}
+              filtersTrigger={filterPanel.trigger}
               filtersRef={setFiltersEl}
             />
           </>,
           headerSlot,
         )}
+      {/* Searching, from 1100px: the bar that runs along under the header once the results' head has scrolled away (CLAUDE.md "Mitlaufender
+          Ergebnis-Kopf"). */}
+      {(searchView || scoped) && inBar && (
+        <ResultsBar
+          summary={headSummary}
+          headRef={headRef}
+          title={resultLabel}
+          chips={<ActiveFilterChips compact chips={activeChips} label={tf("sectionActive")} removeLabel={(label) => tf("remove", { label })} clearLabel={tf("clearAll")} onRemove={(chip) => update(chip.patch)} onClear={clearFilters} />}
+          sort={
+            <SortCapsule variant="tertiary" label={t(`sortOptions.${filters.sort}`)}>
+              <SortList options={sortOptions} value={filters.sort} onChange={(sort) => update({ sort })} />
+            </SortCapsule>
+          }
+        />
+      )}
       {/* City / vibe pages, and phones: the chips, Sort and Filters as a plain sticky row at the top of the page. */}
       {!inBar && (
         // Below 1100px (phones and tablets): the chip row, sticky under the header, on the header's fixed surface (.chip-bar). The filters
@@ -443,72 +465,38 @@ export function ExploreFeed({ scope, headless = false, intro }: ExploreFeedProps
           count, the active filters as chips and the grid. All spacing: EXPLORE_SPACING. */}
       <Wrap>
         <div data-explore-blocks>
-          {bands[0] && <BandRow band={bands[0]} />}
-          <FullBleedSection inner={headless ? undefined : "explore-width"} padding={cn(showSpotlight && !bands[0] ? EXPLORE_SPACING.underHero : bands[0] ? "pt-0" : EXPLORE_SPACING.scopedTop, interleave ? "pb-0" : EXPLORE_SPACING.feedEnd)}>
+          {showPeople && browsing && (
+            // Under the Spotlight's stage, below the first screen (CLAUDE.md "Startseite – Bühne nach oben, unten hell").
+            <RowTile>
+              <PeopleGoingRow />
+            </RowTile>
+          )}
+          <FullBleedSection inner={headless ? undefined : "explore-width"} padding={cn(showSpotlight && !(showPeople && browsing) ? EXPLORE_SPACING.underHero : showPeople && browsing ? "pt-0" : EXPLORE_SPACING.scopedTop, interleave ? "pb-0" : EXPLORE_SPACING.feedEnd)}>
             {!headless && (
               <>
                 {/* The page's one H1 (Explore is the home page; a /collections page is titled by its collection). Right on its baseline the
                     sort. Searching on Explore: the count is the title, the active filters follow as chips. */}
-                <SectionHeader
-                  as="h1"
-                  variant="explore"
-                  eyebrow={searchView ? undefined : collection ? tCollections(`${collection.id}.eyebrow`) : t("allEyebrow")}
-                  title={searchView ? resultLabel : collection ? tCollections(`${collection.id}.title`) : t("title")}
-                  subline={searchView ? undefined : filtered ? resultLabel : t("summary", { houses: resultLabel, countries: tc("countries", { count: countryCount }) })}
-                  action={
-                    inBar ? (
+                {/* THE results head (explore/ActiveFilters ResultsHead): title + grey summary + sort; the active filters; one line of
+                    description ("See all" pages: the collection's line). */}
+                <div ref={headRef} data-results-head>
+                  <ResultsHead
+                    title={searchView ? resultLabel : collection ? tCollections(`${collection.id}.title`) : t("title")}
+                    summary={headSummary}
+                    description={collection && !searchView ? tCollections(`${collection.id}.subline`) : undefined}
+                    sort={
                       <SortCapsule variant="tertiary" label={t(`sortOptions.${filters.sort}`)}>
                         <SortList options={sortOptions} value={filters.sort} onChange={(sort) => update({ sort })} />
                       </SortCapsule>
-                    ) : (
-                      // Logged out on phones: the way to the questions, right beside the title (never under the sticky row).
-                      !store.currentUserId && (
-                        <Link href="/help" className={buttonStyles("tertiary", "sm", "md:hidden")}>
-                          {t("howItWorksLink")}
-                        </Link>
-                      )
-                    )
-                  }
-                />
-                {intro && !searchView && <p className="mt-3 max-w-[640px] text-body-lg text-muted">{intro}</p>}
-                {searchView && (
-                  <ul aria-label={tf("sectionActive")} className="mt-4 flex flex-wrap items-center gap-2">
-                    {activeChips.map((chip) => (
-                      <li key={chip.key}>
-                        <button type="button" onClick={() => update(chip.patch)} aria-label={tf("remove", { label: chip.label })} className="pick-on press inline-flex h-9 items-center gap-1.5 rounded-full pl-3.5 pr-2.5 text-nav">
-                          {chip.label}
-                          <X aria-hidden className="size-3.5" strokeWidth={2.5} />
-                        </button>
-                      </li>
-                    ))}
-                    <li>
-                      <button type="button" onClick={clearFilters} className="h-9 px-2 text-nav font-semibold text-ink underline-offset-4 hover:underline">
-                        {tf("clearAll")}
-                      </button>
-                    </li>
-                  </ul>
-                )}
-                {/* ONE filter on Explore: its glass strip under the header and the compact bar. City, vibe and collection pages keep a row here. */}
-                {scoped && (
-                  <ExploreFilterBar
-                    fields={fields}
-                    chips={
-                      showVibes && (
-                        <FitChips
-                          options={[...rowOptions, ...moreOptions]}
-                          labels={{ row: t("filterByVibe"), all: t("all"), more: t("more") }}
-                          value={filters.vibes}
-                          onSelect={vibeRow.onSelect}
-                        />
-                      )
                     }
-                    pageEnd={<FiltersButton variant="strong" count={panelCount} onClick={openPanel} expanded={panelOpen} />}
+                    chips={activeChips.length > 0 ? <ActiveFilterChips chips={activeChips} label={tf("sectionActive")} removeLabel={(label) => tf("remove", { label })} clearLabel={tf("clearAll")} onRemove={(chip) => update(chip.patch)} onClear={clearFilters} /> : undefined}
                   />
-                )}
+                </div>
               </>
             )}
             {/* Where a filter change scrolls to: the grid's start right under the tab. */}
-            <div ref={resultsRef} data-explore-results className={!headless ? EXPLORE_SPACING.headContent : undefined}>
+            {/* Searching: the results keep at least a window's height, so the glide to the head never runs out of page and nothing jumps
+                when the cards change (CLAUDE.md "Filtern ohne Springen"). */}
+            <div ref={resultsRef} data-explore-results className={cn(!headless && EXPLORE_SPACING.headContent, searchView && "min-h-[calc(100svh-var(--header-total)-160px)]")}>
               <div ref={setColumnProbe} aria-hidden className={cn(EXPLORE_GRID, "h-0")} />
               {results.length === 0 ? (
                 // Nothing: open this House, or save the search – and what's closest.
@@ -516,7 +504,7 @@ export function ExploreFeed({ scope, headless = false, intro }: ExploreFeedProps
                 showsExamples(phase) ? <BeFirstHere draft={draft} onClear={filtered ? clearFilters : undefined} /> : <NoHouseYet draft={draft} stays={base} title={searched ? undefined : t("noResults.title")} onClear={filtered ? clearFilters : undefined} />
               ) : (
                 <>
-                  <FeedGrid cards={chunks[0]} fresh={paging.fresh} highlight={highlightOn ? { block: 0, cols } : undefined} after={
+                  <FeedGrid items={chunks[0] ?? []} fresh={paging.fresh} after={
                       few && (
                         <>
                           <OpenHereTile draft={draft} />
@@ -534,10 +522,10 @@ export function ExploreFeed({ scope, headless = false, intro }: ExploreFeedProps
           {/* The rhythm: a band, then the next cards – as long as there are cards (and after "Show 24 more" too); the list's end last. */}
           {interleave &&
             chunks.slice(1).map((part, i) => (
-              <Fragment key={part[0]?.id ?? i}>
-                {bands[i + 1] && <BandRow band={bands[i + 1]} />}
-                <FullBleedSection inner="explore-width" padding={cn(bands[i + 1] ? "pt-0" : "pt-6", i === chunks.length - 2 && EXPLORE_SPACING.feedEnd)}>
-                  <FeedGrid cards={part} fresh={paging.fresh} highlight={highlightOn ? { block: i + 1, cols } : undefined} />
+              <Fragment key={part[0]?.stay.id ?? i}>
+                {bands[i] && <BandRow band={bands[i]} />}
+                <FullBleedSection inner="explore-width" padding={cn(bands[i] ? "pt-0" : "pt-6", i === chunks.length - 2 && EXPLORE_SPACING.feedEnd)}>
+                  <FeedGrid items={part} fresh={paging.fresh} />
                   {i === chunks.length - 2 && gridEnd()}
                 </FullBleedSection>
               </Fragment>
@@ -549,13 +537,14 @@ export function ExploreFeed({ scope, headless = false, intro }: ExploreFeedProps
       <FilterSheets
         open={sheetOpen}
         md={md}
+        panelHandlers={filterPanel.panel}
         onClose={closePanel}
         onApply={(next) => {
           setFilters(next);
           setSheetOpen(false);
         }}
         onClosed={() => {
-          if (scrollAfterPanel.current) scrollUnderHeader(resultsRef.current);
+          if (scrollAfterPanel.current) glideToHead(headRef, 0);
           scrollAfterPanel.current = false;
         }}
         anchor={filtersAnchor}
@@ -581,38 +570,41 @@ export function ExploreFeed({ scope, headless = false, intro }: ExploreFeedProps
  * one spot left › starts within 7 days › just opened), with the reason as a capsule – on the left in even blocks, on the right in odd ones;
  * the rest flows around it, no holes (grid-auto-flow: dense).
  */
-function FeedGrid({ cards, fresh, after, highlight }: { cards: readonly Stay[]; /** The page that just came: it fades in */ fresh?: ReadonlySet<string>; /** One more tile after the cards */ after?: ReactNode; /** This block's number and the grid's columns */ highlight?: { block: number; cols: number } }) {
+/**
+ * Glides to the results' head (CLAUDE.md "Filtern ohne Springen"), after `delay` ms. The page's height can still change while it glides (the
+ * Spotlight and the bands go, the cards come): once the glide has ended it aligns the head once more – it always lands just under the header.
+ * Returns the cleanup.
+ */
+function glideToHead(headRef: RefObject<HTMLElement | null>, delay: number): () => void {
+  let timer = 0;
+  let start = 0;
+  const again = () => {
+    window.removeEventListener("scrollend", again);
+    window.clearTimeout(timer);
+    scrollUnderHeader(headRef.current);
+  };
+  start = window.setTimeout(() => {
+    requestAnimationFrame(() => {
+      scrollUnderHeader(headRef.current);
+      window.addEventListener("scrollend", again, { once: true });
+      timer = window.setTimeout(again, 900);
+    });
+  }, delay);
+  return () => {
+    window.clearTimeout(start);
+    window.clearTimeout(timer);
+    window.removeEventListener("scrollend", again);
+  };
+}
+
+function FeedGrid({ items, fresh, after }: { items: readonly FeedItem[]; /** The page that just came: it fades in */ fresh?: ReadonlySet<string>; /** One more tile after the cards */ after?: ReactNode }) {
   const store = useStore();
-  const t = useTranslations("explore.cards.highlight");
-  const today = useTodayIso();
-  const picked = highlight && today && cards.length > highlight.cols ? blockHighlight(cards, today) : null;
-  const left = (highlight?.block ?? 0) % 2 === 0;
-  // Reading order follows the picture: the wide card first (left) or after the row's other cards (right).
-  const ordered = picked
-    ? (() => {
-        const rest = cards.filter((s) => s.id !== picked.id);
-        const wide = cards.find((s) => s.id === picked.id)!;
-        const at = left ? 0 : Math.max(0, highlight!.cols - 2);
-        return [...rest.slice(0, at), wide, ...rest.slice(at)];
-      })()
-    : cards;
-  const reason = picked ? (picked.reason.kind === "startsIn" ? t("startsIn", { days: picked.reason.days }) : t(picked.reason.kind)) : undefined;
+  // Laid out in advance (lib/highlight.ts feedLayout): a wide card spans two columns where it stands – never in the last one, no gaps.
   return (
-    <div className={cn(EXPLORE_GRID, picked && "grid-flow-row-dense")}>
-      {ordered.map((stay) => {
-        const wide = picked?.id === stay.id;
-        return (
-          <HouseCard
-            key={stay.id}
-            stay={stay}
-            host={findUser(store, stay.hostId)}
-            crew={getCrew(store, stay)}
-            wide={wide}
-            highlight={wide ? reason : undefined}
-            className={cn(wide && (left ? "col-[1/3] row-start-1" : "col-[-3/-1] row-start-1"), fresh?.has(stay.id) && "animate-page-in")}
-          />
-        );
-      })}
+    <div className={EXPLORE_GRID}>
+      {items.map(({ stay, wide }) => (
+        <HouseCard key={stay.id} stay={stay} host={findUser(store, stay.hostId)} crew={getCrew(store, stay)} wide={wide} className={cn(wide && "col-span-2", fresh?.has(stay.id) && "animate-page-in")} />
+      ))}
       {after}
     </div>
   );
@@ -640,7 +632,8 @@ function compareBy(sort: SortKey, a: Stay, b: Stay, shiftDays?: (s: Stay) => num
 type Band = { key: string; kind: "people" } | { key: string; kind: "collection"; shelf: Shelf };
 
 function BandRow({ band }: { band: Band }) {
-  return <DarkBand>{band.kind === "people" ? <PeopleGoingRow /> : <CollectionRow collection={band.shelf.collection} stays={band.shelf.stays} />}</DarkBand>;
+  // Every row but "Your people are going" in a light tile (CLAUDE.md "Rhythmus aus Raster und Reihen").
+  return <RowTile>{band.kind === "people" ? <PeopleGoingRow /> : <CollectionRow collection={band.shelf.collection} stays={band.shelf.stays} />}</RowTile>;
 }
 
 

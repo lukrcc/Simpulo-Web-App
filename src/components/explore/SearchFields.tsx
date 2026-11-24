@@ -10,8 +10,9 @@ import { Anchored } from "@/components/ui/Anchored";
 import { Chip } from "@/components/ui/Chip";
 import { placeById } from "@/lib/data/places";
 import { cn } from "@/lib/utils";
-import { hdrPair, hdrSegment } from "@/components/layout/header/headerItem";
+import { hdrItem } from "@/components/layout/header/headerItem";
 import { useDismiss } from "./Filters";
+import { HeaderPanel, useHeaderPanel } from "@/components/layout/header/HeaderPanel";
 import { PlaceCombobox } from "./PlaceCombobox";
 
 /** "2027-03" → "March", "Mar 2027" with `short`, "Mar" with "bare". */
@@ -63,40 +64,22 @@ function FieldCapsule({ ref, icon, label, value, open, onClick, onClear, size = 
   );
 }
 
-/** "Short trips" beside the search field: a switch with an orange bolt and a 1.5px orange edge – off transparent with ink text, on ink with white text. 44px. */
-export function ShortTripsToggle({ label, active, onToggle }: { label: string; active: boolean; onToggle: () => void }) {
-  return (
-    <button
-      type="button"
-      aria-pressed={active}
-      aria-label={label}
-      onClick={onToggle}
-      className={cn(
-        // Set apart from the rest: an orange edge and bolt. Off: transparent, ink semibold, hover a breath of orange. On: ink, white text,
-        // the bolt and edge still orange – the filters' chosen style.
-        "short-trips press inline-flex h-(--control-h) shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border-[1.5px] border-accent px-4.5 text-nav-main font-semibold transition-colors duration-150 [&_svg]:size-4 [&_svg]:text-accent",
-        active ? "bg-(--pick-bg) text-(--pick-text)" : "bg-transparent text-ink hover:bg-accent/8",
-      )}
-    >
-      <SlimBolt />
-      {/* In a tight Explore bar only the bolt stays (globals.css, the bar's container query) – Short trips never goes. */}
-      <span className="short-trips-label">{label}</span>
-    </button>
-  );
-}
-
 /**
- * The filter row's search capsule, 44px (1px ink 12 %, --card-soft): the magnifier and "Where · When" (muted) – a click opens the small popover
- * (the place search on top, the months below); set, it takes the filters' choice (ink, white text, orange edge) with the values
- * ("Bali · Dec") and a small ✕ that clears both.
- * Picking a place keeps the popover open for the month; picking a month closes it.
+ * Where · When – ONE component, two triggers (CLAUDE.md "Aufräumen – ein Design"):
+ *  · "text" – the header from 1100px: "⌕ Search" (chosen: "⌕ Lisbon · March", a missing part keeps its word) opening the header's panel
+ *    (HeaderPanel: full width under the bar, hover 200ms or click, stays open once you work in it, only one open) – two columns side by side:
+ *    left "Where?" (the place search and four places), right "When?" ("Any month" and the months by year).
+ *  · "pill" – the header's one search field below 1100px (CompactSearch): light, across the width, "Where to next? · Any time" or the values,
+ *    `trailing` (the filter button) inside on the right; it opens the same content one above the other (a popover from 744px, a sheet on
+ *    phones – ui/BarSheet).
+ * Picking a place keeps it open for the month; picking a month closes it.
  */
 export function SearchField({
   place: placeId,
   month,
   onChange,
   autoOpen = false,
-  trigger = "split",
+  trigger,
   onClose,
   trailing,
   className,
@@ -106,13 +89,10 @@ export function SearchField({
   onChange: (next: { place?: string | null; month?: string | null }) => void;
   /** Opens itself once when the URL says ?open=where, then drops the parameter. */
   autoOpen?: boolean;
-  /** "split": Explore's "Where | When" capsule · "whereNext": the header's "Where to next?" on every other page (opens on Where) · "pill": the
-   *  header's one search field below 1100px (CompactSearch) – light, across the width, "Where to next? · Any time" or the values, `trailing`
-   *  (the filter button) inside on the right */
-  trigger?: "split" | "whereNext" | "pill" | "text";
+  trigger: "text" | "pill";
   /** "pill": what sits inside the field on the right (the filter button) */
   trailing?: ReactNode;
-  /** The sheet closed (picked, clicked beside it, Escape) */
+  /** It closed (picked, clicked beside it, Escape) */
   onClose?: () => void;
   className?: string;
 }) {
@@ -122,12 +102,15 @@ export function SearchField({
   const monthName = useMonthName();
   const anchor = useRef<HTMLSpanElement>(null);
   const body = useRef<HTMLDivElement>(null);
-  // Which half opened the sheet: the same sheet, its part focused – Where's search field, or When's months.
-  const [section, setSection] = useState<"where" | "when" | null>(null);
-  const open = section !== null;
-  // "Where to next?" (the bar on every other page) lands here with ?open=where: once, after the first render, the sheet opens on Where with the
-  // search focused – the page at its top, nothing jumps. The parameter goes at once (replace), so Back or a reload never opens it again.
-  // (Not cancelled on cleanup: after the first run the parameter is gone – React's dev double effect would otherwise lose the open.)
+  const [open, setOpenState] = useState(false);
+  const setOpen = (next: boolean) => {
+    setOpenState(next);
+    if (!next) onClose?.();
+  };
+  // Only the header's panel ("text") claims the one place here – the pill's BarSheet claims it itself (two claims would close each other).
+  const handlers = useHeaderPanel(open && trigger === "text", setOpen);
+  // A link from elsewhere lands here with ?open=where: once, after the first render, it opens with the place search focused – the page at its
+  // top, nothing jumps. The parameter goes at once (replace), so Back or a reload never opens it again.
   useEffect(() => {
     if (!autoOpen) return;
     const url = new URL(window.location.href);
@@ -135,127 +118,91 @@ export function SearchField({
     url.searchParams.delete("open");
     window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
     window.scrollTo(0, 0);
-    requestAnimationFrame(() => setSection("where"));
+    requestAnimationFrame(() => setOpenState(true));
   }, [autoOpen]);
-  useEffect(() => {
-    if (!section) return;
-    const frame = requestAnimationFrame(() => {
-      const root = body.current;
-      if (!root) return;
-      const target = section === "where" ? root.querySelector<HTMLElement>("input") : (root.querySelector<HTMLElement>('[data-when] [aria-checked="true"]') ?? root.querySelector<HTMLElement>("[data-when] [role=radio]"));
-      target?.focus({ preventScroll: true });
-      if (section === "when") root.querySelector("[data-when]")?.scrollIntoView({ block: "nearest" });
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [section]);
-  const toggle = (part: "where" | "when") => setSection((current) => (current === part ? null : part));
-  const close = () => {
-    setSection(null);
-    onClose?.();
-  };
   const place = placeById(placeId);
   const placeName = place?.name.split(",")[0] ?? null;
   const monthLabel = month ? monthName(month, "bare") : null;
+  const monthFull = month ? monthName(month) : null;
   const value = placeName || monthLabel ? [placeName, monthLabel].filter(Boolean).join(" · ") : null;
-  const half = "flex h-full min-w-0 items-center gap-2 text-nav-main [&>svg]:size-4 [&>svg]:shrink-0";
+  const close = () => setOpen(false);
+  const where = (
+    <div>
+      <p className="mb-2 px-1 text-nav font-semibold text-ink">{t("where")}</p>
+      <PlaceCombobox id={`${id}-place`} label={t("where")} placeholder={t("wherePlaceholder")} limit={trigger === "text" ? 4 : undefined} onPick={(p) => onChange({ place: p.id })} />
+      {place && (
+        <button type="button" onClick={() => onChange({ place: null })} className="mt-1 w-full rounded-2xl px-3 py-2 text-left text-body text-muted hover:bg-ink/5 hover:text-ink">
+          {t("anywhere")}
+        </button>
+      )}
+    </div>
+  );
+  const when = (
+    <div data-when>
+      <p className={cn("mb-2 px-1 text-nav font-semibold text-ink", trigger === "pill" && "mt-4")}>{t("when")}</p>
+      <MonthOptions
+        roomy={trigger === "text"}
+        value={month}
+        onPick={(next) => {
+          onChange({ month: next });
+          close();
+        }}
+      />
+    </div>
+  );
+  if (trigger === "text")
+    return (
+      <span ref={anchor} data-where-when className={cn("inline-flex min-w-0", className)}>
+        <button
+          type="button"
+          {...handlers.trigger}
+          aria-expanded={open}
+          aria-haspopup="dialog"
+          aria-label={`${t("where")}: ${placeName ?? t("anywhere")} · ${t("when")}: ${monthFull ?? t("anyMonth")}`}
+          data-empty={!placeName && !monthFull ? "" : undefined}
+          className={hdrItem}
+        >
+          <Search aria-hidden />
+          {!placeName && !monthFull ? (
+            <span className="truncate">{t("searchShort")}</span>
+          ) : (
+            <>
+              <span className="truncate">{placeName ?? t("whereShort")}</span>
+              <span aria-hidden className="-mx-0.5 text-muted">·</span>
+              <span className="truncate">{monthFull ?? t("whenShort")}</span>
+            </>
+          )}
+        </button>
+        <HeaderPanel open={open} onClose={close} label={tf("whereWhen")} handlers={handlers.panel} triggerRef={anchor}>
+          {/* Two columns side by side: Where? | When? */}
+          <div ref={body} className="grid grid-cols-2 gap-12">
+            {where}
+            {when}
+          </div>
+        </HeaderPanel>
+      </span>
+    );
   return (
     <>
-      {trigger === "pill" ? (
-        // Below 1100px: ONE light field across the header's width – the magnifier, "Where to next? · Any time" (or "Bali · Feb"), and inside
-        // on the right the round filter button. A tap on the field opens Where/When (a popover from 744px, a sheet on phones).
-        <span ref={anchor} data-search-pill className={cn("flex h-11 min-w-0 flex-1 items-center rounded-full bg-(--stage-text) pr-1 text-(--text-inverse)", className)}>
-          <button type="button" onClick={() => toggle("where")} aria-expanded={open} aria-haspopup="dialog" aria-label={t("pillLabel", { value: value ?? t("whereNext") })} className="flex h-full min-w-0 flex-1 items-center gap-2 rounded-l-full pl-4 pr-2 text-left text-nav-main">
-            <Search aria-hidden className="size-4 shrink-0" />
-            {value ? (
-              <span className="truncate font-semibold">{value}</span>
-            ) : (
-              <span className="truncate">
-                {t("whereNext")} <span className="opacity-60">· {t("anyTime")}</span>
-              </span>
-            )}
-          </button>
-          {trailing}
-        </span>
-      ) : trigger === "text" ? (
-        // The header from 1100px (CLAUDE.md "Kopfleiste neu geordnet"): "⌕ Where" and "When" as plain words, no capsule; each opens the same
-        // sheet right under them on its part. A chosen value replaces the word ("Lisbon", "Mar") with a small × that clears it.
-        <span ref={anchor} data-where-when data-open={open || undefined} className={cn(hdrPair, className)}>
-          <button type="button" onClick={() => toggle("where")} aria-expanded={section === "where"} aria-haspopup="dialog" aria-label={placeName ? `${t("where")} ${placeName}` : t("where")} data-on={placeName ? "" : undefined} className={hdrSegment}>
-            <Search aria-hidden />
-            <span className="truncate">{placeName ?? t("whereShort")}</span>
-          </button>
-          {placeName && (
-            <button type="button" onClick={() => onChange({ place: null })} aria-label={tf("remove", { label: placeName })} className="-ml-2 flex size-6 shrink-0 items-center justify-center rounded-full text-muted transition-colors duration-150 hover:bg-(--hdr-tab-active) hover:text-ink">
-              <X className="size-3.5" aria-hidden />
-            </button>
+      {/* Below 1100px: ONE light field across the header's width – the magnifier, "Where to next? · Any time" (or "Bali · Feb"), and inside
+          on the right the round filter button. A tap on the field opens Where/When (a popover from 744px, a sheet on phones). */}
+      <span ref={anchor} data-search-pill className={cn("flex h-11 min-w-0 flex-1 items-center rounded-full bg-(--stage-text) pr-1 text-(--text-inverse)", className)}>
+        <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} aria-haspopup="dialog" aria-label={t("pillLabel", { value: value ?? t("whereNext") })} className="flex h-full min-w-0 flex-1 items-center gap-2 rounded-l-full pl-4 pr-2 text-left text-nav-main">
+          <Search aria-hidden className="size-4 shrink-0" />
+          {value ? (
+            <span className="truncate font-semibold">{value}</span>
+          ) : (
+            <span className="truncate">
+              {t("whereNext")} <span className="opacity-60">· {t("anyTime")}</span>
+            </span>
           )}
-          <button type="button" onClick={() => toggle("when")} aria-expanded={section === "when"} aria-haspopup="dialog" aria-label={monthLabel ? `${t("when")} ${monthLabel}` : t("when")} data-when-item data-on={monthLabel ? "" : undefined} className={hdrSegment}>
-            <span className="truncate">{monthLabel ?? t("whenShort")}</span>
-          </button>
-          {monthLabel && (
-            <button type="button" onClick={() => onChange({ month: null })} aria-label={tf("remove", { label: monthLabel })} className="-ml-2 flex size-6 shrink-0 items-center justify-center rounded-full text-muted transition-colors duration-150 hover:bg-(--hdr-tab-active) hover:text-ink">
-              <X className="size-3.5" aria-hidden />
-            </button>
-          )}
-        </span>
-      ) : trigger === "whereNext" ? (
-        // Every other page: ONE capsule "Where to next?" (magnifier + words, 40px, at most 360px) – it opens the same sheet on Where.
-        <span ref={anchor} className={cn("flex min-w-0 flex-1", className)}>
-          <button type="button" onClick={() => toggle("where")} aria-expanded={open} aria-haspopup="dialog" data-search className="bar-capsule press inline-flex h-10 w-full max-w-90 max-split:max-w-none items-center gap-2 rounded-full px-4 text-nav-main transition-colors duration-150">
-            <Search aria-hidden className="size-4 shrink-0" />
-            <span className="truncate">{t("whereNext")}</span>
-          </button>
-        </span>
-      ) : (
-      /* "Where | When": one capsule, padding 0 16px, as wide as its words; a 1px × 16px line (30 %) 12px from each half. The left half opens
-          the sheet on Where, the right on When. */
-      <span ref={anchor} data-active={value ? "" : undefined} className={cn("search-capsule inline-flex h-(--control-h) min-w-0 shrink-0 items-center rounded-full", className)}>
-        <button type="button" onClick={() => toggle("where")} aria-expanded={section === "where"} aria-haspopup="dialog" aria-label={placeName ? `${t("where")} ${placeName}` : t("where")} className={cn(half, "rounded-l-full pl-4 pr-3")}>
-          <Search aria-hidden />
-          <span className={cn("truncate", placeName && "font-semibold")}>{placeName ?? t("whereShort")}</span>
         </button>
-        <span aria-hidden className="h-4 w-px shrink-0 bg-current opacity-30" />
-        <button type="button" onClick={() => toggle("when")} aria-expanded={section === "when"} aria-haspopup="dialog" aria-label={monthLabel ? `${t("when")} ${monthLabel}` : t("when")} className={cn(half, "rounded-r-full pl-3", value ? "pr-2" : "pr-4")}>
-          <span className={cn("truncate", monthLabel && "font-semibold")}>{monthLabel ?? t("whenShort")}</span>
-        </button>
-        {value && (
-          <button
-            type="button"
-            onClick={() => {
-              setSection(null);
-              onChange({ place: null, month: null });
-            }}
-            aria-label={tf("remove", { label: value })}
-            className="mr-2 flex size-7 shrink-0 items-center justify-center rounded-full transition-colors duration-150 hover:bg-inverse/15"
-          >
-            <X className="size-3.5" aria-hidden />
-          </button>
-        )}
+        {trailing}
       </span>
-      )}
-      {/* One sheet for both halves: out of the bar (ui/BarSheet), 520px under the capsule. */}
-      {/* The header (trigger "text", CLAUDE.md "Feinschliff"): as high as its content, never scrolling – at most 4 places – and 24px inside on
-          both sides for the field and the months alike. */}
-      <BarSheet open={open} onClose={close} anchor={anchor} label={tf("whereWhen")} fit={trigger === "text"} className="p-5">
+      <BarSheet open={open} onClose={close} anchor={anchor} label={tf("whereWhen")} className="p-5">
         <div ref={body}>
-          <p className="mb-2 px-1 text-nav font-semibold text-ink">{t("where")}</p>
-          <PlaceCombobox id={`${id}-place`} label={t("where")} placeholder={t("wherePlaceholder")} limit={trigger === "text" ? 4 : undefined} onPick={(p) => onChange({ place: p.id })} />
-          {place && (
-            <button type="button" onClick={() => onChange({ place: null })} className="mt-1 w-full rounded-2xl px-3 py-2 text-left text-body text-muted hover:bg-ink/5 hover:text-ink">
-              {t("anywhere")}
-            </button>
-          )}
-          <div data-when>
-            <p className="mb-2 mt-4 px-1 text-nav font-semibold text-ink">{t("when")}</p>
-            <MonthOptions
-              roomy={trigger === "text"}
-              value={month}
-              onPick={(next) => {
-                onChange({ month: next });
-                close();
-              }}
-            />
-          </div>
+          {where}
+          {when}
         </div>
       </BarSheet>
     </>

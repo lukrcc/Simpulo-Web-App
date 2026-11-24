@@ -23,21 +23,18 @@ interface BarSheetProps {
   onClose: () => void;
   /** The opener in the bar: a narrow sheet sits under it; a click on it toggles (the caller), so it doesn't count as "outside" */
   anchor: RefObject<HTMLElement | null>;
-  /** "narrow" 520px under the opener (Where · When, More) · "full" as wide as the bar's content, at most 1600, centred (All filters) */
-  size?: "narrow" | "full";
   label: string;
   /** A fixed head over the scrolling content (All filters: title, count, ✕) */
   head?: ReactNode;
   /** A fixed foot under it (All filters: "Clear all" + "Show N houses") */
   footer?: ReactNode;
-  /** As high as its content, never scrolling (the header's Where/When) */
-  fit?: boolean;
   className?: string;
   children: ReactNode;
 }
 
 /**
- * Every menu of the bar (Where · When, Themes, All filters): the header's own graphite glass (--header-bg, --header-filter – one tone with the
+ * The menus of the search field and the chip row BELOW 1100px (CLAUDE.md "Aufräumen – ein Design": from 1100px the header's panels are
+ * HeaderPanel): the header's own graphite glass (--header-bg, --header-filter – one tone with the
  * bar), cream words (muted 65 %), the bar's capsules (white 8 %; chosen white filled with graphite words). It sits 8px under the bar, every
  * corner round (24). Narrow ones (Where · When, Themes) flush under their opener's left edge – if that would run past the window, flush with
  * its right edge; All filters as wide as the bar's content. It grows downwards (clip-path from 100 % to 0 at the bottom, 260ms
@@ -46,7 +43,7 @@ interface BarSheetProps {
  * 140px); the full one (All filters) is as high as its content.
  * The bar is the opener's closest [data-bar] – the header's bar, or a filter row in the page (city pages, phones).
  */
-export function BarSheet({ open, onClose, anchor, size = "narrow", label, head, footer, fit = false, className, children }: BarSheetProps) {
+export function BarSheet({ open, onClose, anchor, label, head, footer, className, children }: BarSheetProps) {
   // Phones (< 744px): the same content as a sheet from the bottom in the same dark glass (MobileSheet) – nothing hangs from a bar there.
   const phone = useIsPhone();
   const [shown, setShown] = useState(open);
@@ -147,10 +144,9 @@ export function BarSheet({ open, onClose, anchor, size = "narrow", label, head, 
   }
   if (!shown || !place) return null;
   const sheet = (
-    <div ref={sheetRef} role="dialog" aria-modal="true" aria-label={label} data-closing={closing || undefined} className={cn("bar-sheet pointer-events-auto flex flex-col", size === "narrow" && !fit && "max-h-[calc(100vh-148px)]", className)}>
+    <div ref={sheetRef} role="dialog" aria-modal="true" aria-label={label} data-closing={closing || undefined} className={cn("bar-sheet pointer-events-auto flex max-h-[calc(100vh-148px)] flex-col", className)}>
       {head && <div className="bar-sheet-body shrink-0">{head}</div>}
-      {/* Full (All filters): as high as its content, no scrolling inside – it is laid out to fit. */}
-      <div className={cn("bar-sheet-body min-h-0 flex-1", size === "narrow" && (fit ? "overflow-hidden" : "overflow-y-auto overscroll-contain"))}>{children}</div>
+      <div className="bar-sheet-body min-h-0 flex-1 overflow-y-auto overscroll-contain">{children}</div>
       {footer && <div className="bar-sheet-body shrink-0">{footer}</div>}
     </div>
   );
@@ -158,15 +154,9 @@ export function BarSheet({ open, onClose, anchor, size = "narrow", label, head, 
   return createPortal(
     <>
       <div aria-hidden data-closing={closing || undefined} className="bar-sheet-scrim fixed inset-0 z-38" />
-      {size === "full" ? (
-        <div style={at} className="pointer-events-none fixed inset-x-0 z-39">
-          <div className="bar-width">{sheet}</div>
-        </div>
-      ) : (
-        <div style={{ ...at, left: place.left, width: `min(${NARROW_WIDTH}px, calc(100vw - 32px))` }} className="pointer-events-none fixed z-39">
-          {sheet}
-        </div>
-      )}
+      <div style={{ ...at, left: place.left, width: `min(${NARROW_WIDTH}px, calc(100vw - 32px))` }} className="pointer-events-none fixed z-39">
+        {sheet}
+      </div>
     </>,
     document.body,
   );

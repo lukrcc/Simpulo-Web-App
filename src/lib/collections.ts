@@ -12,6 +12,8 @@ export interface Collection {
   /** In URLs: /collections/{slug} and Explore's ?collection={slug} */
   slug: string;
   filter: (stay: Stay) => boolean;
+  /** Depends on today's date (new Date()): never evaluated while prerendering – the server waits for the request (connection()). */
+  dated?: true;
 }
 
 const DAY_MS = 86_400_000;
@@ -20,9 +22,9 @@ const daysBetween = (from: string, to: string) => Math.round((Date.parse(to.slic
 
 /** A House's state right now: the shelves that take turns in the list. */
 const STATE_COLLECTIONS: readonly Collection[] = [
-  { id: "startingSoon", slug: "starting-soon", filter: (s) => s.startDate >= todayIso() && daysBetween(todayIso(), s.startDate) <= STARTING_SOON_DAYS && openSpots(s) > 0 },
+  { id: "startingSoon", slug: "starting-soon", dated: true, filter: (s) => s.startDate >= todayIso() && daysBetween(todayIso(), s.startDate) <= STARTING_SOON_DAYS && openSpots(s) > 0 },
   { id: "lastSpot", slug: "last-spot", filter: (s) => openSpots(s) === 1 },
-  { id: "justOpened", slug: "just-opened", filter: (s) => daysBetween(s.createdAt, todayIso()) <= JUST_OPENED_DAYS && s.spotsFilled <= 1 && openSpots(s) > 0 },
+  { id: "justOpened", slug: "just-opened", dated: true, filter: (s) => daysBetween(s.createdAt, todayIso()) <= JUST_OPENED_DAYS && s.spotsFilled <= 1 && openSpots(s) > 0 },
   { id: "shortTrips", slug: "short-trips", filter: (s) => s.startDate !== "" && stayNights(s) <= 5 },
 ];
 

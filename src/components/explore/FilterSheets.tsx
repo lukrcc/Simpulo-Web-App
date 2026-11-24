@@ -1,6 +1,5 @@
 "use client";
 
-import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState, type RefObject } from "react";
 import { CurrencyPicker } from "@/components/layout/CurrencyPicker";
@@ -8,7 +7,7 @@ import { PriceFilter, type CheckOption } from "@/components/explore/Filters";
 import { FilterDropdown, FilterRow, OverflowPickOptions, PickOptions, ToggleChip } from "@/components/explore/FilterPanel";
 import { MonthField, PlaceField } from "@/components/explore/SearchFields";
 import { Button } from "@/components/ui/ActionButton";
-import { BarSheet } from "@/components/ui/BarSheet";
+import { HeaderPanel, type PanelHandlers } from "@/components/layout/header/HeaderPanel";
 import { RollingNumber } from "@/components/ui/RollingNumber";
 import { Sheet } from "@/components/ui/Sheet";
 import { FILTER_ICONS } from "@/config/explore";
@@ -35,8 +34,10 @@ const COUNT_DELAY_MS = 200;
 
 interface FilterSheetsProps {
   open: boolean;
-  /** From 744px the bar's sheet (BarSheet), on phones the bottom sheet */
+  /** From 744px the header's panel (HeaderPanel), on phones the bottom sheet */
   md: boolean;
+  /** The header panel's hover and lock (useHeaderPanel, in the caller with its trigger) */
+  panelHandlers: PanelHandlers["panel"];
   /** Closing without "Show": the draft is dropped, the applied filters stay */
   onClose: () => void;
   /** "Show N houses": the draft becomes the filters (URL, list, scroll to the results) – the caller closes */
@@ -66,7 +67,7 @@ interface FilterSheetsProps {
  * button says "No houses – adjust filters" and can't be pressed. Closing without "Show" drops the draft; "Clear all" clears only the draft.
  */
 export function FilterSheets(props: FilterSheetsProps) {
-  const { open, md, onClose, onApply, onClosed, anchor, filters, base, verifiedHosts, showVibes, vibeOptions, sortOptions, budgetBounds, prices, currency, hostPremium, depthOn } = props;
+  const { open, md, panelHandlers, onClose, onApply, onClosed, anchor, filters, base, verifiedHosts, showVibes, vibeOptions, sortOptions, budgetBounds, prices, currency, hostPremium, depthOn } = props;
   const t = useTranslations("explore");
   const tf = useTranslations("explore.filtersUi");
   const tc = useTranslations("common");
@@ -203,41 +204,34 @@ export function FilterSheets(props: FilterSheetsProps) {
   const phone = rows(false);
   return (
     <>
-      {/* From 744px: one piece with the bar (ui/BarSheet), as wide as the grid; "Clear all" and "Show N houses" at its foot. */}
-      <BarSheet
+      {/* From 744px: the header's panel (HeaderPanel – full width under the bar, the same glass and room as Search and Themes), two columns,
+          without "Where & when" (that's Search) and without "Sort" (the results head has it); "Clear all" · "Show N houses" at its foot. */}
+      <HeaderPanel
         open={open && md}
         onClose={onClose}
-        anchor={anchor}
-        size="full"
         label={t("filters")}
+        handlers={panelHandlers}
+        triggerRef={anchor}
         head={
-          <div className="flex items-center gap-3 px-6 pb-4 pt-5">
+          <div className="mb-5 flex items-baseline gap-3">
             <h2 className="text-h3 text-ink">{t("filters")}</h2>
             <span className="text-small text-muted">{label}</span>
-            <button type="button" onClick={onClose} aria-label={tc("close")} className="press ml-auto flex size-9 shrink-0 items-center justify-center rounded-full bg-ink/8 text-ink transition-colors duration-150 hover:bg-ink/14">
-              <X className="size-4" aria-hidden />
-            </button>
           </div>
         }
-        footer={<div className="flex items-center justify-between gap-4 border-t border-ink/8 px-6 py-4">{footer(true, true)}</div>}
+        footer={<div className="mt-6 flex items-center justify-between gap-4 border-t border-ink/8 pt-5">{footer(true, true)}</div>}
       >
-        <div data-filter-panel className="px-6 pb-5">
-          {/* Two halves (a 1px line between): left Sort, Where & when, Category, Length; right Crew size, Price per person, More. */}
-          <div className="grid grid-cols-2">
-            <div className="flex min-w-0 flex-col gap-5 pr-8">
-              {bar.sort}
-              {bar.where}
-              {bar.category}
-              {bar.length}
-            </div>
-            <div className="flex min-w-0 flex-col gap-5 border-l border-ink/8 pl-8">
-              {bar.crew}
-              {bar.price}
-              {bar.more}
-            </div>
+        <div data-filter-panel className="grid grid-cols-2">
+          <div className="flex min-w-0 flex-col gap-5 pr-8">
+            {bar.category}
+            {bar.length}
+          </div>
+          <div className="flex min-w-0 flex-col gap-5 border-l border-ink/8 pl-8">
+            {bar.crew}
+            {bar.price}
+            {bar.more}
           </div>
         </div>
-      </BarSheet>
+      </HeaderPanel>
       {/* Phones: the same content as a bottom sheet. */}
       <Sheet variant="panel" wide filterSheet titleNote={label} open={open && !md} onClose={onClose} onClosed={onClosed} title={t("filters")} footer={footer(false, false)}>
         <div data-filter-panel className="px-6">

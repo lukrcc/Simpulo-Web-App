@@ -18,7 +18,8 @@ import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode, 
 import { showsAge } from "@/config/privacy";
 import { CurrencySheet, currencyLabel } from "@/components/layout/CurrencyPicker";
 import { PersonPhoto } from "@/components/ui/PersonPhoto";
-import { useViewerPriceLabel } from "@/components/ui/PriceLine";
+import { useViewerPrice } from "@/components/ui/PriceLine";
+import { guestPrice } from "@/lib/pricing";
 import { SocialLinks } from "@/components/SocialLinks";
 import { useCrewFaceOf } from "@/components/ui/useCrewFaces";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
@@ -32,7 +33,7 @@ import type { Stay, User } from "@/lib/types";
 import { usePreferredCurrency } from "@/lib/usePreferredCurrency";
 import { usePeopleSignal } from "@/lib/useYourPeople";
 import { stageMoodStyle, tileShade } from "@/lib/stageTint";
-import { cn, firstName, googleMapsUrl, housePhotos, openSpots, stayNights, stayPrice } from "@/lib/utils";
+import { cn, firstName, googleMapsUrl, housePhotos, openSpots, stayNights } from "@/lib/utils";
 import { Img } from "@/components/ui/Img";
 import { Sheet } from "@/components/ui/Sheet";
 import { placeImageOf } from "@/config/place-images";
@@ -285,23 +286,26 @@ function HostQuote({ stay, host }: { stay: Stay; host?: User }) {
 /** A text link in the dark strip: 70 % → 100 % on hover, underlined then, 150ms; a visible ring for the keyboard. */
 const STRIP_LINK = "rounded-sm text-ink/70 underline-offset-4 transition-colors duration-150 hover:text-ink hover:underline focus-visible:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)";
 
-/** "≈ €1,300 pp" large; under it "AED 5,300 · Change" (the House's own amount when it differs, else the currency shown). */
+/**
+ * "€1,300 pp" large – one number, the same as on the cards (lib/pricing.ts; a variable price "€560 pp est."); under it "AED 5,300 · Change"
+ * (the House's own amount when it differs, else the currency shown) and, for a variable price with a cap, "Final price depends on the crew.
+ * You never pay more than €640." (CLAUDE.md "Preis auf Karten – eine Zahl").
+ */
 function HeroPrice({ stay }: { stay: Stay }) {
   const tCurrency = useTranslations("common.ui.currency");
-  const label = useViewerPriceLabel(stay);
+  const tCommon = useTranslations("common");
+  const tHero = useTranslations("house.page.hero");
+  const price = useViewerPrice(stay);
   const viewer = usePreferredCurrency();
   const [open, setOpen] = useState(false);
-  const own = stayPrice(stay);
-  const perPerson = /^(.*\S)\s+(pp)$/.exec(label);
-  const original =
-    viewer !== stay.currency && own.kind !== "tbd"
-      ? `${stay.currency} ${own.kind === "price" ? plainAmount(own.amount, stay.currency) : `${plainAmount(own.min, stay.currency)}–${plainAmount(own.max, stay.currency)}`}`
-      : currencyLabel(viewer);
+  const own = guestPrice(stay);
+  const original = viewer !== stay.currency && own ? `${stay.currency} ${plainAmount(own.amount, stay.currency)}` : currencyLabel(viewer);
   return (
     <div className="min-w-0">
       <p className="flex items-baseline gap-1.5">
-        <span className="text-bar-num tabular-nums text-ink">{perPerson ? perPerson[1] : label}</span>
-        {perPerson && <span className="text-bar-label text-ink/60">{perPerson[2]}</span>}
+        <span className="text-bar-num tabular-nums text-ink">{price.amount ?? price.label}</span>
+        {price.amount && <span className="text-bar-label text-ink/60">{tCommon("pp")}</span>}
+        {price.estimated && <span className="text-bar-label text-ink/60">{tCommon("estimated")}</span>}
       </p>
       <p className="mt-0.5 text-small text-muted max-md:hidden">
         {original} ·{" "}
@@ -309,6 +313,7 @@ function HeroPrice({ stay }: { stay: Stay }) {
           {tCurrency("change")}
         </button>
       </p>
+      {price.estimated && price.cap && <p className="mt-0.5 text-small text-muted max-md:hidden">{tHero("priceCap", { price: price.cap })}</p>}
       <CurrencySheet open={open} onClose={() => setOpen(false)} />
     </div>
   );

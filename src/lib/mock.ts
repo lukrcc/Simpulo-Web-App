@@ -415,6 +415,8 @@ export interface Stay {
   /** Open invite links (HouseInvite, pending and not expired) – each reserves a spot: not free, not taken yet. Derived. */
   spotsReserved?: number;
   budgetPerPerson?: { min: number; max: number };
+  /** A variable price's ceiling per person (the rent share, before the service fee): the most anyone pays, whatever the crew – "You never pay more than …" (lib/pricing.ts). Without it, no promise. */
+  priceCap?: number;
   pricePerPerson?: number;  // only when locked
   currency: Currency;       // everything on the House is stored and charged in this currency
   accommodationStatus: AccommodationStatus;
@@ -1800,6 +1802,7 @@ function inLocalCurrency(stay: Stay): Stay {
     ...stay, currency: to,
     pricePerPerson: c(stay.pricePerPerson),
     budgetPerPerson: stay.budgetPerPerson && { min: c(stay.budgetPerPerson.min)!, max: c(stay.budgetPerPerson.max)! },
+    priceCap: c(stay.priceCap),
     totalPrice: c(stay.totalPrice),
     hostFeePerPerson: c(stay.hostFeePerPerson),
     ...(vote ? { accommodationVote: vote } : {}),
@@ -1807,7 +1810,9 @@ function inLocalCurrency(stay: Stay): Stay {
 }
 
 // Every mock House gets its short name ("IRL Bangkok", "Fitness Canggu"), from shortNameOf's rules.
-export const stays: Stay[] = [...coreStays, ...extraHouses.map(houseToStay)].map(inLocalCurrency).map((stay) => ({ ...stay, shortName: stay.shortName ?? shortNameOf(stay) }));
+// A variable price's cap (priceCap): the top of the host's budget – what a guest pays at the smallest crew the host would go with.
+const withPriceCap = (stay: Stay): Stay => (stay.accommodationStatus !== 'locked' && stay.budgetPerPerson && stay.priceCap === undefined ? { ...stay, priceCap: stay.budgetPerPerson.max } : stay);
+export const stays: Stay[] = [...coreStays, ...extraHouses.map(houseToStay)].map(withPriceCap).map(inLocalCurrency).map((stay) => ({ ...stay, shortName: stay.shortName ?? shortNameOf(stay) }));
 
 export const joinRequests: JoinRequest[] = [
   { id: 'r1', stayId: 's1', userId: 'u4', message: 'Physio, train 6×/week, can cook for five. In if you\'ll have me.', status: 'accepted', createdAt: '2026-10-18T12:00:00Z' },

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { MockDelay } from "@/components/MockDelay";
 import { JsonLd } from "@/components/seo/JsonLd";
@@ -12,10 +13,8 @@ import { breadcrumbList, pageMetadata } from "@/lib/seo";
 import { isListedStay } from "@/lib/launch";
 import { Container } from "@/components/layout/Container";
 import { SeoEmpty } from "@/components/seo/SeoActions";
-import { SeoFaq } from "@/components/seo/SeoFaq";
 import { SeoHouses } from "@/components/seo/SeoHouses";
-import { FEE_MODEL } from "@/config/policies";
-import { COLLECTION_FAQ, COLLECTION_SEO, SEO_STARTING_SOON } from "@/config/seo";
+import { COLLECTION_SEO, SEO_STARTING_SOON } from "@/config/seo";
 
 export function generateStaticParams() {
   return COLLECTIONS.map((c) => ({ slug: c.slug }));
@@ -35,8 +34,9 @@ export async function generateMetadata({ params }: PageProps<"/collections/[slug
     title: t(`${collection.id}.title`),
     description: t(`${collection.id}.subline`),
     path: `/collections/${collection.slug}`,
-    // Like the vibe pages: fewer than three Houses is thin content – rendered, but kept out of the index.
-    noindex: (await countOf(collection)) < MIN_COLLECTION_SIZE,
+    // Like the vibe pages: fewer than three Houses is thin content – rendered, but kept out of the index. A dated collection (Just opened,
+    // Starting soon) changes every day: it isn't counted here – that would read today's date while prerendering (the dev overlay's "1 Issue").
+    noindex: !collection.dated && (await countOf(collection)) < MIN_COLLECTION_SIZE,
   });
 }
 
@@ -53,15 +53,16 @@ async function CollectionContent({ params }: { params: PageProps<"/collections/[
   const { slug } = await params;
   const collection = collectionBySlug(slug);
   if (!collection) notFound();
+  // A dated collection reads today's date (new Date() in its filter): wait for the request instead of computing it while prerendering
+  // (Next.js: "encountered the unstable value new Date() while prerendering").
+  if (collection.dated) await connection();
   const t = await getTranslations();
   const tSeo = await getTranslations("seo");
   const title = t(`explore.collections.${collection.id}.title`);
   const own = COLLECTION_SEO[collection.id];
-  // Intro and questions: the template (with the theme's name), or the theme's own (config/seo.ts COLLECTION_SEO).
-  // check-messages: optional (COLLECTION_SEO decides whether a theme has its own words)
-  const intro = own?.intro ? tSeo(`collectionOverrides.${collection.id}.intro` as "city.intro") : `${t(`explore.collections.${collection.id}.subline`)} ${tSeo("collectionIntro")}`;
-  const tFaq = await getTranslations(own?.faq ? (`seo.collectionOverrides.${collection.id}.faq` as "seo.collectionFaq") : "seo.collectionFaq");
-  const faqItems = (own?.faq ?? COLLECTION_FAQ).map((id) => ({ q: tFaq(`${id}.q` as "what.q", { name: title }), a: tFaq(`${id}.a` as "what.a", { name: title, percent: FEE_MODEL.serviceFeePercent }) }));
+  // ONE line of description – the collection's own (CLAUDE.md "Aufräumen – ein Design": no long introduction, no questions on "See all" pages;
+  // the questions are kept in content/faq.ts for the footer and the help page later).
+  const intro = t(`explore.collections.${collection.id}.subline`);
   const houses = (await getPublicStays()).filter((s) => isListedStay(s) && collection.filter(s)).toSorted((a, b) => a.startDate.localeCompare(b.startDate));
   const create = `/create${own?.category ? `?category=${own.category}` : ""}`;
   return (
@@ -75,20 +76,18 @@ async function CollectionContent({ params }: { params: PageProps<"/collections/[
       {houses.length === 0 ? (
         // No House in this theme yet: the title, the intro, "Open the first one" and the waitlist for this theme.
         <Container page>
-          <h1 className="text-h2 md:text-h1">{title}</h1>
-          <p className="mt-4 max-w-[640px] text-body-lg text-muted">{intro}</p>
+          <h1 className="text-section text-ink">{title}</h1>
+          <p className="mt-1 truncate text-body text-muted">{intro}</p>
           <SeoEmpty title={tSeo("collectionEmptyTitle")} text={tSeo("collectionEmptyText")} createHref={create} category={own?.category} />
-          <SeoFaq id="seo-faq" title={tSeo("collectionFaqTitle")} items={faqItems} />
         </Container>
       ) : (
         <>
           <MockDelay ms={400} fallback={<ExploreSkeleton />}>
-            <ExploreFeed scope={{ collection: collection.id }} intro={intro} />
+            <ExploreFeed scope={{ collection: collection.id }} />
           </MockDelay>
           <Container className="explore-width pb-(--space-section)">
             {/* "Starting soon" only when there are more Houses than the row would show (else it repeats the grid). */}
             {collection.id !== "startingSoon" && <SeoHouses id="seo-starting-soon" title={tSeo("collectionStartingSoon")} ids={houses.map((x) => x.id)} when="soon" max={SEO_STARTING_SOON} hideIfAll />}
-            <SeoFaq id="seo-faq" title={tSeo("collectionFaqTitle")} items={faqItems} />
           </Container>
         </>
       )}

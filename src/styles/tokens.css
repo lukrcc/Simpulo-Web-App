@@ -113,6 +113,14 @@
   --select-bg: #fdfcfa;
   --select-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 2px 8px rgba(0, 0, 0, 0.06);
   --chip-bg: rgba(255, 255, 255, 0.55);
+  /* An active filter on the page (Explore's results head and its bar, CLAUDE.md "Ergebnis-Kopf ruhig"): a neutral capsule – black 5 % on
+     light ground (white 8 % on dark, below), the words dark, a small grey ×. No black, no orange edge. */
+  --filter-chip-bg: rgb(0 0 0 / 0.05);
+  --filter-chip-bg-hover: rgb(0 0 0 / 0.08);
+  /* Explore's rows as tiles (CLAUDE.md "Rhythmus aus Raster und Reihen"): light – white on the light ground; the one dark tile plain graphite. */
+  /* Explore's rows (.row-strip): near black → Simpulo's orange only faintly over black. */
+  --row-strip-from: #141414;
+  --row-strip-to: #2a1e18;
   --chip-bg-hover: rgba(255, 255, 255, 0.8);
   --filters-capsule: rgba(255, 255, 255, 0.6);
   --panel-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6), 0 8px 24px rgba(0, 0, 0, 0.06);
@@ -170,10 +178,10 @@
   /* The thin divider before the header's tabs (Explore), cream 15 %. */
   --header-divider: rgba(244, 238, 231, 0.15);
   /* The unread dot on Messages (--hdr-dot below): neutral grey. */
-  /* "Open a House" (CLAUDE.md "Open a House ruhig"): no dark surface – the Where/When capsule's faint fill (dark glass white 8 %, hover 12 %;
-     the light bar black 5 %, hover 8 %, globals.css), the words in the bar's primary colour, medium. The only button with a surface on the right. */
-  --open-house-bg: rgb(255 255 255 / 0.08);
-  --open-house-bg-hover: rgb(255 255 255 / 0.12);
+  /* "Open a House" (CLAUDE.md "Open a House ohne Kapsel"): no surface, no edge – a thin plus and the words in the bar's primary colour,
+     medium; on hover the light surface of the other entries (dark glass white 8 %, the light bar black 5 %, globals.css). */
+  --open-house-bg: transparent;
+  --open-house-bg-hover: rgb(255 255 255 / 0.08);
   --open-house-text: #ffffff;
   /* The panels' main action ("Show N houses", Button "graphite"): on dark glass light grey with near-black words, on light glass (globals.css)
      graphite with white words. */
@@ -181,6 +189,29 @@
   --panel-action-bg-hover: #d1d1d6;
   --panel-action-text: #1d1d1f;
   --hdr-dot: rgb(255 255 255 / 0.55);
+  /* Unread chats on the header's Messages icon: a muted orange – the only colour on the bar's right side. */
+  --hdr-dot-unread: color-mix(in srgb, var(--brand-action) 78%, var(--bg));
+  /* The floating bar from 1100px (BottomTabBar, CLAUDE.md "Schwebende Leiste kleiner und feiner"): a lighter, more transparent glass, a
+     hairline edge, a very soft shadow; the entry you're on only a soft surface. */
+  --float-bar-bg: rgb(255 255 255 / 0.18);
+  /* Under the 30 % glass the page is evened out first, so the words stay readable over dark strips and bright photos alike: light – the
+     contrast pulled in and brightened; dark – pulled in and darkened. Inactive words a step back from the primary colour. */
+  --float-bar-tone: contrast(0.45) brightness(2.3);
+  /* A light halo round the words (light mode only) – over busy photos under the clear glass. */
+  --float-bar-text-shadow: 0 0 6px rgb(255 255 255 / 0.7);
+  --float-bar-muted: rgb(29 29 31 / 0.8);
+  /* The Spotlight's arrows (CLAUDE.md "Spotlight final"): dark glass in both modes, white arrow. */
+  --spot-arrow-bg: rgb(0 0 0 / 0.45);
+  --spot-arrow-bg-hover: rgb(0 0 0 / 0.6);
+  /* The Spotlight card under the pointer ("uniform", like Apple TV): a softer, larger shadow. */
+  --spot-card-hover-shadow: drop-shadow(0 28px 48px rgb(34 30 27 / 0.28));
+  --float-bar-highlight: rgb(255 255 255 / 0.55);
+  --float-bar-edge: rgb(0 0 0 / 0.06);
+  --float-bar-shadow: 0 8px 32px rgb(0 0 0 / 0.08);
+  --float-bar-active: rgb(0 0 0 / 0.05);
+  /* The Messages badge (BottomTabBar): neutral – graphite with a white number; dark mode light grey with a dark one. */
+  --badge-bg: #3a3a3c;
+  --badge-fg: #ffffff;
   /* The compact crew's ring on a photo (HouseCard). */
   --image-ring: rgba(20, 16, 14, 0.85);
   /* Where a dark strip or band meets the floor: nothing on the light page (its hard edge is enough), a fine light line in dark mode. */
@@ -270,6 +301,22 @@
    Contrast (WCAG, computed): text 15.5 : 1 on --bg, 14.1 on --surface, 12.9 on --surface-2; muted (cream 66 %) ≥ 6.4 : 1 on all three;
    faint (cream 45 %) ≥ 3.8 : 1 (decoration and placeholders only, like on light); the action orange --brand-action 5.6 : 1 on --bg (4.6 on --surface-2); the header over the dark floor: white 10.7, muted 8.3, in the active capsule 6.6. ── */
 :root[data-theme="dark"] {
+  --float-bar-bg: rgb(28 28 30 / 0.22);
+  --float-bar-tone: contrast(0.6) brightness(0.5);
+  --float-bar-text-shadow: none;
+  --float-bar-muted: rgb(255 255 255 / 0.8);
+  --spot-card-hover-shadow: drop-shadow(0 28px 48px rgb(0 0 0 / 0.5));
+  --float-bar-highlight: rgb(255 255 255 / 0.12);
+  --float-bar-edge: rgb(255 255 255 / 0.08);
+  --float-bar-shadow: 0 4px 16px rgb(0 0 0 / 0.3);
+  --float-bar-active: rgb(255 255 255 / 0.08);
+  --badge-bg: #e5e5ea;
+  --badge-fg: #1c1c1e;
+  --filter-chip-bg: rgb(255 255 255 / 0.08);
+  --filter-chip-bg-hover: rgb(255 255 255 / 0.12);
+  /* The same gradient a step lighter than the dark page (#1A1715), so the strip still reads. */
+  --row-strip-from: #201e1d;
+  --row-strip-to: #33251e;
   color-scheme: dark;
   --bg: #1a1715;
   --surface: #23201d;

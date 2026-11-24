@@ -70,6 +70,11 @@ const FILLED: Partial<Record<NavItem["labelKey"], ComponentType<IconProps>>> = {
   howItWorks: LightbulbFilled,
 };
 
+/** The filled form of a nav item's icon (the tab bar's current entry), or its line icon when there's none. */
+export function filledIconOf(item: NavItem): ComponentType<IconProps> {
+  return FILLED[item.labelKey] ?? (item.icon as ComponentType<IconProps>);
+}
+
 const LAYER = "absolute inset-0 size-4 transition-opacity duration-150 motion-reduce:transition-none";
 /** On the 24px grid: thinner than Lucide's 2. */
 const STROKE = 1.5;

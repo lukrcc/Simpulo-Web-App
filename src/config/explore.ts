@@ -40,12 +40,6 @@ export const VISIBLE_CHIPS = 8;
 
 
 
-/** The header bar's theme capsules on Explore, in this order: as many as fit after Short trips (before the theme button and All filters),
- *  filled from the first, at most 6; the rest under "More themes". Later personalised. */
-export const TOP_CATEGORIES: readonly Vibe[] = ["creator", "fitness", "remote-work", "surf-water", "founder", "wellness"];
-/** The bar shows at least this many and at most this many categories. */
-export const BAR_CATEGORIES_MIN = 2;
-export const BAR_CATEGORIES_MAX = 6;
 
 /** The House grid, everywhere: as many columns of at least 260px as fit, at most 6. */
 export const HOUSE_GRID = "card-grid house-grid [--card-min:260px] [--card-cols:6]";
@@ -64,7 +58,7 @@ export const TOP_SHELF_MIN = 4;
 export const LAUNCH_MIN_HOUSES = 10;
 
 /** The Spotlight goes on by itself every so often. */
-export const SPOTLIGHT_AUTOPLAY_MS = 7_000;
+export const SPOTLIGHT_AUTOPLAY_MS = 6_500;
 /** sessionStorage: the Spotlight's entrance has played in this session. Read before the first paint too (app/layout.tsx). */
 export const SPOTLIGHT_INTRO_KEY = "simpulo:spotlight-intro";
 
@@ -101,16 +95,17 @@ export const pageSize = 24;
  * "Show N more" while shelves are left. "peopleGoing": "Your people are going"; every other id is a collection (lib/collections).
  */
 export const EXPLORE_RHYTHM = {
-  rowsPerBlock: 4,
-  shelves: ["justOpened", "shortTrips", "peopleGoing", "startingSoon", "lastSpot", "party", "trainTogether", "buildTogether", "meetSomeone"],
+  /** Rows of cards in each block of the grid between two rows (CLAUDE.md "Rhythmus aus Raster und Reihen": 2 rows – 8 cards at 4 columns). */
+  rowsPerBlock: 2,
+  /** The rows between the blocks, in this order (empty ones skipped, never a House twice). "Your people are going" isn't here: signed in it
+   *  comes right after the Spotlight, before the first block. */
+  shelves: ["justOpened", "shortTrips", "startingSoon", "lastSpot", "party", "trainTogether", "buildTogether", "meetSomeone"],
 } as const;
 
-/** From this many columns each block of the grid has one highlight two columns wide (it fills two cells: one card fewer per block). */
+/** From this many columns a real last spot can show two columns wide (lib/highlight.ts feedLayout). */
 export const HIGHLIGHT_MIN_COLS = 3;
-/** Cards in one block of the grid: columns × rowsPerBlock, one fewer with the highlight (4 columns 15, 3 → 11, 2 → 8). */
-export const exploreBlockSize = (cols: number) => Math.max(1, cols) * EXPLORE_RHYTHM.rowsPerBlock - (cols >= HIGHLIGHT_MIN_COLS ? 1 : 0);
-/** How many cards a page loads: two blocks (4 columns 30, 3 → 22, 2 → 16) – "Show {n} more" loads exactly one page. */
-export const explorePageSize = (cols: number) => exploreBlockSize(cols) * 2;
+/** How many cards a page loads: four blocks of 2 rows (4 columns 32, 3 → 24, 2 → 16) – "Show {n} more" loads exactly one, always whole rows. */
+export const explorePageSize = (cols: number) => Math.max(1, cols) * EXPLORE_RHYTHM.rowsPerBlock * 4;
 
 /**
  * Explore's vertical spacing, the one place for it (Tailwind classes, so they end up in the CSS). --space-section between
@@ -129,9 +124,11 @@ export const EXPLORE_SPACING = {
   between: "mt-18",
   headContent: "mt-6",
   /** Open Houses under the hero, from its lowest card, where the Spotlight ends: always 96px. */
-  underHero: "pt-24",
+  // Under the Spotlight's stage (no strip between) – the stage fills the first screen, so this starts below it.
+  underHero: "pt-16",
   /** A scoped feed's first section (collection pages): no hero above it. */
-  scopedTop: "pt-(--space-inner)",
+  // A results head with nothing above it (Explore's results, "See all" pages): 32px under the header (CLAUDE.md "Aufräumen – ein Design").
+  scopedTop: "pt-8",
   /** The last section to the footer. */
   feedEnd: "pb-(--space-section)",
   /** "Show 24 more" under the grid: 48px (src/components/ui/LoadMore.tsx). */

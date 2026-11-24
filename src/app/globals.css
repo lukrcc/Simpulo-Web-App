@@ -42,13 +42,13 @@
     --hdr-tab-hover: var(--header-pill);
     --hdr-tab-active: var(--header-pill-hover);
   }
-  [data-site-header] :is(.short-trips, .bar-capsule, .chip-row [role="radiogroup"] > :is(button, a)):not([data-search], #_) {
+  [data-site-header] :is(.bar-capsule, .chip-row [role="radiogroup"] > :is(button, a)):not([data-search], #_) {
     background-color: transparent;
   }
-  [data-site-header] :is(.short-trips, .bar-capsule, .chip-row [role="radiogroup"] > :is(button, a)):not([data-search], #_):hover {
+  [data-site-header] :is(.bar-capsule, .chip-row [role="radiogroup"] > :is(button, a)):not([data-search], #_):hover {
     background-color: var(--header-pill);
   }
-  [data-site-header] :is(.short-trips, .bar-capsule, .chip-row [role="radiogroup"] > :is(button, a)):not([data-search], #_):is([aria-pressed="true"], [aria-expanded="true"], [aria-checked="true"], [data-picked]) {
+  [data-site-header] :is(.bar-capsule, .chip-row [role="radiogroup"] > :is(button, a)):not([data-search], #_):is([aria-pressed="true"], [aria-expanded="true"], [aria-checked="true"], [data-picked]) {
     background-color: var(--header-pill-hover);
     font-weight: 600;
   }
@@ -90,7 +90,7 @@
 /* ONE capsule in the bar and its sheets (Where · When, Short trips, the categories, More, All filters; in a sheet the chips, the panel's
    options and fields): 40px, padding 0 16px, 15px medium, icon 16px in the words' colour, fully round, white 8 % (--header-pill), no edge;
    hover 12 %; chosen (or open) 16 % and semibold (--header-pill-active) – the same values in the bar and in its menus. No orange here – only the unread dot and the active-filter count. */
-[data-site-header] :is(.search-capsule, .short-trips, .bar-capsule, .chip-row [role="radiogroup"] > :is(button, a)),
+[data-site-header] :is(.bar-capsule, .chip-row [role="radiogroup"] > :is(button, a)),
 :is(.bar-sheet, .bar-menu) :is([data-chip], .pick-option, .filters-capsule.panel-field) {
   height: 40px;
   padding: 0 16px;
@@ -106,40 +106,31 @@
 [data-site-header] .chip-row [role="radiogroup"] {
   gap: 8px;
 }
-/* Short trips: its bolt filled and slim in the action orange (--brand-action), 18px – a little larger than the other icons; the words white like
-   the others (specific enough to beat the capsule's icon rule). */
-[data-site-header] button.short-trips.short-trips.short-trips.short-trips svg {
-  width: 18px;
-  height: 18px;
-  color: var(--brand-action);
-}
 /* Icon → words exactly 8px (the capsule's gap): no extra margin on an icon of its own. */
-[data-site-header] :is(.search-capsule, .short-trips, .bar-capsule, .chip-row [role="radiogroup"] > :is(button, a)) > [aria-hidden],
+[data-site-header] :is(.bar-capsule, .chip-row [role="radiogroup"] > :is(button, a)) > [aria-hidden],
 :is(.bar-sheet, .bar-menu) :is([data-chip], .pick-option) > [aria-hidden] {
   margin: 0;
 }
-/* The two with a button inside (the field and its ✕): the inner button holds the padding. */
-/* (span.search-capsule, doubled: as specific as the rule above, which counts its most specific branch.) */
-[data-site-header] span.search-capsule.search-capsule,
+/* A field with a button inside: the inner button holds the padding. */
 :is(.bar-sheet, .bar-menu) .filters-capsule.panel-field {
   padding: 0;
   gap: 0;
 }
-[data-site-header] :is(.search-capsule, .short-trips, .bar-capsule, .chip-row [role="radiogroup"] > :is(button, a)) svg,
+[data-site-header] :is(.bar-capsule, .chip-row [role="radiogroup"] > :is(button, a)) svg,
 :is(.bar-sheet, .bar-menu) :is([data-chip], .pick-option, .filters-capsule.panel-field) svg {
   width: 16px;
   height: 16px;
   color: inherit;
 }
-[data-site-header] :is(.search-capsule, .short-trips, .bar-capsule, .chip-row [role="radiogroup"] > :is(button, a)) :is([aria-hidden]:not(.tabular-nums), span:not(.tabular-nums), button),
+[data-site-header] :is(.bar-capsule, .chip-row [role="radiogroup"] > :is(button, a)) :is([aria-hidden]:not(.tabular-nums), span:not(.tabular-nums), button),
 :is(.bar-sheet, .bar-menu) :is([data-chip], .pick-option, .filters-capsule.panel-field) :is([aria-hidden]:not(.tabular-nums), span:not(.tabular-nums), button) {
   color: inherit;
 }
-[data-site-header] :is(.search-capsule, .short-trips, .bar-capsule, .chip-row [role="radiogroup"] > :is(button, a)):hover,
+[data-site-header] :is(.bar-capsule, .chip-row [role="radiogroup"] > :is(button, a)):hover,
 :is(.bar-sheet, .bar-menu) :is([data-chip], .pick-option, .filters-capsule.panel-field):hover {
   background-color: var(--header-pill-hover);
 }
-[data-site-header] :is(.search-capsule[data-active], .short-trips[aria-pressed="true"], .bar-capsule:is([aria-expanded="true"], [aria-pressed="true"]), .chip-row [role="radiogroup"] > :is([aria-checked="true"], [aria-expanded="true"], [data-picked])),
+[data-site-header] :is(.bar-capsule:is([aria-expanded="true"], [aria-pressed="true"]), .chip-row [role="radiogroup"] > :is([aria-checked="true"], [aria-expanded="true"], [data-picked])),
 :is(.bar-sheet, .bar-menu) .pick-option[aria-expanded="true"] {
   background-color: var(--header-pill-active);
   font-weight: 600;
@@ -340,6 +331,9 @@
   --text-nav--font-weight: 500;
   /* The admin side list: its group headings (uppercase) and badges – 11px. */
   --text-nav-group: 11px;
+  /* The tab bar's unread badge (BottomTabBar): 10px, line height 1 so the number sits exactly in the middle. */
+  --text-badge: 10px;
+  --text-badge--line-height: 1;
   --text-nav-group--line-height: 1.2;
   --text-nav-group--font-weight: 600;
   --text-nav-group--letter-spacing: 0.08em;
@@ -501,7 +495,7 @@
    The House page's booking bar takes its place there too. From 1100px the desktop header, no tab bar (CLAUDE.md "Navigation nach Breite"). */
 @media (min-width: 46.5rem) and (max-width: 68.74rem) {
   :root {
-    --tabbar-clear: calc(56px + 16px + var(--safe-bottom));
+    --tabbar-clear: calc(44px + 12px + var(--safe-bottom));
   }
   html[data-tabbar="none"],
   html[data-tabbar-tablet="none"] {
@@ -513,6 +507,82 @@
   html[data-house-bar] [data-tab-bar] {
     display: none;
   }
+}
+/* From 1100px the same personal bar floats at the bottom too (CLAUDE.md "Persönliche Navigation als schwebende Leiste unten"): 56px, 24px
+   above the edge – pages end above it, the footer included. */
+@media (min-width: 68.75rem) {
+  :root {
+    --tabbar-clear: calc(44px + 12px + var(--safe-bottom));
+  }
+  html[data-tabbar="none"],
+  html[data-tabbar-tablet="none"] {
+    --tabbar-clear: 0px;
+  }
+}
+/* From 1100px a lighter, more transparent glass with a hairline edge and a very soft shadow (below, the bar keeps the fixed graphite of the
+   header's surface – its words are light there). */
+@media (min-width: 68.75rem) {
+  /* As specific as it must be to win over html[data-at-top] .header-glass. */
+  /* iOS glass (CLAUDE.md "Tab-Leiste im iOS-Glas-Stil"): blur 24px + saturate 180 %, a fine light edge on top, a hairline all round, a soft
+     shadow. */
+  :root .header-glass.tab-bar[data-tab-bar] {
+    --text-muted: var(--float-bar-muted);
+    text-shadow: var(--float-bar-text-shadow);
+    background: var(--float-bar-bg);
+    -webkit-backdrop-filter: blur(30px) saturate(2) var(--float-bar-tone);
+    backdrop-filter: blur(30px) saturate(2) var(--float-bar-tone);
+    border: 0;
+    box-shadow:
+      inset 0 1px 0 var(--float-bar-highlight),
+      0 0 0 1px var(--float-bar-edge),
+      var(--float-bar-shadow);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tab-bar .bar-label,
+  .tab-bar .bar-cell,
+  .tab-bar > ul {
+    transition: none;
+  }
+}
+/* The Spotlight ("uniform", CLAUDE.md "Spotlight final"): the card under the pointer like Apple TV – scale 1.03 and a softer, larger shadow,
+   200ms; never while the row scrolls (data-scrolling), never with reduced motion. Only transform and filter on the card's own box. */
+.spot-uni-card {
+  transition:
+    transform 200ms ease-out,
+    filter 200ms ease-out;
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  [data-spot-scroller]:not([data-scrolling]) .spot-uni-card:hover {
+    transform: scale(1.03);
+    filter: var(--spot-card-hover-shadow);
+  }
+}
+/* "step" (CLAUDE.md "Spotlight neu ausbalancieren"): the hover lift (1.03) for the neighbours only, never the centre card, never while the
+   cards move (data-moving on Embla's viewport), never with reduced motion. On the card inside the element the focus curve moves. */
+.cf-slide > * > * {
+  transition: transform 200ms ease-out;
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  [data-spotlight-viewport]:not([data-moving]) .cf-slide:not([data-centre]) > :hover > * {
+    transform: scale(1.03);
+  }
+}
+/* Its arrows: dark glass in both modes, a white arrow (doubled class: wins over the raised button's own surface). */
+.spot-arrow.spot-arrow {
+  background-color: var(--spot-arrow-bg);
+  color: var(--on-image);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  box-shadow: none;
+}
+.spot-arrow.spot-arrow:hover {
+  background-color: var(--spot-arrow-bg-hover);
+}
+/* Never over an open panel of the header (Search, Themes, Filters – lib/headerPanels.ts). */
+html[data-panel-open] [data-tab-bar] {
+  visibility: hidden;
+  pointer-events: none;
 }
 /* What covers the bottom edge: the tab bar (phones) or otherwise the safe area – anything fixed at the bottom (toasts, the Dev button, sticky
    save bars) sits above this. */
@@ -566,7 +636,7 @@ html.sim-standalone {
     --header-row-total: calc(92px + var(--band-h));
   }
   /* The bar's controls 36px (the search field, Short trips, the themes, More, All filters – product and admin alike), the avatar 32px. */
-  [data-site-header] :is(.search-capsule, .short-trips, .bar-capsule, .chip-row [role="radiogroup"] > :is(button, a)) {
+  [data-site-header] :is(.bar-capsule, .chip-row [role="radiogroup"] > :is(button, a)) {
     height: var(--header-pill-h);
     box-sizing: border-box;
   }
@@ -745,7 +815,8 @@ html.sim-standalone {
       --card-gap: 16px;
     }
   }
-  /* Explore's grid: the fixed columns above, no auto-fill. Same cap on the height as .house-grid, for grid and shelf alike. */
+  /* Explore's grid: the fixed columns above, no auto-fill. Its cards keep their 4:5 whatever the window's height (CLAUDE.md "Explore –
+     Kartenhöhe fest"): no cap on the height here (a wide card takes the row's height). */
   .explore-width {
     max-width: var(--explore-max);
   }
@@ -757,7 +828,6 @@ html.sim-standalone {
   .explore-grid [data-house-card],
   .explore-slide [data-house-card] {
     width: 100%;
-    max-height: calc((100vh - var(--header-row-total)) / 1.5);
   }
   .explore-slide {
     width: calc((var(--explore-w) - (var(--explore-cols) - 1) * var(--explore-gap)) / var(--explore-cols));
@@ -1056,23 +1126,6 @@ html.sim-standalone {
 }
 [data-flash] {
   animation: focus-flash 1600ms ease-out;
-}
-/* The filter row's search capsule: a 1px ink 12 % edge on the warm card surface. */
-.search-capsule {
-  background-color: var(--card-soft);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 12%, transparent);
-}
-.search-capsule[data-active] {
-  background-color: var(--pick-bg);
-  box-shadow: inset 0 0 0 1.5px var(--pick-edge);
-}
-/* "Filters" beside the chips: filled, not outlined, so it reads as its own thing (no black – not the main action). */
-.filters-button {
-  background-color: color-mix(in srgb, var(--text) 7%, transparent);
-  transition: background-color 150ms;
-}
-.filters-button:hover {
-  background-color: color-mix(in srgb, var(--text) 12%, transparent);
 }
 /* The host's map: land and markers move together on one curve. Under a finger: no transition. */
 .map-move {
@@ -1431,29 +1484,49 @@ html[data-dialog-open] [data-tab-bar] {
   display: flow-root;
   margin-inline: calc(50% - (100vw - var(--scrollbar-w, 0px)) / 2);
 }
+/* A native horizontal scroller (CLAUDE.md "Flüssiges, ruhiges horizontales Scrollen", ui/Shelf.tsx): the browser's own speed, snap points on
+   the cards (proximity; phones mandatory), no "back" by overscrolling, no scrollbar. Its padding gives the cards' shadows room above and below
+   (the negative margin takes it back) and puts the first card on the page's grid – scroll-padding the same, so snapping lands there. */
 .shelf {
+  position: relative;
   margin-block: -48px -64px;
   padding: 48px 0 64px var(--row-gutter);
-  overflow: hidden;
+  /* The padding reaches over the heading ("See all"): only the cards take the pointer – a wheel or swipe on them still scrolls this. */
   pointer-events: none;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x proximity;
+  scroll-padding-inline-start: var(--row-gutter);
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+.shelf::-webkit-scrollbar {
+  display: none;
+}
+@media (max-width: 46.49rem) {
+  .shelf {
+    scroll-snap-type: x mandatory;
+  }
 }
 .shelf-track {
   display: flex;
   gap: 24px;
+  width: max-content;
   pointer-events: auto;
-  touch-action: pan-y pinch-zoom;
   user-select: none;
   -webkit-user-select: none;
 }
 .shelf-track > * {
   flex: none;
+  scroll-snap-align: start;
 }
 /* Explore's shelves: the grid's gap, so their cards line up with its columns. */
 .explore-root .shelf-track {
   gap: var(--explore-gap);
 }
-.shelf-track > :last-child {
-  margin-right: var(--row-gutter);
+/* Room after the last card up to the window's edge (a margin inside a scroller can be dropped; padding on the track is kept). */
+.shelf-track {
+  padding-right: var(--row-gutter);
 }
 .shelf-track a,
 .shelf-track img {
@@ -2007,29 +2080,25 @@ main:has([data-preview-gate]) {
 
 
 
-/* The bar's middle (CLAUDE.md "Kopfleiste neu geordnet": ⌕ Where · When | Short trips · Themes ▾ · Filters ▾) moves together by its room – a
-   container query on its slot (Explore's data-explore-slot, every other page's data-center-slot): under 480px Short trips keeps only its bolt
-   (its name is the tooltip), under 400px "When" goes (the sheet behind Where has the months too; a chosen month stays written). Filters
-   always stays; nothing overlaps. */
-:is([data-explore-slot], [data-center-slot]) {
-  container: bar / inline-size;
+/* The bar's middle moves together by its room (CLAUDE.md "Kopfleiste zentriert", measured in HeaderCenter – a container query can't work in
+   the grid's auto column): 1 Short trips keeps only its bolt (its name is the tooltip) · 2 the entries a little tighter · 3 "Where · When" only
+   its magnifier while nothing is chosen. Filters always stays; only then does the grid let the middle move off the window's middle. */
+[data-header-center]:is([data-squeeze="1"], [data-squeeze="2"], [data-squeeze="3"]) .hdr-short-trips-label {
+  display: none;
 }
-@container bar (max-width: 479px) {
-  .hdr-short-trips-label {
-    display: none;
-  }
+[data-header-center]:is([data-squeeze="2"], [data-squeeze="3"]) .hdr-item {
+  padding-inline: 8px;
 }
-@container bar (max-width: 399px) {
-  [data-where-when] [data-when-item]:not([data-on]) {
-    display: none;
-  }
+[data-header-center][data-squeeze="3"] [data-where-when] button[data-empty] > span {
+  display: none;
 }
 
 /* The bar in Hell from 1100px (CLAUDE.md "Kopfleiste neu geordnet"): light glass – white 85 % over blur 20px, a fine line at its foot,
    dark words without a shadow. Dunkel keeps the dark glass; below 1100px the fixed graphite surface stays (CLAUDE.md "Kopf unter 1100px").
    The panels it opens have their own material (below, "The header's panels"). */
 @media (min-width: 1100px) {
-  :root:not([data-theme="dark"]) [data-site-header] {
+  :root:not([data-theme="dark"]) [data-site-header],
+  :root:not([data-theme="dark"]) [data-results-bar] {
     --graphite-glass: rgb(255 255 255 / 0.85);
     --graphite-glass-top: rgb(255 255 255 / 0.85);
     --graphite-glass-filter: blur(20px) saturate(1.8);
@@ -2052,8 +2121,8 @@ main:has([data-preview-gate]) {
     --hdr-avatar-ring: rgb(0 0 0 / 0.12);
     --header-divider: rgb(0 0 0 / 0.12);
     --hdr-dot: #8e8e93;
-    --open-house-bg: rgb(0 0 0 / 0.05);
-    --open-house-bg-hover: rgb(0 0 0 / 0.08);
+    --open-house-bg: transparent;
+    --open-house-bg-hover: rgb(0 0 0 / 0.05);
     --open-house-text: #1d1d1f;
     --focus-ring: rgb(0 0 0 / 0.3);
     color-scheme: light;
@@ -2124,7 +2193,7 @@ body:has([data-last-tone="dark"]) footer.footer-dark {
     --header-pill-hover: var(--header-pill-hover-mobile);
     --header-pill-active: var(--header-pill-active-mobile);
   }
-  [data-site-header] :is(.search-capsule, .short-trips, .bar-capsule, .chip-row [role="radiogroup"] > :is(button, a)) {
+  [data-site-header] :is(.bar-capsule, .chip-row [role="radiogroup"] > :is(button, a)) {
     box-shadow: inset 0 0 0 1px var(--header-pill-edge-mobile);
   }
 }
@@ -2228,4 +2297,12 @@ body:has([data-last-tone="dark"]) footer.footer-dark {
   background-color: rgb(0 0 0 / 0.22);
   -webkit-backdrop-filter: blur(3px);
   backdrop-filter: blur(3px);
+}
+
+/* Explore's rows as one borderless strip (CLAUDE.md "Reihen randlos, einheitlicher dunkler Streifen", ui/RowTile.tsx): the full window's
+   width, hard edges, the same fixed ground for every row – near black left to a warm dark right (--row-strip-from/-to, tokens.css; in dark
+   mode a step lighter than the page). Not the Ember picture of the other bands, never the cards' colours. */
+.row-strip,
+:root[data-theme="dark"] .row-strip {
+  background: linear-gradient(90deg, var(--row-strip-from), var(--row-strip-to));
 }

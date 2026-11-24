@@ -1,6 +1,6 @@
 "use client";
 
-import { LogIn, Plus } from "lucide-react";
+import { LogIn, Plus, UserPlus } from "lucide-react";
 import { useOpenHouseEntry } from "@/components/platform/useOpenHouseEntry";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -15,36 +15,69 @@ import { MobileSheet } from "@/components/ui/MobileSheet";
 import { getCurrentUser, useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { AccountMenuList } from "./header/AvatarMenu";
+import { filledIconOf } from "./header/FilledNavIcons";
 import { hidesTabBar, isNavActive, NAV_ITEMS, type NavItem } from "./nav";
 
 const item = (href: NavItem["href"]) => NAV_ITEMS.find((i) => i.href === href)!;
 
-/** One cell: the icon over its word (13px), centred; active white (semibold), the others white 60 %. */
-const CELL = "flex h-full w-full flex-col items-center justify-center gap-1 text-small transition-colors duration-150";
+/** Phones: one cell, the icon over its word (13px), centred. From 744px: a capsule entry, the icon beside its word. */
+const CELL =
+  "press bar-cell flex h-full w-full flex-col items-center justify-center gap-1 text-small transition-colors duration-150 md:h-9 md:w-auto md:flex-row md:gap-2 md:rounded-full md:px-3.5 md:text-nav focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)";
+/** The page you're on: the primary text colour with a soft surface (from 744px); the others grey. */
+/** The page you're on: only the primary text colour and the filled icon – no surface (CLAUDE.md "Tab-Leiste im iOS-Glas-Stil"). */
+const ON = "font-semibold text-ink md:font-medium";
+const OFF = "font-medium text-muted hover:text-ink";
 
 /**
- * The tab bar below 1100px – phones AND tablets (CLAUDE.md "Navigation nach Breite"; from 1100px the desktop header). Phones' tab bar (< md) – ONE behaviour in Safari and in the installed app (CLAUDE.md "Mobile"): docked to the bottom edge over the full
- * width, 56px + the bottom safe area (over Safari's toolbar, over the home indicator), the header's dark glass (graphite 88 %), entries spread
- * evenly. Logged out: Explore · Saved · Log in. Logged in: Explore · Houses · + (Open a House, in the middle, a little set apart – white 16 %,
- * never orange) · Messages (a small orange dot for unread chats, like the desktop) · Profile (the avatar; opens the account menu as a sheet
- * from the bottom). It stays put while scrolling. Not on focus flows or an open chat (nav.ts hidesTabBar). Render inside Suspense.
- * Tablets (744–1099px): the same entries as a floating capsule, centred, at most 560px, 16px above the bottom edge and its safe area; "Houses"
- * says "Your houses"; Profile opens the account menu as a popover above its tab (the header's dark glass), not as a sheet.
+ * "Your Simpulo" – the personal navigation, ONE component for every width (CLAUDE.md "Persönliche Navigation als schwebende Leiste unten"):
+ * Explore · Your houses · Messages (a muted orange dot for unread chats) · the avatar (the account menu, upwards: Profile · Your people ·
+ * Saved · Settings · Log out). Logged out: Explore · Log in · Sign up. The header keeps only the discovery and "＋ Open a House".
+ *  · Phones (< 744px): the fixed tab bar at the bottom over the full width, 56px + the safe area, icon over word; it stays put. Here (and on
+ *    tablets, whose header has no "Open a House") the "+" sits in the middle.
+ *  · From 744px: a floating capsule, centred, 20px above the window's edge (and its safe area), 44px high (compact about 40), 6px inside,
+ *    14px medium words, 18px icons, the avatar 22px; from 1100px a lighter glass with a hairline edge and a very soft shadow, icon beside
+ *    word. A fixed form (CLAUDE.md "Schwebende Leiste: feste Form"): always there, always the same size, no animation while scrolling. Never
+ *    over an open panel, sheet or dialog.
+ * Pages end above it (--tabbar-clear, globals.css). Not on focus flows or an open chat (nav.ts hidesTabBar). Render inside Suspense.
  */
+/**
+ * Unread chats on Messages, like iOS (CLAUDE.md "Messages-Badge wie bei iOS", "Badge kleiner und sauber"): a small capsule at the icon's top
+ * right, overlapping it a little, never reaching the word – 14px high, at least 14px wide (one digit: a circle); neutral, no red (CLAUDE.md
+ * "Badge minimalistisch und neutral"): graphite with a white number (light), light grey with a dark one (dark) – --badge-bg / --badge-fg; no
+ * ring, no shadow; 10px semibold, tabular figures, exactly centred; from 10 "9+". None without unread chats.
+ */
+function UnreadBadge({ count }: { count: number }) {
+  return (
+    <span
+      aria-hidden
+      data-unread-badge
+      className={cn(
+        // 14px high; one digit a circle, "9+" a capsule with 4px each side; the number exactly centred (flex, line height 1 – text-badge).
+        "absolute -right-[5px] -top-1 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-(--badge-bg) text-badge font-semibold text-(--badge-fg) tabular-nums",
+        count > 9 && "px-1",
+      )}
+    >
+      {count > 9 ? "9+" : count}
+    </span>
+  );
+}
+
 export function BottomTabBar() {
   const pathname = usePathname();
   const store = useStore();
   const me = getCurrentUser(store);
   const requireAuth = useRequireAuth();
   const t = useTranslations("nav");
+  const tMenu = useTranslations("nav.menu");
   const unread = useMessagesUnread().chats;
   // The "+": Open a House – before the launch without an accepted application "Apply to host".
   const openEntry = useOpenHouseEntry();
   const [account, setAccount] = useState(false);
   const phone = useIsPhone();
   const profileRef = useRef<HTMLButtonElement>(null);
+  const navRef = useRef<HTMLElement>(null);
   const hidden = hidesTabBar(pathname);
-  // What the bar covers (--tabbar-clear, globals.css): phones count it by default; a route without the bar says "none".
+  // What the bar covers (--tabbar-clear, globals.css): it counts by default; a route without the bar says "none".
   useEffect(() => {
     if (!hidden) return;
     document.documentElement.dataset.tabbar = "none";
@@ -52,7 +85,7 @@ export function BottomTabBar() {
       delete document.documentElement.dataset.tabbar;
     };
   }, [hidden]);
-  // The admin keeps its own navigation (side list, "Bereiche") from 744px – no tab bar there on tablets (phones keep it).
+  // The admin keeps its own navigation (side list, "Bereiche") from 744px – no bar there (phones keep it).
   const admin = pathname.startsWith("/admin");
   useEffect(() => {
     if (!admin) return;
@@ -61,27 +94,20 @@ export function BottomTabBar() {
       delete document.documentElement.dataset.tabbarTablet;
     };
   }, [admin]);
+
   if (hidden) return null;
 
-  /** `wide`: the word on tablets, where there's room ("Your houses"). */
-  const tab = (href: NavItem["href"], label: string, extra?: ReactNode, wide?: string) => {
+  const tab = (href: NavItem["href"], label: string, extra?: ReactNode) => {
     const active = isNavActive(href, pathname);
-    const Icon = item(href).icon;
+    const Icon = active ? filledIconOf(item(href)) : item(href).icon;
     return (
-      <li key={href} className="flex-1">
-        <Link href={href} aria-current={active ? "page" : undefined} aria-label={extra ? t("itemUnread", { label, count: unread }) : undefined} className={cn(CELL, active ? "font-semibold text-ink" : "font-medium text-ink/60")}>
-          <span className="relative">
-            <Icon aria-hidden className="size-[22px]" strokeWidth={active ? 2.25 : 1.75} />
+      <li key={href} className="flex-1 md:flex-none">
+        <Link href={href} aria-current={active ? "page" : undefined} aria-label={extra ? t("itemUnreadCount", { label, count: unread }) : undefined} className={cn(CELL, active ? ON : OFF)}>
+          <span className="relative flex">
+            <Icon aria-hidden className="size-[22px] md:size-[18px]" strokeWidth={active ? 1.5 : 1.75} />
             {extra}
           </span>
-          {wide ? (
-            <>
-              <span className="md:hidden">{label}</span>
-              <span className="max-md:hidden">{wide}</span>
-            </>
-          ) : (
-            label
-          )}
+          <span className="bar-label">{label}</span>
         </Link>
       </li>
     );
@@ -89,50 +115,61 @@ export function BottomTabBar() {
   return (
     <>
       <nav
-        aria-label={t("compactLabel")}
+        ref={navRef}
+        aria-label={t("yourSimpulo")}
         data-site-header
         data-tab-bar
-        className={cn("header-glass fixed inset-x-0 bottom-0 z-40 pb-(--safe-bottom) md:inset-x-0 md:mx-auto md:bottom-[calc(16px+var(--safe-bottom))] md:w-[min(560px,calc(100%-32px))] md:overflow-hidden md:rounded-full md:pb-0 split:hidden", admin && "md:hidden")}
+        className={cn(
+          "header-glass tab-bar fixed inset-x-0 bottom-0 z-40 pb-(--safe-bottom)",
+          "md:inset-x-auto md:left-0 md:right-0 md:mx-auto md:bottom-[calc(12px+var(--safe-bottom))] md:w-fit md:max-w-[calc(100%-32px)] md:rounded-full md:px-1.5 md:pb-0 md:shadow-(--shadow-float) split:shadow-none",
+          admin && "md:hidden",
+        )}
       >
-        <ul className="flex h-14 items-stretch px-1 md:px-3">
+        <ul className="flex h-14 items-stretch px-1 md:h-11 md:items-center md:gap-0.5 md:px-0">
           {tab("/", t("items.explore"))}
           {me ? (
             <>
-              {tab("/your-houses", t("items.houses"), undefined, t("items.yourHouses"))}
-              <li className="flex flex-1 items-center justify-center">
-                {/* Open a House: in the middle, a little set apart (the capsule's white 16 %), never orange. */}
-                <Link href={openEntry.href} aria-label={openEntry.allowed ? t("openHouse") : openEntry.label} className="press flex h-10 w-14 items-center justify-center rounded-full bg-(--header-pill-active) text-ink transition-colors duration-150 active:bg-(--header-pill-hover)">
+              {tab("/your-houses", t("items.yourHouses"))}
+              {/* Open a House: phones and tablets only (their header has none) – in the middle, never orange. */}
+              <li className="flex flex-1 items-center justify-center split:hidden md:flex-none">
+                <Link href={openEntry.href} aria-label={openEntry.allowed ? t("openHouse") : openEntry.label} className="press flex h-10 w-14 items-center justify-center rounded-full bg-(--header-pill-active) text-ink md:h-8 md:w-11 transition-colors duration-150 active:bg-(--header-pill-hover)">
                   <Plus aria-hidden className="size-6" strokeWidth={2.25} />
                 </Link>
               </li>
               {tab(
                 "/messages",
                 t("items.messages"),
-                unread > 0 ? <span aria-hidden data-unread-dot className="absolute -right-0.5 -top-0.5 size-1.5 rounded-full bg-(--brand-action)" /> : undefined,
+                unread > 0 ? <UnreadBadge count={unread} /> : undefined,
               )}
-              <li className="flex-1">
+              <li className="flex-1 md:flex-none">
                 <button
                   ref={profileRef}
                   type="button"
                   onClick={() => setAccount((open) => !open)}
-                  aria-haspopup="dialog"
+                  aria-haspopup="menu"
                   aria-expanded={account}
-                  className={cn(CELL, account || isNavActive("/profile", pathname) || pathname === "/me" ? "font-semibold text-ink" : "font-medium text-ink/60")}
+                  aria-label={tMenu("label")}
+                  className={cn(CELL, account || isNavActive("/profile", pathname) || pathname === "/me" ? ON : OFF)}
                 >
-                  <span className={cn("flex size-[24px] overflow-hidden rounded-full transition-shadow", (account || isNavActive("/profile", pathname)) && "ring-2 ring-ink")}>
+                  <span className={cn("flex size-6 overflow-hidden rounded-full transition-shadow md:size-[22px]", (account || isNavActive("/profile", pathname)) && "ring-2 ring-ink/40")}>
                     <Avatar user={me} size="xs" className="max-w-none" />
                   </span>
-                  {t("items.profile")}
+                  <span className="bar-label">{t("items.profile")}</span>
                 </button>
               </li>
             </>
           ) : (
             <>
-              {tab("/saved", t("items.saved"))}
-              <li className="flex-1">
-                <button type="button" onClick={() => requireAuth()} className={cn(CELL, "font-medium text-ink/60")}>
-                  <LogIn aria-hidden className="size-[22px]" strokeWidth={1.75} />
-                  {t("logIn")}
+              <li className="flex-1 md:flex-none">
+                <button type="button" onClick={() => requireAuth(undefined, { reason: "login" })} className={cn(CELL, OFF)}>
+                  <LogIn aria-hidden className="size-[22px] md:size-[18px]" strokeWidth={1.75} />
+                  <span className="bar-label">{t("logIn")}</span>
+                </button>
+              </li>
+              <li className="flex-1 md:flex-none">
+                <button type="button" onClick={() => requireAuth(undefined, { reason: "signup" })} className={cn(CELL, OFF)}>
+                  <UserPlus aria-hidden className="size-[22px] md:size-[18px]" strokeWidth={1.75} />
+                  <span className="bar-label">{tMenu("signUp")}</span>
                 </button>
               </li>
             </>

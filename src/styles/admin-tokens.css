@@ -1319,8 +1319,8 @@ body:has(.admin-scope) {
   --hdr-corner-bg: rgb(0 0 0 / 0.05);
   --hdr-corner-hover: rgb(0 0 0 / 0.08);
   --hdr-dot: #8e8e93;
-  --open-house-bg: rgb(0 0 0 / 0.05);
-  --open-house-bg-hover: rgb(0 0 0 / 0.08);
+  --open-house-bg: transparent;
+  --open-house-bg-hover: rgb(0 0 0 / 0.05);
   --open-house-text: #1d1d1f;
   --focus-ring: rgb(0 0 0 / 0.3);
   color-scheme: light;

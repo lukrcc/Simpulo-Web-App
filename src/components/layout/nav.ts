@@ -24,12 +24,13 @@ export const NAV_ITEMS: readonly NavItem[] = [
 ];
 
 /**
- * Desktop header, logged in or out the same: Explore · Your houses · Messages (Profile is in the avatar menu; logged out the two member
+ * Desktop header, logged in or out the same: Your houses · Messages (Profile is in the avatar menu; logged out the two member
  * tabs open the auth sheet instead). Phones' tab bar (BottomTabBar): logged in Explore · Houses · [+] · Messages · Profile; logged out
  * Explore · Saved · [Log in].
  */
 export function navItemsFor(loggedIn: boolean, place: "header" | "tabBar" = "tabBar"): readonly NavItem[] {
-  if (place === "header") return NAV_ITEMS.filter((item) => item.audience !== "guest" && !item.tabBarOnly);
+  // The header has no "Explore" (CLAUDE.md "Kopfleiste – drei Zonen"): the logo and the search lead there.
+  if (place === "header") return NAV_ITEMS.filter((item) => item.audience === "member" && !item.tabBarOnly);
   return NAV_ITEMS.filter((item) => item.audience === "all" || item.audience === (loggedIn ? "member" : "guest"));
 }
 

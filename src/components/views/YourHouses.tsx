@@ -7,9 +7,10 @@ import { BackLink } from "@/components/ui/BackButton";
 import { ArrowRight, Check, ChevronLeft, ChevronRight, CreditCard, MessageCircleReply, Plus, Settings2, ShieldCheck, UserRound, Wallet, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useYourPeople } from "@/lib/useYourPeople";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Fragment, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { Fragment, Suspense, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { TabBar } from "@/components/ui/TabBar";
 import { YourPlaces } from "@/components/places/YourPlaces";
 import { RequireLogin } from "@/components/auth/RequireLogin";
 import { clearDraft, readDraft, toInput } from "@/components/create/model";
@@ -75,7 +76,10 @@ export function YourHouses({ group }: { /** "See all": only this row, as a grid 
   const t = useTranslations("houses");
   return (
     <RequireLogin title={t("loginTitle")} description={t("loginDescription")}>
-      <YourHousesContent group={group} />
+      {/* useSearchParams (the Joining · Hosting tab) suspends while prerendering – its own boundary. */}
+      <Suspense fallback={null}>
+        <YourHousesContent group={group} />
+      </Suspense>
     </RequireLogin>
   );
 }
@@ -106,6 +110,10 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
   const [payoutSheet, setPayoutSheet] = useState(false);
   const [picking, setPicking] = useState<[Stay, Stay][] | null>(null);
   const repo = useNotifications();
+  // Two tabs under the band (CLAUDE.md "Your houses: Joining · Hosting"), in the URL (?tab=hosting) so Back and links work.
+  const params = useSearchParams();
+  const pathname = usePathname();
+  const router = useRouter();
 
   // The Open a House flow's own draft (this browser), shown with the draft Houses.
   const [localDraft, setLocalDraft] = useState<ReturnType<typeof readDraft>>(() => (typeof window === "undefined" ? null : readDraft()));
@@ -279,8 +287,12 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
     { key: "saved", cards: savedCards },
     { key: "nextTrip", cards: nextTripCards },
   ];
-  // Empty rows are left out – Hosting stays while you host (its dashed card); not hosting at all, the dashed card closes the last of yours.
-  const shown = rows.filter((row) => row.key !== "nextTrip" && (row.cards.length > 0 || (row.key === "hosting" && hosts)));
+  // Two tabs: Joining (Going · Waiting · Lived in · Saved, your saved people, For your next trip) and Hosting (your Houses and drafts with the
+  // dashed "Open a House", Your places, Earnings). Empty rows are left out – Hosting always shows (at least its dashed card).
+  const tabParam = params.get("tab");
+  const tab: "joining" | "hosting" = tabParam === "hosting" || tabParam === "joining" ? tabParam : hosts && joined.length === 0 ? "hosting" : "joining";
+  const setTab = (next: "joining" | "hosting") => router.replace(next === "joining" ? pathname : `${pathname}?tab=${next}`, { scroll: false });
+  const shown = rows.filter((row) => row.key !== "nextTrip" && (tab === "hosting" ? row.key === "hosting" : row.key !== "hosting" && row.cards.length > 0));
 
   // "See all": one row as a grid, under the way back.
   if (group) {
@@ -331,31 +343,47 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
         media={<UpNextMedia stay={upNext} request={upNext ? joined.find((j) => j.stay.id === upNext.id)?.request : undefined} now={now} news={upNext ? activity.get(upNext.id) : undefined} />}>
         <TodoTile groups={payOk ? TODO_GROUPS : TODO_GROUPS.filter((g) => g !== "pay")} entries={todo} now={now} timeline={timelineFor(store, now).filter((e) => !overlaps.some(([a, b]) => a.id === e.stay.id || b.id === e.stay.id))} />
       </HeroBand>
-    <Container className={cn("explore-width explore-root", nextTripCards.length > 0 ? "pb-0" : "pb-16")}>
+    <Container className={cn("explore-width explore-root", tab === "joining" && nextTripCards.length > 0 ? "pb-0" : "pb-16")}>
       {probe}
       {/* Calm rows, no heading over them: 32px under the band – the window's edge (--stage-peek) cuts under the first row's title, at most
           through the top of its images –, 40px apart. For your next trip is the dark band after them. */}
+      <div className="mt-8 flex items-center justify-between gap-4">
+        <TabBar
+          label={tDash("tabs.label")}
+          value={tab}
+          onChange={setTab}
+          options={[
+            { value: "joining", label: tDash("tabs.joining") },
+            { value: "hosting", label: tDash("tabs.hosting") },
+          ]}
+        />
+        {tab === "hosting" && hasHosted && (
+          <Link href="/your-houses/payouts" className="inline-flex shrink-0 items-center gap-1 text-small font-semibold text-muted transition-colors hover:text-ink">
+            {tDash("tabs.earnings")}
+            <ArrowRight aria-hidden className="size-4" />
+          </Link>
+        )}
+      </div>
       <div className="mt-8 flex flex-col gap-10">
-        {/* "Your places" (Host from your place) right after Hosting – first, when there's no Hosting row. */}
-        {!shown.some((row) => row.key === "hosting") && <YourPlaces today={today} />}
-        {shown.map((row, i) => (
+        {tab === "joining" && shown.length === 0 && <p className="text-body text-muted">{tDash("tabs.joiningEmpty")}</p>}
+        {shown.map((row) => (
           <Fragment key={row.key}>
             <YourRow
               id={row.key}
               title={tDash(`rows.${row.key}`)}
               cards={row.cards}
-              extra={row.extra ?? (!hosts && i === shown.findLastIndex((r) => r.key !== "livedIn" && r.key !== "saved" && r.key !== "nextTrip") ? <OpenHouseTile /> : undefined)}
+              extra={row.key === "hosting" ? (row.extra ?? (!hosts ? <OpenHouseTile /> : undefined)) : undefined}
               cols={row.key === "nextTrip" || row.key === "saved" ? cols : row.key === "livedIn" ? myCols + 2 : myCols}
             />
             {row.key === "hosting" && <YourPlaces today={today} />}
           </Fragment>
         ))}
-        <SavedPeople />
+        {tab === "joining" && <SavedPeople />}
       </div>
       <PayoutSetupSheet open={payoutSheet} onClose={() => setPayoutSheet(false)} />
       <PickOneSheet pairs={picking} onClose={() => setPicking(null)} />
     </Container>
-    {nextTripCards.length > 0 && <NextTripBand cards={nextTripCards} cols={cols} title={tDash("rows.nextTrip")} />}
+    {tab === "joining" && nextTripCards.length > 0 && <NextTripBand cards={nextTripCards} cols={cols} title={tDash("rows.nextTrip")} />}
     </>
   );
 }
@@ -878,9 +906,9 @@ function StageStrip({ today, host, earnings, payoutStatus, hostingCount, livedIn
     ? [
         ...(payOk ? [{ key: "month", value: money(month), label: ts("thisMonth"), sub: ts("thisYear", { amount: money(year) }), href: "/your-houses/payouts" }] : []),
         ...(payoutsFig ? [payoutsFig] : []),
-        { key: "hosting", value: String(hostingCount), label: td("strip.hosting", { count: hostingCount }), href: "/your-houses#row-hosting" },
+        { key: "hosting", value: String(hostingCount), label: td("strip.hosting", { count: hostingCount }), href: "/your-houses?tab=hosting#row-hosting" },
         // Never "0 % full": only once anyone's in.
-        ...(stats.houses > 0 && stats.fullShare > 0 ? [{ key: "fill", value: `${Math.round(stats.fullShare * 100)} %`, label: ts("fill"), href: "/your-houses#row-hosting" }] : []),
+        ...(stats.houses > 0 && stats.fullShare > 0 ? [{ key: "fill", value: `${Math.round(stats.fullShare * 100)} %`, label: ts("fill"), href: "/your-houses?tab=hosting#row-hosting" }] : []),
         peopleFig,
       ]
     : [];

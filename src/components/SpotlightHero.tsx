@@ -20,7 +20,7 @@ import { AvatarStack } from "@/components/ui/Avatar";
 import { CardStatusChip } from "@/components/HouseCard";
 import { CardTab } from "@/components/ui/CardTab";
 import { cardGradient, cardTextShadow } from "@/components/ui/glass";
-import { useViewerPriceLabel } from "@/components/ui/PriceLine";
+import { CardPrice } from "@/components/ui/PriceLine";
 import { useNotchClip } from "@/components/ui/notch";
 import { CrewAvatars } from "@/components/ui/CrewAvatars";
 import { CarouselControls } from "@/components/ui/CarouselControls";
@@ -308,7 +308,6 @@ function Slide({ ref, cardRef, dimRef, stay, host, guests, index, isActive, coun
   const photos = housePhotos(stay, host);
   const tc = useTranslations("common.ui.carousel");
   const format = useFormat();
-  const priceLabel = useViewerPriceLabel(stay);
   const href = `/house/${stay.slug}`;
   const frameRef = useRef<HTMLDivElement | null>(null);
   const clipRef = useRef<HTMLDivElement>(null);
@@ -418,7 +417,7 @@ function Slide({ ref, cardRef, dimRef, stay, host, guests, index, isActive, coun
                   </span>
                 </span>
               </p>
-              <p className="mt-1 truncate text-body font-semibold text-on-image">{priceLabel}</p>
+              <CardPrice stay={stay} className="mt-1 truncate text-body font-semibold text-on-image" />
               {stay.hostNote && (
                 <p className="mt-1 flex max-w-full min-w-0 items-start gap-1.5 text-small text-on-image/75 md:items-center">
                   <MessageCircle className="mt-0.5 size-3.5 shrink-0 md:mt-0" aria-hidden />

@@ -18,7 +18,7 @@ import { IconButton } from "@/components/ui/IconButton";
 import { Img } from "@/components/ui/Img";
 import { useNotchClip } from "@/components/ui/notch";
 import { PersonPhoto } from "@/components/ui/PersonPhoto";
-import { useViewerPriceLabel } from "@/components/ui/PriceLine";
+import { CardPrice } from "@/components/ui/PriceLine";
 import { SaveButton } from "@/components/ui/SaveButton";
 import { useFormat } from "@/i18n/format";
 import { rememberOrigin } from "@/lib/houseTransition";
@@ -74,6 +74,8 @@ interface HouseCardProps {
   href?: string;
   /** Mounted in the Spotlight: one photo, no heart, dimmed from outside (data-cf-dim) */
   spotlight?: boolean;
+  /** Load its photo at once (the Spotlight's cards near the centre); everything else loads lazily as it nears the window */
+  eager?: boolean;
   /** Mounted on the House page: 3:4, every photo by swipe or drag, no text, nothing opens */
   gallery?: boolean;
   /** Mounted in Open a House's live preview: no links */
@@ -106,7 +108,7 @@ function shadeOf(src: string): string {
   return `linear-gradient(to bottom, transparent ${SHADE_FROM}%, rgb(${rgb} / ${(0.35 + lum * 0.25).toFixed(3)}) ${SHADE_MID}%, rgb(${rgb} / ${(0.7 + lum * 0.2).toFixed(3)}) 100%)`;
 }
 
-export function HouseCard({ stay, host, crew = [], notch = "host", footer = "explore", status, live, liveDot = false, menu, href, spotlight = false, gallery = false, preview = false, photoPlaceholder, variant = "grid", wide = false, highlight, context: contextProp, className }: HouseCardProps) {
+export function HouseCard({ stay, host, crew = [], notch = "host", footer = "explore", status, live, liveDot = false, menu, href, spotlight = false, eager = false, gallery = false, preview = false, photoPlaceholder, variant = "grid", wide = false, highlight, context: contextProp, className }: HouseCardProps) {
   // Your own cards (footer="status", Your houses): calm – no heart, no photo arrows or dots, no hover zoom.
   const calm = footer !== "explore";
   const t = useTranslations("explore");
@@ -115,7 +117,6 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
   const me = getCurrentUser(store);
   const invited = isInvitedTo(store, stay.id);
   const format = useFormat();
-  const priceLabel = useViewerPriceLabel(stay);
   // Your people in this House (not in the Spotlight, which shows every card the same).
   const peopleHint = usePeopleSignal(stay);
   const signal = spotlight || preview || stay.isExample ? null : peopleHint;
@@ -145,9 +146,13 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
   // "Host from your place" (lib/ownPlaces.ts): "Host lives here" in the same slot, after the urgency and before the depth – never in the
   // Spotlight (like the depth capsule).
   const homeCapsule = !spotlight && hostLivesHere(stay) ? tPlatform("ownPlace.capsule") : undefined;
-  const capsule = example ? tPlatform("example.capsule") : stay.isFounding ? tPlatform("founding.capsule") : ((urgent ? (highlight ?? urgency) : undefined) ?? homeCapsule ?? depthCapsule);
-  const capsuleDot = !example && !stay.isFounding && capsule !== depthCapsule && capsule !== homeCapsule;
+  // A real last spot (from the bookings, never an example): "Last spot" top left on every card, in the grid and the shelves too – the one
+  // hint; the footer stays the usual "3 of 4 in" (CLAUDE.md "Explore – breite Karte nur für echten letzten Platz").
   const lastSpot = urgent && !example && openSpots(stay) === 1;
+  const lastSpotLabel = lastSpot && context !== "spotlight" ? tHighlight("lastSpot") : undefined;
+  const capsule = example ? tPlatform("example.capsule") : stay.isFounding ? tPlatform("founding.capsule") : ((urgent ? (highlight ?? urgency ?? lastSpotLabel) : undefined) ?? homeCapsule ?? depthCapsule);
+  const capsuleDot = !example && !stay.isFounding && capsule !== depthCapsule && capsule !== homeCapsule;
+  const capsuleCalm = capsule === tHighlight("lastSpot");
   const photos = host ? housePhotos(stay, host).slice(0, gallery ? undefined : single ? 1 : MAX_PHOTOS) : single ? housePhotos(stay).slice(0, 1) : housePhotos(stay).slice(0, MAX_PHOTOS);
   const { ref, active, onScroll, scrollTo, step } = useSnapCarousel<HTMLDivElement>(photos.length);
   const drag = usePhotoDrag(ref, active, scrollTo, gallery && photos.length > 1);
@@ -216,8 +221,8 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
                 src={src}
                 alt={t("cards.photoAlt", { title: stay.title, number: i + 1 })}
                 fill
-                sizes={gallery ? `${MEDIA.desktop} 600px, 520px` : spotlight ? "400px" : CARD_SIZES}
-                loading={spotlight || (gallery && i === 0) ? "eager" : undefined}
+                sizes={gallery ? `${MEDIA.desktop} 600px, 520px` : spotlight ? "(min-width: 1600px) 620px, 520px" : CARD_SIZES}
+                loading={eager || (gallery && i === 0) ? "eager" : "lazy"}
                 className="object-cover"
                 style={i === 0 && stay.focalPoint ? { objectPosition: `${stay.focalPoint.x}% ${stay.focalPoint.y}%` } : undefined}
               />
@@ -265,7 +270,7 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
         {/* Readability, on every card (grid, bands, the Spotlight): in each slide the stepped blur of the lower ~40 % and the darkening in the
             photo's own colour (above). The same on hover. */}
 
-        {capsule && <span className="absolute left-4 top-14 z-10 [text-shadow:none]"><CardStatusChip attention={capsuleDot}>{capsule}</CardStatusChip></span>}
+        {capsule && <span className="absolute left-4 top-14 z-10 [text-shadow:none]"><CardStatusChip attention={capsuleDot} calm={capsuleCalm}>{capsule}</CardStatusChip></span>}
 
         {/* The Spotlight: black over the whole card, the further from the centre the more (set per frame). */}
         {spotlight && <div aria-hidden data-cf-dim className="pointer-events-none absolute inset-0 z-20 bg-shade opacity-0" />}
@@ -300,14 +305,12 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
           ) : (
             <>
               {/* After the title the most important line. Every card has it: without a price, "Price set with crew". */}
-              <p className="mt-1 truncate text-body font-semibold text-on-image">{priceLabel}</p>
-              {/* The note line. Grid: "Anna is in" before the host's note. Shelf: "1 spot left" (orange) instead of the note when true; with a
-                  personal link the note gives way to it in the footer. Spotlight: the host's note only. */}
+              <CardPrice stay={stay} className="mt-1 truncate text-body font-semibold text-on-image" />
+              {/* The note line. Grid: "Anna is in" before the host's note. Shelf: with a personal link the note gives way to it in the footer
+                  (a last spot is the "Last spot" label on the photo, no orange line). Spotlight: the host's note only. */}
               {context === "grid" && signal ? (
                 <SignalLine signal={signal} size={16} className="mt-1" />
-              ) : context === "shelf" && signal ? null : context === "shelf" && lastSpot ? (
-                <p className="mt-1 truncate text-small font-semibold text-accent">{tCrew("left", { count: 1 })}</p>
-              ) : (
+              ) : context === "shelf" && signal ? null : (
                 stay.hostNote && (
                   <p className="mt-1 flex items-center gap-1.5 text-small text-on-image/75">
                     <MessageCircle className="size-3.5 shrink-0" aria-hidden />
@@ -376,10 +379,10 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
 }
 
 /** footer="status", nothing to do: a chip in dark glass (like IconButton onImage), white text; `attention` adds the orange dot. */
-export function CardStatusChip({ children, attention = false }: { children: ReactNode; attention?: boolean }) {
+export function CardStatusChip({ children, attention = false, calm = false }: { children: ReactNode; attention?: boolean; /** A neutral dot instead of the orange one ("Last spot", CLAUDE.md "breite Karte nur für echten letzten Platz") */ calm?: boolean }) {
   return (
     <span className="inline-flex h-7 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-(--image-glass) px-2.5 text-small font-medium text-on-image backdrop-blur-md backdrop-saturate-[1.4]">
-      {attention && <span aria-hidden className="size-1.5 rounded-full bg-accent" />}
+      {attention && <span aria-hidden className={cn("size-1.5 rounded-full", calm ? "bg-on-image/80" : "bg-accent")} />}
       {children}
     </span>
   );
@@ -463,11 +466,13 @@ function CompactCrew({ stay, crew, urgent }: { stay: Stay; crew: User[]; /** fal
   const store = useStore();
   const filled = Math.max(crewInOf(store, stay), 1);
   const open = openSpots(stay);
-  const text = filled >= stay.spotsTotal ? t("complete") : open === 1 && urgent ? t("left", { count: open }) : filled <= 1 ? t("justOpened", { count: open }) : t("partial", { filled, total: stay.spotsTotal });
+  // One hint, not two (CLAUDE.md "Explore – breite Karte nur für echten letzten Platz"): a last spot shows "Last spot" on the photo and the
+  // usual "3 of 4 in" here; two spots left say so ("2 spots left") – both in the line's normal colour, never orange.
+  const text = filled >= stay.spotsTotal ? t("complete") : open === 2 && urgent && filled > 1 ? t("left", { count: open }) : filled <= 1 ? t("justOpened", { count: open }) : t("partial", { filled, total: stay.spotsTotal });
   return (
     <span className="flex min-w-0 items-center gap-2">
       <CrewFaces stay={stay} crew={crew} />
-      <span className={cn("whitespace-nowrap text-body", open === 1 && urgent && filled < stay.spotsTotal ? "font-semibold text-accent" : "text-on-image/90")}>{text}</span>
+      <span className="whitespace-nowrap text-body text-on-image/90">{text}</span>
     </span>
   );
 }

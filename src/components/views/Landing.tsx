@@ -5,7 +5,10 @@
 // Houses) · how it works in three steps · the arc in short · Houses as a shelf (before the launch the examples, marked "Example") · trust ·
 // for hosts · four questions · the end (the waitlist or Explore). Light page, one dark band (the arc), Houses as HouseCards. Logged in, /
 // is Explore (app/page.tsx).
-import { BadgeCheck, Flag, LifeBuoy, Search, Wallet, type LucideIcon } from "lucide-react";
+import { BadgeCheck, Flag, LifeBuoy, Wallet, type LucideIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { SpotlightCoverflow } from "@/components/SpotlightCoverflow";
+import { SpotlightHero } from "@/components/SpotlightHero";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useId, useMemo, useState, type FormEvent } from "react";
@@ -28,7 +31,7 @@ import { getVisibleHouses } from "@/lib/data/visibleHouses";
 import { onePerHost } from "@/lib/heroRotation";
 import { isListedStay } from "@/lib/launch";
 import { findUser, getCrew, useStore } from "@/lib/store";
-import type { Stay } from "@/lib/types";
+import type { Stay, Vibe } from "@/lib/types";
 import { openSpots } from "@/lib/utils";
 import { useNow } from "@/lib/useNow";
 import { openWaitlist } from "@/lib/waitlistSignup";
@@ -88,6 +91,9 @@ export function Landing() {
   const open = useMemo(() => visible.filter((s) => isListedStay(s) && s.startDate > today && openSpots(s) > 0).toSorted((a, b) => a.startDate.localeCompare(b.startDate)), [visible, today]);
   const real = useMemo(() => open.filter((s) => !s.isExample), [open]);
   const spotlight = useMemo(() => onePerHost(real).slice(0, LANDING_HOUSES.spotlight), [real]);
+  // The stage's "N houses open →" per theme: the real open Houses of that theme.
+  const countOf = (vibe: Vibe) => real.filter((s) => s.vibe === vibe).length;
+  const router = useRouter();
   const shelf = useMemo(() => {
     if (rules.shelf === "examples") return onePerHost(open.filter((s) => s.isExample)).slice(0, LANDING_HOUSES.shelf);
     const shown = new Set(spotlight.map((s) => s.id));
@@ -97,47 +103,45 @@ export function Landing() {
   return (
     <div data-landing={phase}>
       {/* ── Stage ─────────────────────────────────────────────────────────── */}
-      <section aria-labelledby="landing-title" className="pt-[clamp(32px,6vw,80px)]">
-        <Container className="explore-width">
-          <div className={rules.stage === "waitlist" ? "grid items-center gap-10 split:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)]" : undefined}>
-            <div className="flex flex-col items-start">
-              <p className="text-eyebrow uppercase text-muted">{tPhase("eyebrow")}</p>
-              <h1 id="landing-title" className="stage-title mt-3 max-w-[16ch] text-ink">
-                {t("title")}
-              </h1>
-              <p className="mt-4 max-w-[46ch] text-body-lg text-muted">{t("sentence")}</p>
-              <div className="mt-8 w-full">
-                {rules.stage === "waitlist" ? (
-                  <WaitlistField from="landing" />
-                ) : (
-                  <div className="flex flex-wrap gap-3">
-                    {/* The search: Explore's "Where to next?" sheet opens there (?open=where). */}
-                    <Link href="/explore?open=where" className={buttonStyles("primary", "md")}>
-                      <Search aria-hidden />
-                      {t("whereNext")}
-                    </Link>
-                    <Link href="/explore" className={buttonStyles("secondary", "md")}>
-                      {t("exploreAll")}
-                    </Link>
-                  </div>
-                )}
-                <p className="mt-3 text-small text-muted">{tPhase("stageNote")}</p>
-              </div>
-            </div>
-            {rules.stage === "waitlist" && (
-              <div className="relative aspect-4/5 w-full max-w-[520px] overflow-hidden rounded-[24px] bg-ink/6 max-split:hidden justify-self-end">
-                <Img src={LANDING_IMAGES.prelaunchStage} alt="" fill sizes="(min-width: 1100px) 40vw, 100vw" className="object-cover" priority />
-              </div>
-            )}
-          </div>
-        </Container>
-        {/* Live and beta: the spotlight – real Houses open now. */}
-        {rules.stage === "search" && spotlight.length > 0 && (
-          <Container className="explore-width mt-10">
-            <HouseShelf stays={spotlight} />
+      {rules.stage === "search" && spotlight.length > 0 ? (
+        // Beta and live (CLAUDE.md "Startseite – eine ruhige Spotlight-Bühne"): the same Spotlight stage as Explore signed in – staggered cards,
+        // the centre larger, "Find your people." and its two lines left, the centre card's theme right ("N houses open →" leads to Explore).
+        // No buttons (the search is in the bar), no static row of cards. Phones: the words above the phone's own carousel.
+        <section aria-labelledby="landing-title">
+          <Container className="pt-6 pb-4 md:hidden">
+            <h1 id="landing-title" className="text-h1 text-ink">
+              {t("title")}
+            </h1>
+            <p className="mt-2 text-body-lg text-muted">{t("sentence")}</p>
+            <p className="mt-2 text-small text-muted">{tPhase("stageNote")}</p>
           </Container>
-        )}
-      </section>
+          <SpotlightHero stays={spotlight} />
+          <SpotlightCoverflow stays={spotlight} countOf={countOf} onPickVibe={(vibe) => router.push(`/explore?vibe=${vibe}`)} />
+        </section>
+      ) : (
+        <section aria-labelledby="landing-title" className="pt-[clamp(32px,6vw,80px)]">
+          <Container className="explore-width">
+            <div className={rules.stage === "waitlist" ? "grid items-center gap-10 split:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)]" : undefined}>
+              <div className="flex flex-col items-start">
+                <p className="text-eyebrow uppercase text-muted">{tPhase("eyebrow")}</p>
+                <h1 id="landing-title" className="stage-title mt-3 max-w-[16ch] text-ink">
+                  {t("title")}
+                </h1>
+                <p className="mt-4 max-w-[46ch] text-body-lg text-muted">{t("sentence")}</p>
+                <div className="mt-8 w-full">
+                  {rules.stage === "waitlist" && <WaitlistField from="landing" />}
+                  <p className="mt-3 text-small text-muted">{tPhase("stageNote")}</p>
+                </div>
+              </div>
+              {rules.stage === "waitlist" && (
+                <div className="relative aspect-4/5 w-full max-w-[520px] overflow-hidden rounded-[24px] bg-ink/6 max-split:hidden justify-self-end">
+                  <Img src={LANDING_IMAGES.prelaunchStage} alt="" fill sizes="(min-width: 1100px) 40vw, 100vw" className="object-cover" priority />
+                </div>
+              )}
+            </div>
+          </Container>
+        </section>
+      )}
 
       {/* ── How it works ──────────────────────────────────────────────────── */}
       <section aria-labelledby="landing-how" className="mt-(--space-section)">

@@ -6,9 +6,9 @@ import { useMemo } from "react";
 import { currencySymbol } from "@/lib/currency";
 import { convertApprox } from "@/lib/rates";
 import type { Currency, Stay } from "@/lib/types";
-import { isCityOpen, regionShort, stayPrice } from "@/lib/utils";
+import { guestPrice, type PricedStay } from "@/lib/pricing";
+import { isCityOpen, regionShort } from "@/lib/utils";
 
-type PricedStay = Pick<Stay, "accommodationStatus" | "pricePerPerson" | "budgetPerPerson" | "currency">;
 
 /** Calendar dates are stored as YYYY-MM-DD; timestamps as ISO. Both are formatted in UTC. */
 function toDate(value: string): Date {
@@ -124,33 +124,37 @@ export function useFormat() {
       /** "Canggu, Bali, Indonesia" – or "Bali, Indonesia · city open" */
       placeLabel: (stay: Pick<Stay, "city" | "region">) =>
         isCityOpen(stay) ? t("cityOpen", { region: stay.region }) : [stay.city, stay.region].filter(Boolean).join(", "),
-      /** The House's own currency (its host's views): "€480 pp", "€400–600 pp" or "Price set with crew" */
+      /** The House's own currency (its host's views): "€480 pp", "€560 pp est." (lib/pricing.ts) or "Price set with crew" */
       priceLabel: (stay: PricedStay) => {
-        const price = stayPrice(stay);
-        if (price.kind === "price") return t("pricePerPersonShort", { price: f.price(price.amount, stay.currency) });
-        if (price.kind === "budget") return t("budgetPerPersonShort", { range: f.priceRange(price.min, price.max, stay.currency) });
-        return t("budgetTbd");
+        const price = guestPrice(stay);
+        if (!price) return t("budgetTbd");
+        const label = t("pricePerPersonShort", { price: f.price(price.amount, stay.currency) });
+        return price.estimated ? `${label} ${t("estimated")}` : label;
       },
-      /**
-       * On cards: one currency, the viewer's, in their browser's number format – "£380 pp", "£340–470 pp". Converted
-       * amounts are rounded (fixed mock rates), the House's own currency stays exact.
-       */
       /** One amount of the House (e.g. the place's total) in the viewer's currency: exact when it's the same, else 3 significant digits. */
       viewerAmount: (amount: number, from: Currency, code: string, numberLocale: string) => {
         const same = code === from;
         const money = new Intl.NumberFormat(numberLocale, { style: "currency", currency: code, ...(same ? { maximumFractionDigits: 0 } : { maximumSignificantDigits: 3 }) });
         return clean(money.format(convertApprox(amount, from, code as Currency)));
       },
+      /**
+       * On cards (CLAUDE.md "Preis auf Karten – eine Zahl"): ONE number per person in the viewer's currency and number format, never a range,
+       * never "≈" – `amount` "€560", `label` "€560 pp", `estimated` for the small grey "est." after it; `cap` "€640" (variable with a cap).
+       */
+      viewerPrice: (stay: PricedStay, code: string, numberLocale: string) => {
+        const price = guestPrice(stay, code);
+        if (!price) return { amount: null, label: t("budgetTbd"), estimated: false, cap: null };
+        const money = new Intl.NumberFormat(numberLocale, { style: "currency", currency: code, maximumFractionDigits: 0 });
+        const amount = clean(money.format(price.amount));
+        return { amount, label: t("pricePerPersonShort", { price: amount }), estimated: price.estimated, cap: price.cap === null ? null : clean(money.format(price.cap)) };
+      },
+      /** The same as one string ("€560 pp est.") – for lines of text (the request's summary, the floating bar). */
       viewerPriceLabel: (stay: PricedStay, code: string, numberLocale: string) => {
-        const price = stayPrice(stay);
-        if (price.kind === "tbd") return t("budgetTbd");
-        const same = code === stay.currency;
-        const money = new Intl.NumberFormat(numberLocale, { style: "currency", currency: code, ...(same ? { maximumFractionDigits: 0 } : { maximumSignificantDigits: 2 }) });
-        const to = (amount: number) => convertApprox(amount, stay.currency, code as Currency);
-        // Another currency than the House's: converted, so "≈" in front ("≈ €480 pp"); the same one: exact, no "≈".
-        const approx = same ? "" : "≈ ";
-        if (price.kind === "price") return approx + t("pricePerPersonShort", { price: clean(money.format(to(price.amount))) });
-        return approx + t("budgetPerPersonShort", { range: moneyRange(money, to(price.min), to(price.max)) });
+        const price = guestPrice(stay, code);
+        if (!price) return t("budgetTbd");
+        const money = new Intl.NumberFormat(numberLocale, { style: "currency", currency: code, maximumFractionDigits: 0 });
+        const label = t("pricePerPersonShort", { price: clean(money.format(price.amount)) });
+        return price.estimated ? `${label} ${t("estimated")}` : label;
       },
     };
   }, [locale, t]);

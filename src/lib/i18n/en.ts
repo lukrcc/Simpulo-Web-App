@@ -51,6 +51,8 @@ const en = {
     "datesTbd": "Dates TBD",
     "budgetTbd": "Price set with crew",
     "pricePerPersonShort": "{price} pp",
+    "estimated": "est.",
+    "pp": "pp",
     "budgetPerPersonShort": "{range} pp",
     "cityOpen": "{region} · city open",
     "ageAndCountry": "{age} · {country}",
@@ -271,7 +273,9 @@ const en = {
     "yourProfile": "Your profile",
     "home": "Simpulo – home",
     "menu": {
-      "profile": "Your profile",
+      "profile": "Profile",
+      "logIn": "Log in",
+      "signUp": "Sign up",
       "viewProfile": "View profile",
       "saved": "Saved",
       "settings": "Settings",
@@ -290,7 +294,9 @@ const en = {
       "adminTheme": { "label": "Appearance", "system": "System", "light": "Light", "dark": "Dark" }
     },
     "itemUnread": "{label}, {count, plural, one {# unread chat} other {# unread chats}}",
+    "itemUnreadCount": "{label}, {count} unread",
     "compactLabel": "Main",
+    "yourSimpulo": "Your Simpulo",
     "notifications": "Notifications",
     "itemNew": "{label} – {count, plural, one {# new request} other {# new requests}}",
     "openFilters": "Show categories",
@@ -564,6 +570,10 @@ const en = {
       "login": {
         "title": "Find your people.",
         "subline": "Welcome back – or welcome in."
+      },
+      "signup": {
+        "title": "Join Simpulo.",
+        "subline": "Share a place. Find your people."
       },
       "yourHouses": {
         "title": "Your Houses live here.",
@@ -1124,9 +1134,13 @@ const en = {
     "spotlightIntro": {
       "first": "Share a place.",
       "second": "Find your people.",
-      "subline": "Open a House or join one – and live with people who get you."
+      "subline": "Open a House or join one – and live with people who get you.",
+      "visitorSub": "Live together for a while with people who share your thing.",
+      "visitorNote": "Free to ask. Pay only after the host says yes."
     },
     "spotlightGreeting": {
+      "findYourPeople": "Find your people",
+      "hiWhereNext": "Hi {name}, where to next?",
       "hi": "Hi {name}.",
       "whereNext": "Where to next?",
       "open": "{count, plural, one {# house open} other {# houses open}} →",
@@ -1179,6 +1193,7 @@ const en = {
         "placeMonth": "{count, plural, one {# person} other {# people}} searched for {place} in {month} – they'll be notified first",
         "place": "{count, plural, one {# person} other {# people}} searched for {place} – they'll be notified first"
       },
+      "searchShort": "Search",
       "whereShort": "Where",
       "whenShort": "When"
     },
@@ -1925,6 +1940,7 @@ const en = {
         "housesHosted": "{count, plural, one {# House} other {# Houses}} hosted",
         "viewProfile": "View profile",
         "wayIn": "Free to request · Pay only after the host says yes",
+        "priceCap": "Final price depends on the crew. You never pay more than {price}.",
         "hostLabel": "Host",
         "fromYourPeople": "From your people",
         "respondsFast": "Responds fast",
@@ -2770,6 +2786,13 @@ const en = {
     "home": {
       "unreadNews": "Unread news",
       "dash": {
+        "tabs": {
+          "label": "Your houses",
+          "joining": "Joining",
+          "hosting": "Hosting",
+          "earnings": "Earnings",
+          "joiningEmpty": "Houses you ask to join show up here."
+        },
         "upNextIn": "Up next · in {days, plural, one {# day} other {# days}}",
         "upNextToday": "Up next · today",
         "todoTitle": "To do",

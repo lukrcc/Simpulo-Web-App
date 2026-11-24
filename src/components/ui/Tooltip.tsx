@@ -147,7 +147,8 @@ export function Tooltip() {
       if (!el || el === current || el === suppressed) return;
       const text = textFor(el);
       if (!text) return;
-      show(el, text, performance.now() - closedAt < WARM_MS || current ? 0 : DELAY_MS);
+      // An element may ask for a longer wait (data-tooltip-delay, ms): the header's icons, 500ms.
+      show(el, text, performance.now() - closedAt < WARM_MS || current ? 0 : Number(el.dataset.tooltipDelay) || DELAY_MS);
     };
     const onOut = (e: PointerEvent) => {
       if (!current) return;

@@ -1,68 +1,56 @@
 "use client";
 
-import useEmblaCarousel from "embla-carousel-react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { EXPLORE_SPACING } from "@/config/explore";
 import { IconButton } from "@/components/ui/IconButton";
-import { registerShelf, revealInShelf, scrollShelfToSlide } from "@/lib/shelves";
+import { reducedMotion } from "@/lib/shelves";
 import { cn } from "@/lib/utils";
-import { PassiveWheelGestures } from "@/lib/passiveWheelGestures";
-import { MEDIA } from "@/config/breakpoints";
-
-/** Constant, like its plugins: a new object would make Embla start again. A row that fits has nothing to drag. */
-const OPTIONS: Parameters<typeof useEmblaCarousel>[0] = {
-  align: "start",
-  dragFree: true,
-  containScroll: "trimSnaps",
-  watchDrag: (api) => api.scrollSnapList().length > 1,
-  // Phones: a swipe snaps to the next card (the next one peeks in at the right, .explore-slide 85 %).
-  breakpoints: { [MEDIA.phone]: { dragFree: false } },
-};
 
 const ARROW = "absolute top-1/2 z-20 hidden -translate-y-1/2 transition-opacity duration-200 md:flex";
 const ARROW_GONE = "pointer-events-none opacity-0";
 
 /**
- * Every horizontal row: fixed-width items (each sets its own width) on one line, starting at the container's left edge
- * and running to the window's right edge. Drag, trackpad and touch through Embla, ‹ › where there's more that way.
- * Viewport, track and slides are transparent: no background, frame, shadow or filter (see .shelf in globals.css).
- * variant="flat" (Explore's shelves): no effect that depends on position or hover – every card the same size, the same top, the same (no)
- * shadow; the cards don't lift or zoom. The other rows (House page, Your houses) and the Spotlight keep theirs.
+ * Every horizontal row (CLAUDE.md "Flüssiges, ruhiges horizontales Scrollen"): a NATIVE horizontal scroller – the browser moves it at the
+ * speed of the trackpad, Shift + wheel or the finger (no scroll hijacking, no library), with snap points (scroll-snap-type: x proximity, each
+ * card snap-align start on the page's edge; phones mandatory: a swipe rests on the next card) and overscroll-behavior-x: contain (no
+ * accidental "back"). The first card starts on the page's grid, the row runs past the window's right edge, scrolled also past the left one.
+ * ‹ › scroll about one visible width (scrollBy, smooth; reduced motion: at once), shown only where there's more that way – read in one
+ * passive scroll listener, throttled to a frame. Viewport, track and slides transparent (.shelf in globals.css).
+ * variant="flat" (Explore's shelves): no effect that depends on position or hover.
  */
 export function Shelf({ children, className, variant = "default", top = EXPLORE_SPACING.rowCards }: { children: ReactNode; className?: string; variant?: "default" | "flat"; /** Room above the cards (default: --space-inner) */ top?: string }) {
   const t = useTranslations("explore.collections");
-  const plugins = useMemo(() => [PassiveWheelGestures()], []);
-  const [viewportRef, api] = useEmblaCarousel(OPTIONS, plugins);
+  const viewportRef = useRef<HTMLDivElement>(null);
   const [ends, setEnds] = useState({ prev: false, next: false });
 
   useEffect(() => {
-    if (!api) return;
-    const unregister = registerShelf(api);
+    const root = viewportRef.current;
+    if (!root) return;
+    let frame = 0;
     const update = () => {
-      const scrolls = api.scrollSnapList().length > 1;
-      const progress = api.scrollProgress();
-      const prev = scrolls && progress > 0.001;
-      const next = scrolls && progress < 0.999;
+      frame = 0;
+      const max = root.scrollWidth - root.clientWidth;
+      const prev = root.scrollLeft > 1;
+      const next = root.scrollLeft < max - 1;
       setEnds((current) => (current.prev === prev && current.next === next ? current : { prev, next }));
     };
-    // Focus from a script or find-in-page scrolls the viewport itself, past Embla: take that back and go there Embla's way.
-    const root = api.rootNode();
-    const keepFlat = () => {
-      if (root.scrollLeft === 0) return;
-      root.scrollLeft = 0;
-      if (document.activeElement && root.contains(document.activeElement)) revealInShelf(document.activeElement, true);
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(update);
     };
-    root.addEventListener("scroll", keepFlat);
     update();
-    api.on("scroll", update).on("select", update).on("settle", update).on("reInit", update);
+    root.addEventListener("scroll", onScroll, { passive: true });
+    const observer = new ResizeObserver(onScroll);
+    observer.observe(root);
+    const track = root.firstElementChild;
+    if (track) observer.observe(track);
     return () => {
-      unregister();
-      root.removeEventListener("scroll", keepFlat);
-      api.off("scroll", update).off("select", update).off("settle", update).off("reInit", update);
+      cancelAnimationFrame(frame);
+      root.removeEventListener("scroll", onScroll);
+      observer.disconnect();
     };
-  }, [api]);
+  }, []);
 
   useEffect(() => {
     // As wide as the window without its scrollbar (100vw would include one and overflow the page).
@@ -73,21 +61,18 @@ export function Shelf({ children, className, variant = "default", top = EXPLORE_
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  /** A window's worth: the card cut off on the right comes first, or the same the other way. */
+  /** About one visible width (less the page's margin, so the card cut off on the right comes first); the snap points settle it on a card. */
   function page(direction: 1 | -1) {
-    if (!api) return;
-    const visible = api.slidesInView();
-    if (visible.length === 0) return;
-    const first = visible[0];
-    const last = visible[visible.length - 1];
-    const slide = direction > 0 ? Math.max(last, first + 1) : Math.max(0, Math.min(first - visible.length + 1, first - 1));
-    scrollShelfToSlide(api, slide, window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+    const root = viewportRef.current;
+    if (!root) return;
+    const gutter = parseFloat(getComputedStyle(root).scrollPaddingInlineStart) || 0;
+    root.scrollBy({ left: direction * Math.max(1, root.clientWidth - 2 * gutter), behavior: reducedMotion() ? "auto" : "smooth" });
   }
 
   return (
     <div className={cn("shelf-frame", variant === "flat" && "shelf-flat", top, className)}>
       <div ref={viewportRef} data-shelf className="shelf">
-        <div className={cn("shelf-track", (ends.prev || ends.next) && "md:cursor-grab md:active:cursor-grabbing")}>{children}</div>
+        <div className="shelf-track">{children}</div>
       </div>
       <IconButton data-shelf-arrow variant="onImage" size="lg" tabIndex={ends.prev ? undefined : -1} aria-hidden={!ends.prev} aria-label={t("scrollBack")} onClick={() => page(-1)} className={cn(ARROW, "left-4", !ends.prev && ARROW_GONE)}>
         <ChevronLeft className="size-5" aria-hidden />

@@ -16,7 +16,8 @@ type Plugin = ReturnType<typeof WheelGesturesPlugin>;
  * While the pointer is over a carousel, the page's horizontal overscroll is off, so a sideways swipe moves the carousel
  * instead of going back in the browser's history (what the plugin's preventDefault used to stop).
  */
-export function PassiveWheelGestures(): Plugin {
+/** `skip`: events the plugin should not see (the Spotlight steps a card per notch of a real mouse wheel itself). */
+export function PassiveWheelGestures({ skip }: { skip?: (e: WheelEvent) => boolean } = {}): Plugin {
   const proxy = typeof document === "undefined" ? undefined : document.createElement("div");
   const inner = WheelGesturesPlugin({ target: proxy });
   let detach = () => {};
@@ -28,7 +29,7 @@ export function PassiveWheelGestures(): Plugin {
       if (!proxy) return;
       const root = document.documentElement;
       const onWheel = (e: WheelEvent) => {
-        if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+        if (Math.abs(e.deltaX) <= Math.abs(e.deltaY) || skip?.(e)) return;
         proxy.dispatchEvent(new WheelEvent("wheel", e));
       };
       const guard = () => root.style.setProperty("overscroll-behavior-x", "none");
