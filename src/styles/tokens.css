@@ -167,12 +167,7 @@
   --edge-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.12);
   /* The HouseCard's inner edge on the page, its hover depth, the Spotlight's depth and glow (globals.css). */
   --card-edge-stroke: rgba(34, 30, 27, 0.22);
-  /* One simple box-shadow each – no filters on cards (CLAUDE.md "Spotlight natives Scrollen"). */
-  --card-hover-shadow: 0 6px 14px rgba(0, 0, 0, 0.12);
-  --spot-depth: 0 16px 36px rgba(34, 30, 27, 0.2);
   --spot-glow: rgba(34, 30, 27, 0.16);
-  /* The warm light on the ground under a hovered card: faint on the light page, stronger on dark (as in a dark band). */
-  --card-floor-light: rgba(255, 200, 150, 0.08);
   /* Muted words on Explore's light filter sheet. */
   --filter-sheet-muted: rgba(34, 30, 27, 0.72);
   /* The thin divider before the header's tabs (Explore), cream 15 %. */
@@ -199,11 +194,16 @@
   --glass-bar-text-shadow: none;
   --bar-text: #1d1d1f;
   --bar-muted: rgb(29 29 31 / 0.7);
+  /* The header's panels (Search, Themes, Filters): almost opaque in the page's colour; the page behind them a little darker and soft. */
+  --panel-solid: rgb(250 249 247 / 0.96);
+  --panel-solid-shadow: 0 16px 40px rgb(0 0 0 / 0.08);
+  --panel-scrim: rgb(0 0 0 / 0.08);
+  /* The header's entries (CLAUDE.md "Kopfleiste wie apple.com"): at rest the secondary colour, hover / open / chosen the primary one. */
+  --hdr-item: #6e6e73;
+  --hdr-item-on: #1d1d1f;
   /* The Spotlight's arrows (CLAUDE.md "Spotlight final"): dark glass in both modes, white arrow. */
   --spot-arrow-bg: rgb(0 0 0 / 0.45);
   --spot-arrow-bg-hover: rgb(0 0 0 / 0.6);
-  /* The Spotlight card under the pointer ("uniform", like Apple TV): a softer, larger shadow. */
-  --spot-card-hover-shadow: 0 28px 48px rgb(34 30 27 / 0.28);
   /* The Messages badge (BottomTabBar): neutral – graphite with a white number; dark mode light grey with a dark one. */
   --badge-bg: #3a3a3c;
   --badge-fg: #ffffff;
@@ -302,7 +302,11 @@
   --glass-bar-text-shadow: none;
   --bar-text: #ffffff;
   --bar-muted: rgb(255 255 255 / 0.75);
-  --spot-card-hover-shadow: 0 28px 48px rgb(0 0 0 / 0.5);
+  --panel-solid: rgb(28 28 30 / 0.96);
+  --panel-solid-shadow: 0 16px 40px rgb(0 0 0 / 0.4);
+  --panel-scrim: rgb(0 0 0 / 0.25);
+  --hdr-item: #a1a1a6;
+  --hdr-item-on: #f5f5f7;
   --badge-bg: #e5e5ea;
   --badge-fg: #1c1c1e;
   --filter-chip-bg: rgb(255 255 255 / 0.08);
@@ -390,12 +394,9 @@
   --shadow-knob: 0 0 0 1px rgba(0, 0, 0, 0.3);
   --shadow-bar-foot: 0 1px 0 rgba(244, 238, 231, 0.08);
   --card-edge-stroke: rgba(255, 255, 255, 0.12);
-  --card-hover-shadow: none;
-  --spot-depth: none;
   --spot-glow: rgba(244, 238, 231, 0.05);
   /* The tooltip's dark glass a step lighter than the dark floor, so it still stands out. */
   --tooltip-bg: rgba(72, 66, 62, 0.95);
-  --card-floor-light: rgba(255, 200, 150, 0.14);
   --strip-edge: rgba(244, 238, 231, 0.1);
 }
 /* The black strip of the stages, Explore's dark bands and the large footer stay dark: on the dark floor a fine light line sets them off. */

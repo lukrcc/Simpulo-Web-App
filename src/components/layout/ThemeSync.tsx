@@ -18,10 +18,11 @@ export function ThemeSync() {
     syncThemeDocument();
   }, []);
 
+  // Only a choice the account actually holds wins: right after a reload the signed-in user is there a moment before their saved settings,
+  // and "no choice" then must not overwrite this device's (CLAUDE.md "Hell/Dunkel-Auswahl wieder erreichbar": it reset to System).
   useEffect(() => {
-    if (!signedIn) return;
-    const account = appearance ?? "system";
-    if (account !== themeCookiePref()) applyThemePref(account);
+    if (!signedIn || appearance === null) return;
+    if (appearance !== themeCookiePref()) applyThemePref(appearance);
   }, [signedIn, appearance]);
 
   return null;

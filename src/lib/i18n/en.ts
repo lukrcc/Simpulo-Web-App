@@ -13,6 +13,7 @@ const en = {
     "titleTemplate": "%s · Simpulo",
     "siteDescription": "Find people to share a house with for a few weeks – hosted by real people, anywhere.",
     "pages": {
+      "invite": "Invite friends",
       "house": "House",
       "createHouse": "Open a House",
       "editHouse": "Edit House",
@@ -367,7 +368,7 @@ const en = {
       "allPlaces": "All places →",
       "allThemes": "All themes →",
       "links": {
-        "shortTrips": "Getaways",
+        "shortTrips": "Short Trips",
         "startingSoon": "Starting soon",
         "guides": "Guides",
         "becomeHost": "Become a host",
@@ -1010,7 +1011,7 @@ const en = {
         "eyebrow": "New"
       },
       "shortTrips": {
-        "title": "Getaways",
+        "title": "Short Trips",
         "subline": "Five nights or fewer – easy to fit in.",
         "eyebrow": "Weekends"
       },
@@ -1064,7 +1065,7 @@ const en = {
         "none": "Not included"
       },
       "verifiedOnly": "Verified hosts only",
-      "shortTrips": "Getaways",
+      "shortTrips": "Short Trips",
       "noMatches": "No matches",
       "month": "Month",
       "budget": "Budget",
@@ -1427,6 +1428,7 @@ const en = {
       "storiesTitle": "Stories",
       "line": "From past crews",
       "lineRated": "Past crews: {overall} overall · {count, plural, one {# rating} other {# ratings}}",
+      "lineInline": "★ {overall} ({count, plural, one {# rating} other {# ratings}} →)",
       "hostTitle": "Your ratings",
       "thirtyTitle": "30 days later",
       "againTitle": "Do it again"
@@ -2929,6 +2931,8 @@ const en = {
         },
         "sheetTitle": "{group} · {count}",
         "nothingPlanned": "Nothing planned yet",
+        "livedInLast": "Lived in · {month}",
+        "findFirst": "Find your first House →",
         "explore": "Explore",
         "stage": {
           "next": "Next: {house} in {count, plural, one {# day} other {# days}}",
@@ -4268,6 +4272,24 @@ const en = {
       "barHouses": "{count, plural, one {House} other {Houses}}",
       "barLivedWith": "Lived with",
       "editWithProgress": "Edit profile · {done} of {total}",
+      "numbersLabel": "Numbers",
+      "listLabel": "Your account",
+      "savedTitle": "Saved",
+      "livedWithRow": "Lived with",
+      "friendsRow": "Friends",
+      "seeAllShort": "See all →",
+      "friendsEmpty": "Invite friends to connect →",
+      "bothLivedOne": "You both lived with {name}",
+      "bothLivedTwo": "You both lived with {a} and {b}",
+      "bothLivedMore": "You both lived with {name} and {count, plural, one {# other} other {# others}}",
+      "peopleTotal": "{count, plural, one {# person} other {# people}} in their network",
+      "confirmButton": "{count, plural, one {# housemate} other {# housemates}} to confirm",
+      "message": "Message",
+      "addLink": "+ Add link",
+      "savedSeeAll": "See all →",
+      "savedEmpty": "Houses you heart show up here.",
+      "inviteFriendsLink": "+ Invite friends",
+      "settingsLink": "Settings",
       "bothKnowTwo": "You both know {a} and {b}",
       "barCountries": "{count, plural, one {Country} other {Countries}}",
       "barHosted": "Hosted"
@@ -4313,7 +4335,8 @@ const en = {
         "privacy": "Privacy & safety",
         "general": "General",
         "chats": "Chats",
-        "appearance": "Appearance"
+        "appearance": "Appearance",
+        "language": "Language"
       },
       "account": {
         "groupSignIn": "Sign-in",
@@ -4459,7 +4482,11 @@ const en = {
         "system": "Match system",
         "light": "Light",
         "dark": "Dark",
-        "hint": "Match system follows your phone or computer automatically."
+        "hint": "Your first visit follows your device. A choice here stays on this device and your account.",
+        "toDark": "Dark mode",
+        "toLight": "Light mode",
+        "label": "Appearance",
+        "short": { "system": "System", "light": "Light", "dark": "Dark" }
       }
     },
     "loginTitle": "Log in to see your settings",
@@ -4534,6 +4561,8 @@ const en = {
       "showOnHousePagesText": "Signed-in members can see your photo and first name in the crew. Your host and crew always see your full profile.",
       "showAge": "Show my age",
       "showAgeText": "Your age next to your name and on your profile. Off: nobody but you sees it.",
+      "showPeople": "Show my people on my profile",
+      "showPeopleText": "Others see who you lived with and your friends. Off: only the people you both know, and a number.",
       "visibilitySaved": "Saved",
       "description": "Blocked people can't see your Houses or message you.",
       "noneBlocked": "You haven't blocked anyone.",
@@ -5494,6 +5523,16 @@ const en = {
       "do_it_again": "Want to do it again?"
     }
   },
+  "inviteFriends": {
+    "title": "Invite friends",
+    "text": "Simpulo is better with your people. Send them your link – they land on Simpulo, and you'll see them once you've lived together.",
+    "linkLabel": "Your invite link",
+    "copy": "Copy link",
+    "copied": "Link copied",
+    "share": "Share",
+    "shareText": "Come find your people on Simpulo.",
+    "loginTitle": "Log in to invite friends"
+  },
   "people": {
     "page": {
       "title": "Your people",
@@ -5505,6 +5544,8 @@ const en = {
         "crews": "Crews"
       },
       "search": "Search by name or House",
+      "together": "{count, plural, one {# House together} other {# Houses together}} · {name}",
+      "message": "Message",
       "inForTitle": "You're in for",
       "inForNone": "Nothing yet – tell your people where you'd go next.",
       "inForAdd": "+ Add what you're in for",
@@ -5643,7 +5684,7 @@ const en = {
     "from": "From",
     "until": "Until",
     "howLong": "How long",
-    "short": "Getaway",
+    "short": "Short Trip",
     "month": "About a month",
     "long": "Longer",
     "categories": "Into (optional)",

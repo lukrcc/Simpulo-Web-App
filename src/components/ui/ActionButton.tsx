@@ -89,10 +89,9 @@ export function Button({ variant = "primary", size = "md", icon = false, classNa
 }
 
 /**
- * "Open a House" in the header (CLAUDE.md "Open a House ohne Kapsel"): no surface, no edge – a thin line plus (16px, the icons' stroke) and the
- * words, both in the bar's primary colour, medium (500), 36px like the other entries, 12px each side like the tabs; hover the light surface of
- * the other entries (--open-house-bg-hover), the keyboard's focus a 2px ring. Product and admin.
+ * "Open a House" in the header (CLAUDE.md "Kopfleiste wie apple.com"): words only – no surface, no edge, no capsule on hover –, 14px medium
+ * (500) like the entries' size, in the bar's primary colour; the keyboard's focus a 2px ring. Product and admin.
  */
 export const headerActionStyles = cn(
-  "press inline-flex h-(--header-pill-h) shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-full bg-(--open-house-bg) px-3 text-nav-main font-medium text-(--open-house-text) [text-shadow:none] transition-colors duration-150 hover:bg-(--open-house-bg-hover) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring) [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex h-(--header-pill-h) shrink-0 cursor-pointer items-center justify-center gap-1.5 px-2.5 text-nav font-medium text-(--open-house-text) [text-shadow:none] transition-colors duration-150 focus-visible:rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring) [&_svg]:size-4 [&_svg]:shrink-0",
 );

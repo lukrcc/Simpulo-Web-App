@@ -16,7 +16,7 @@ import { usePagedList } from "@/lib/usePagedList";
 import { CollectionRow } from "@/components/explore/CollectionRow";
 import { PeopleGoingRow, usePeopleGoing } from "@/components/explore/PeopleGoingRow";
 import { CategoryRow, SortCapsule, SortList } from "@/components/explore/Filters";
-import { EXPLORE_GRID, EXPLORE_RHYTHM, EXPLORE_SPACING, explorePageSize, HIGHLIGHT_MIN_COLS, SPOTLIGHT_MIN, VIBE_ICONS, VISIBLE_CHIPS } from "@/config/explore";
+import { EXPLORE_COUNTS, EXPLORE_GRID, EXPLORE_RHYTHM, EXPLORE_SPACING, explorePageSize, HIGHLIGHT_MIN_COLS, SPOTLIGHT_MIN, VIBE_ICONS, VISIBLE_CHIPS } from "@/config/explore";
 import { Container } from "@/components/layout/Container";
 import { scrollUnderHeader } from "@/lib/scrollUnderHeader";
 import { ExplorePrelaunch } from "@/components/explore/ExplorePrelaunch";
@@ -228,8 +228,6 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
     );
   const countryCount = new Set(results.map(countryOf)).size;
   const resultLabel = tc("houses", { count: results.length });
-  // The head's grey line beside the title: "7 houses · 7 countries".
-  const headSummary = t("summary", { houses: resultLabel, countries: tc("countries", { count: countryCount }) });
 
   // Layout: a plain grid of equal cards, cut into sections of complete rows (see lib/exploreLayout). Everything below
   // follows from the real counts – the mock's data presets only change what's there.
@@ -301,6 +299,24 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
     ...(filters.verifiedOnly ? [{ key: "verified", label: tf("verifiedChip"), patch: { verifiedOnly: false } }] : []),
     ...(filters.depth ? [{ key: "depth", label: `${tf("depth")} · ${tf(`depthOptions.${filters.depth}`)}`, patch: { depth: null } }] : []),
   ];
+  // The results head (CLAUDE.md "Ergebnis-Titel ohne Doppelung"): the title names the choice – one filter: its name ("Short Trips", a theme,
+  // a place); several: "{N} houses" –, beside it grey "{N} houses · {M} countries"; the number never twice (with "{N} houses" as the title
+  // only the countries). Unfiltered "Open Houses": the number only from EXPLORE_COUNTS.showTotalCountMin, else only "{M} countries" (and that
+  // only from showCountriesMin). Filtered views and the "See all" pages always show the number.
+  const countriesLabel = tc("countries", { count: countryCount });
+  const bothCounts = t("summary", { houses: resultLabel, countries: countriesLabel });
+  const selectionTitle = activeChips.length === 1 ? activeChips[0].label : resultLabel;
+  const headTitle = searchView ? selectionTitle : collection ? tCollections(`${collection.id}.title`) : t("title");
+  const headSummary =
+    searchView || scoped
+      ? searchView && selectionTitle === resultLabel
+        ? countriesLabel
+        : bothCounts
+      : results.length >= EXPLORE_COUNTS.showTotalCountMin
+        ? bothCounts
+        : countryCount >= EXPLORE_COUNTS.showCountriesMin
+          ? countriesLabel
+          : undefined;
   // Browsing Explore (CLAUDE.md "Rhythmus aus Raster und Reihen"): Spotlight → signed in "Your people are going" → a block of 2 rows → "Just
   // opened" → a block → "Short trips" → a block → the further rows in the same pattern. The grid laid out in advance (lib/highlight.ts):
   // blocks of full rows (a wide card – a real last spot, 3+ columns, at most one per 8 – counts as two cells), a House from the row right
@@ -410,7 +426,8 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
               onWhereWhen={update}
               autoOpen
               shortTrips={filters.lengths.includes("weekend")}
-              onShortTrips={() => update({ lengths: filters.lengths.includes("weekend") ? filters.lengths.filter((l) => l !== "weekend") : [...filters.lengths, "weekend"] })}
+              // A link to the Short Trips results – on this page set in place (never a switch: it goes with its chip or "Clear all").
+              onShortTrips={() => update({ lengths: [...filters.lengths.filter((l) => l !== "weekend"), "weekend"] })}
               vibes={showVibes ? filters.vibes : []}
               sub={filters.sub}
               onTheme={(vibe) => update({ vibes: vibe ? [vibe as Vibe] : [], sub: null })}
@@ -430,7 +447,7 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
         <ResultsBar
           summary={headSummary}
           headRef={headRef}
-          title={resultLabel}
+          title={headTitle}
           chips={<ActiveFilterChips compact chips={activeChips} label={tf("sectionActive")} removeLabel={(label) => tf("remove", { label })} clearLabel={tf("clearAll")} onRemove={(chip) => update(chip.patch)} onClear={clearFilters} />}
           sort={
             <SortCapsule variant="tertiary" label={t(`sortOptions.${filters.sort}`)}>
@@ -480,7 +497,7 @@ export function ExploreFeed({ scope, headless = false }: ExploreFeedProps = {}) 
                     description ("See all" pages: the collection's line). */}
                 <div ref={headRef} data-results-head>
                   <ResultsHead
-                    title={searchView ? resultLabel : collection ? tCollections(`${collection.id}.title`) : t("title")}
+                    title={headTitle}
                     summary={headSummary}
                     description={collection && !searchView ? tCollections(`${collection.id}.subline`) : undefined}
                     sort={

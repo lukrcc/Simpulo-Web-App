@@ -2,21 +2,22 @@
 
 import { FoundingBadge } from "@/components/ui/FoundingBadge";
 import { isFoundingHost } from "@/lib/founding";
-import { PastCrewsLine } from "@/components/stay/ArcAfterwards";
 import { getProfileVisibility, hostsPublicly, photoHiddenFor, profileHref, userByProfileId, visibleHostedHouses } from "@/lib/privacy";
 import { currentHouseOf, profileMetrics } from "@/lib/metrics/profile";
-import { placeShortOf } from "@/lib/shortName";
+import { placeShortOf, shortNameOf } from "@/lib/shortName";
 import { BackButton } from "@/components/ui/BackButton";
 import { publicName, showsAge } from "@/config/privacy";
-import { Bookmark, Eye, Lock, MoreHorizontal, Pencil, SearchX, Share2, UserPlus, UserX } from "lucide-react";
+import { Bookmark, ChevronRight, Eye, HelpCircle, Lock, LogOut, MoreHorizontal, Pencil, SearchX, Settings as SettingsIcon, Share2, SunMoon, UserPlus, Users, UserX, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { use, useState, useSyncExternalStore, type ReactNode } from "react";
 import { RequireLogin } from "@/components/auth/RequireLogin";
 import { useInForLine } from "@/components/InFor";
-import { HeroBand, HeroPhotos } from "@/components/HeroBand";
-import { StripFig, StripRow } from "@/components/StripFig";
+import { HeroPhotos } from "@/components/HeroBand";
+import { FrameStrip, PageFrame } from "@/components/PageFrame";
+import { StripFig } from "@/components/StripFig";
+import { crewThreadId } from "@/lib/links";
 import { InviteSheet } from "@/components/InviteSheet";
 import { Container } from "@/components/layout/Container";
 import { PreviewProvider, usePreviewGuard } from "@/components/PreviewMode";
@@ -25,6 +26,8 @@ import { ShareSheet } from "@/components/share/ShareSheet";
 import { SocialLinks } from "@/components/SocialLinks";
 import { PhotoLightbox } from "@/components/stay/PhotoLightbox";
 import { Button } from "@/components/ui/ActionButton";
+import { MoreMenu, type MoreMenuItem } from "@/components/ui/MoreMenu";
+import { openGetHelp } from "@/lib/support/feedback";
 import { Avatar } from "@/components/ui/Avatar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { iconButtonStyles } from "@/components/ui/IconButton";
@@ -43,11 +46,11 @@ import { activeInForOf, visibleInForOf } from "@/lib/inFor";
 import { canInvite } from "@/lib/invites";
 import { simpuloInviteLink } from "@/lib/links";
 import { profileViewFor, type ProfileView as ProfileVisibility } from "@/lib/profilePrivacy";
-import { findUser, getCurrentUser, isBlocked, settingsOf, useStore } from "@/lib/store";
+import { findUser, getCurrentUser, isBlocked, isCrewMember, settingsOf, useStore } from "@/lib/store";
 import type { Stay, User } from "@/lib/types";
 import { userAccentOf } from "@/lib/stageTint";
 import { cn, firstName, housePhotos } from "@/lib/utils";
-import { livedTogether, yourPeople } from "@/lib/yourPeople";
+import { friendsOf, livedTogether, livedWithPeople, yourPeople } from "@/lib/yourPeople";
 
 export function MyProfile() {
   const t = useTranslations("profile");
@@ -232,48 +235,25 @@ function ProfileBento({ user, isMe, previewing, view, viewerId, today, onOpenPho
   const hosted = preview ? 0 : visibleHostedHouses(view, user.id, today).length;
   return (
     <div data-profile-bento>
-      <HeroBand
+      {/* The one page frame (CLAUDE.md "Ein Seiten-Gerüst"): the photo at the House page's width, the person on the right, the actions top
+          right, the dark strip with the numbers and the buttons; it fits 1440 × 900 above the tab bar, lower windows scroll. */}
+      <PageFrame
         aria-labelledby="profile-name"
-        fullStrip
         mediaFit="profile"
         // A breath of the first photo's colour (lib/stageTint.ts) – not when the photos are hidden from this viewer.
         accent={photos.length > 0 ? userAccentOf(user) : undefined}
-        height={preview ? "split:h-[440px]" : "split:h-(--stage-image-h)"}
+        height={preview ? "split:h-[440px]" : undefined}
         media={
           <div data-preview-part="photos" className="absolute inset-0">
             {/* "Hide my photo until I'm accepted": a host with only their request sees no photos (lib/privacy.ts). Your own: a click edits them. */}
             <HeroPhotos photos={photos} captions={user.photoCaptions} onOpen={isMe && !preview ? () => router.push(editHref("photos")) : onOpenPhoto} />
           </div>
         }
-        // The stage's right column: "Hosting & going" (only when there's something this viewer may see, or it's yours).
-        // The stage's right column, a column with space between: "Hosting & going" on top (when there's something this viewer may see, or
-        // it's yours), "Places" at its foot.
-        rightColumn={
-          !preview && (isMe || houses.length > 0 || hasPlaces(store, view, user.id, today, isMe)) ? (
-            <div className="flex h-full min-h-0 flex-col justify-between gap-8">
-              {isMe || houses.length > 0 ? <HostingGoing user={user} isMe={isMe} houses={houses} today={today} /> : <span />}
-              {/* Phones: Places stands under the strip instead (below). */}
-              <div className="max-md:hidden">
-                <PlacesSection user={user} isMe={isMe} view={view} today={today} />
-              </div>
-            </div>
-          ) : undefined
-        }
-        footer={<ProfileStrip user={user} isMe={isMe} previewing={previewing} viewerId={viewerId} today={today} preview={preview} />}
+        actions={preview ? undefined : <ProfileActions user={user} isMe={isMe} previewing={previewing} viewerId={viewerId} today={today} />}
+        strip={<ProfileFrameStrip user={user} isMe={isMe} previewing={previewing} viewerId={viewerId} today={today} preview={preview} view={view} />}
       >
         <IdentityStage user={user} isMe={isMe} previewing={previewing} view={view} houses={houses} hosted={hosted} viewerId={viewerId} today={today} preview={preview} hideAge={hideAge} />
-      </HeroBand>
-      {/* Phone exception (CLAUDE.md "Mobile"): Your people and Places as their own sections under the strip and its buttons – on a phone the
-          stage is one long column; from 744px they stay on the stage. */}
-      {!preview && (
-        <div className="flex flex-col gap-8 px-(--page-margin) pb-10 pt-4 md:hidden">
-          <PeopleSection user={user} isMe={isMe} view={view} viewerId={viewerId} />
-          <PlacesSection user={user} isMe={isMe} view={view} today={today} />
-        </div>
-      )}
-      {/* Everything is on the stage: after the strip only the slim footer, one --stage-peek of light below it (header + image + strip +
-          peek = the window), so the footer comes only after scrolling. The strip is the last dark part: no further gap (--footer-gap 0). */}
-      {!preview && <div aria-hidden data-last-tone="dark" className="hidden h-(--stage-peek) split:block" />}
+      </PageFrame>
     </div>
   );
 }
@@ -297,15 +277,6 @@ function IdentityStage({ user, isMe, previewing, view, houses, hosted, viewerId,
   const store = useStore();
   const guard = usePreviewGuard();
   const showToast = useToast();
-  const [sharing, setSharing] = useState(false);
-  const saved = !isMe && viewerId ? (settingsOf(store.users.find((u) => u.id === viewerId)).savedPeopleIds ?? []).includes(user.id) : false;
-  const toggleSave = () =>
-    guard(() => {
-      store.toggleSavedPerson(user.id);
-      showToast(saved ? tv("unsavedToast", { name: firstName(user) }) : tv("savedToast", { name: firstName(user) }));
-    });
-  // Only a host's page goes out (lib/privacy.ts): a guest's profile has no Share.
-  const shareable = !isMe && hostsPublicly(store, user.id);
   // "Now in …": only from a House they're in right now – and only when this viewer may see that House.
   const current = currentHouseOf(store, user.id, today);
   const nowIn = current && (isMe || houses.some((s) => s.id === current.id) || view.upcoming.some((s) => s.id === current.id)) ? placeShortOf(current) : null;
@@ -317,7 +288,9 @@ function IdentityStage({ user, isMe, previewing, view, houses, hosted, viewerId,
     // A column with space between: on top the person (name, facts, short text, vibe, links), at its foot "Your people".
     <div className="flex h-full min-h-0 min-w-0 flex-col justify-between gap-8">
       <div className="flex min-w-0 flex-col">
-      <div className="flex items-start justify-between gap-4">
+      {/* Phones: Edit profile · ⋯ wrap onto a row of their own under the name (the name keeps the line). */}
+      {/* The actions sit top right in the frame (PageFrame actions): the first line keeps room for them from 768px. */}
+      <div className="flex items-start gap-4 md:pr-64">
         {/* The way back: phones and the installed app. */}
         <BackButton fallback="/" label={tBack("back")} className="mt-1" />
         <Editable section="basics" on={editable} label={tv("editPart", { part: tv("partBasics") })} className="min-w-0 flex-1">
@@ -331,33 +304,13 @@ function IdentityStage({ user, isMe, previewing, view, houses, hosted, viewerId,
               )}
             </h1>
             {isFoundingHost(user) && <FoundingBadge label className="mt-1 text-ink" />}
+            {/* No ratings anywhere (CLAUDE.md "Profil als Netzwerk-Seite"). */}
             {meta && <p className="mt-2 text-body-lg text-muted">{meta}</p>}
             {nowIn && <p className="mt-1 text-body-lg text-ink">{tv("nowInHouse", { place: nowIn })}</p>}
           </div>
         </Editable>
-        <div className={cn("flex shrink-0 items-center gap-1", (preview || isMe) && "hidden")}>
-          {shareable && (
-            <button type="button" onClick={() => setSharing(true)} aria-label={t("share")} className={iconButtonStyles("sm")}>
-              <Share2 className="size-4" aria-hidden />
-            </button>
-          )}
-          {viewerId && (
-            <button type="button" onClick={toggleSave} aria-pressed={saved} aria-label={saved ? tv("unsave") : tv("save")} className={iconButtonStyles("sm")}>
-              <Bookmark className={cn("size-4", saved && "fill-current")} aria-hidden />
-            </button>
-          )}
-          {previewing ? (
-            <button type="button" onClick={() => guard(() => undefined)} aria-label={tv("options")} className={iconButtonStyles("sm")}>
-              <MoreHorizontal className="size-5" aria-hidden />
-            </button>
-          ) : (
-            <SafetyMenu target={{ kind: "user", id: user.id }} user={user} extraItems={viewerId ? [{ label: saved ? tv("unsave") : tv("save"), onSelect: toggleSave }] : []} buttonClassName={iconButtonStyles("sm")} />
-          )}
-        </div>
       </div>
 
-      {/* A host: what past crews said (averages, tips, stories) – one line, the rest in a sheet. */}
-      {hosted > 0 && !preview && <PastCrewsLine hostId={user.id} />}
 
       <Editable section="about" on={editable} label={tv("editPart", { part: tv("partAbout") })} className="mt-4 max-w-[56ch]">
         <div data-preview-part="about">
@@ -370,18 +323,18 @@ function IdentityStage({ user, isMe, previewing, view, houses, hosted, viewerId,
       {((user.socials?.length ?? 0) > 0 || isMe || preview) && (
         <Editable section="links" on={editable} label={tv("editPart", { part: tv("partLinks") })} className="mt-4 self-start">
           <div data-preview-part="links">
-            {(user.socials?.length ?? 0) > 0 ? <SocialLinks user={user} variant="appsSmall" nested={editable} /> : <p className="text-body text-muted">{tv("linksAdd")}</p>}
+            {/* The links as capsules (the platform's mark + handle); your own: "+ Add link" after them. */}
+            <div className="flex flex-wrap items-center gap-2">
+              {(user.socials?.length ?? 0) > 0 && <SocialLinks user={user} variant="full" nested={editable} />}
+              {editable && <span className="inline-flex h-9 items-center rounded-full px-3 text-small font-semibold text-ink ring-1 ring-ink/12 ring-inset">{tv("addLink")}</span>}
+              {!editable && (user.socials?.length ?? 0) === 0 && preview && <p className="text-body text-muted">{tv("linksAdd")}</p>}
+            </div>
           </div>
         </Editable>
       )}
+
       </div>
-      {/* Phones: Your people stands under the strip instead (ProfileBento). */}
-      {!preview && (
-        <div className="max-md:hidden">
-          <PeopleSection user={user} isMe={isMe} view={view} viewerId={viewerId} />
-        </div>
-      )}
-      {shareable && <ShareSheet target={{ kind: "profile", user }} open={sharing} onClose={() => setSharing(false)} />}
+      {!preview && <PeopleSection user={user} isMe={isMe} view={view} viewerId={viewerId} />}
     </div>
   );
 }
@@ -415,121 +368,144 @@ function VibeLine({ user, isMe, viewerId, preview, editable }: { user: User; isM
 }
 
 /**
- * The dark strip under the stage (the House page's: --stage-bar-h, the strip's type scale): the numbers left – Houses · Lived with → (a link
- * only for the owner) · Countries · Hosted (hosts only) (lib/metrics/profile.ts) – counts without any rating; the buttons right. Your own: Edit profile (its "5 of 6"
- * ring inside) · Invite friends (the one orange button, --brand-action) · Share host page (hosts, outline). Someone else's: "Invite to a
- * House" only when you're each other's people (and you have a House with room); else no buttons – no free messages.
+ * Top right in the frame (CLAUDE.md "Profil als Netzwerk-Seite"). Your own: "Edit profile" as a text button (with "5 of 6" small beside it
+ * while it isn't complete), "⋯" (Preview as others see it · Share profile – a host page only) and the gear to /settings, each a 40px target.
+ * Someone else's: "Message" (the crew chat of your most recent shared House – no free direct chats, DIRECT_MESSAGE_POLICY), Share (hosts),
+ * Save, "⋯" (report, block).
  */
-function ProfileStrip({ user, isMe, previewing, viewerId, today, preview }: Pick<BentoProps, "user" | "isMe" | "previewing" | "viewerId" | "today" | "preview">) {
+function ProfileActions({ user, isMe, previewing, viewerId, today }: { user: User; isMe: boolean; previewing: boolean; viewerId: string | null; today: string }) {
   const t = useTranslations("profile");
   const tv = useTranslations("profile.view");
   const store = useStore();
   const guard = usePreviewGuard();
   const showToast = useToast();
-  const [inviting, setInviting] = useState(false);
   const [sharing, setSharing] = useState(false);
   const hosts = hostsPublicly(store, user.id);
-  const m = profileMetrics(store, user, today);
-  const figs = [
-    { key: "houses", value: String(m.houses), label: tv("barHouses", { count: m.houses }) },
-    // Your own: the people behind the numbers are on /people; visitors see the numbers only.
-    { key: "lived", value: String(m.livedWith), label: tv("barLivedWith"), href: isMe && !preview ? "/people" : undefined },
-    { key: "countries", value: String(m.countries), label: tv("barCountries", { count: m.countries }) },
-    // Hosts only: the Houses they host or hosted. ("would live again" and "Replies within" stay internal – lib/metrics/profile.ts.)
-    ...(hosts ? [{ key: "hosted", value: String(m.hosted), label: tv("barHosted") }] : []),
-  ];
-  const counted = PROFILE_SECTIONS.filter((s) => s.progress !== false);
-  const done = counted.filter((s) => sectionDone(s.key, user, today)).length;
-  // Visitors: only your people, and only into a House of yours with a free spot they aren't in or asking for yet.
-  const yours = !isMe && viewerId ? yourPeople(store, viewerId).some((p) => p.user.id === user.id) : false;
-  const mineOpen = yours && viewerId
-    ? store.stays
-        .filter((s) => canInvite(store, s, viewerId, today) && !store.joinRequests.some((r) => r.stayId === s.id && r.userId === user.id && ["invited", "pending", "accepted", "waitlisted", "waitlist_requested"].includes(r.status)))
-        .toSorted((a, b) => a.startDate.localeCompare(b.startDate))
-    : [];
-
-  async function inviteFriends() {
-    const url = simpuloInviteLink(user.id);
-    try {
-      if (navigator.share && matchMedia("(pointer: coarse)").matches) {
-        await navigator.share({ title: "Simpulo", text: tv("inviteFriendsText"), url });
-        return;
-      }
-      await navigator.clipboard.writeText(url);
-      showToast(tv("inviteFriendsCopied"));
-    } catch {
-      // closed the share sheet, or no clipboard – nothing to say
-    }
+  if (isMe) {
+    const counted = PROFILE_SECTIONS.filter((s) => s.progress !== false);
+    const done = counted.filter((s) => sectionDone(s.key, user, today)).length;
+    const items: MoreMenuItem[] = [{ label: tv("previewAsOthers"), href: "/profile?preview=1" }, ...(hosts ? [{ label: tv("shareProfile"), onSelect: () => setSharing(true) }] : [])];
+    return (
+      <>
+        <Link href="/settings/profile" className="inline-flex min-h-10 items-baseline gap-2 rounded-full px-3 py-2 text-body font-semibold text-ink transition-colors duration-150 hover:bg-ink/5">
+          {t("editProfile")}
+          {done < counted.length && <span className="text-small font-medium text-muted">{tv("progress", { done, total: counted.length })}</span>}
+        </Link>
+        <MoreMenu items={items} label={tv("options")} buttonClassName={iconButtonStyles("md")} />
+        <Link href="/settings" aria-label={tv("settingsLink")} className={iconButtonStyles("md")}>
+          <SettingsIcon className="size-5" aria-hidden strokeWidth={1.75} />
+        </Link>
+        {hosts && <ShareSheet target={{ kind: "profile", user }} open={sharing} onClose={() => setSharing(false)} />}
+      </>
+    );
   }
-
-  // The buttons: in the strip from 744px; on phones in one row under it, on the light page (they never sit in the strip there).
-  const buttons = (
-    <>
-            {isMe ? (
-              <>
-                <Button variant="creamOutline" size="md" href="/settings/profile">
-                  {done < counted.length ? <ProgressRing done={done} total={counted.length} /> : <Pencil aria-hidden />}
-                  {done < counted.length ? tv("editWithProgress", { done, total: counted.length }) : t("editProfile")}
-                </Button>
-                {/* How others see it – moved here from the account menu (CLAUDE.md "Avatar-Menü"). */}
-                <Button variant="creamOutline" size="md" href="/profile?preview=1">
-                  <Eye aria-hidden />
-                  {tv("previewAsOthers")}
-                </Button>
-                <Button variant="brand" size="md" onClick={inviteFriends}>
-                  <UserPlus aria-hidden />
-                  {tv("inviteFriends")}
-                </Button>
-                {hosts && (
-                  <Button variant="creamOutline" size="md" onClick={() => setSharing(true)}>
-                    <Share2 aria-hidden />
-                    {tv("shareHostPage")}
-                  </Button>
-                )}
-              </>
-            ) : (
-              mineOpen.length > 0 && (
-                <>
-                  <Button variant="brand" size="md" onClick={() => guard(() => setInviting(true))} data-preview-action>
-                    <UserPlus aria-hidden />
-                    {tv("inviteToHouse")}
-                  </Button>
-                </>
-              )
-            )}
-    </>
-  );
+  const saved = viewerId ? (settingsOf(store.users.find((u) => u.id === viewerId)).savedPeopleIds ?? []).includes(user.id) : false;
+  const toggleSave = () =>
+    guard(() => {
+      store.toggleSavedPerson(user.id);
+      showToast(saved ? tv("unsavedToast", { name: firstName(user) }) : tv("savedToast", { name: firstName(user) }));
+    });
+  // The crew chat of the most recent House you both were in.
+  const shared = viewerId
+    ? store.stays
+        .filter((stay) => (stay.hostId === viewerId || isCrewMember(store, stay, viewerId)) && (stay.hostId === user.id || isCrewMember(store, stay, user.id)))
+        .toSorted((a, b) => b.startDate.localeCompare(a.startDate))[0]
+    : undefined;
   return (
     <>
-    {/* Phones: lower than the 120px (16px above and below), the numbers one sideways-scrolling row (StripRow); the buttons under it. */}
-    <div data-surface="dark" className="ember ember-strip band-inset band-inset-full flex flex-wrap items-center justify-between gap-x-6 gap-y-4 py-4 md:h-(--stage-bar-h) md:flex-nowrap md:py-0">
-      <StripRow className="max-md:w-full md:flex-nowrap">
-        {figs.map((n) => (
-          <StripFig key={n.key} value={n.value} label={n.label} href={"href" in n ? n.href : undefined} />
-        ))}
-      </StripRow>
-      {!preview && <div className="flex flex-wrap items-center justify-end gap-2 *:whitespace-nowrap max-md:hidden">{buttons}</div>}
-    </div>
-    {!preview && (isMe || mineOpen.length > 0) && (
-      <StripRow className="gap-2 px-(--page-margin) py-4 md:hidden [&>*]:whitespace-nowrap">
-        {buttons}
-      </StripRow>
-    )}
-    {isMe && hosts && <ShareSheet target={{ kind: "profile", user }} open={sharing} onClose={() => setSharing(false)} />}
-    {!isMe && mineOpen.length > 0 && !previewing && <InviteSheet houses={mineOpen} open={inviting} onClose={() => setInviting(false)} preselect={[user.id]} />}
+      {shared && !previewing && (
+        <Button variant="secondary" size="sm" href={`/messages/${crewThreadId(shared.id)}`} className="mr-1">
+          {tv("message")}
+        </Button>
+      )}
+      {hosts && (
+        <button type="button" onClick={() => setSharing(true)} aria-label={t("share")} className={iconButtonStyles("md")}>
+          <Share2 className="size-4" aria-hidden />
+        </button>
+      )}
+      {viewerId && (
+        <button type="button" onClick={toggleSave} aria-pressed={saved} aria-label={saved ? tv("unsave") : tv("save")} className={iconButtonStyles("md")}>
+          <Bookmark className={cn("size-4", saved && "fill-current")} aria-hidden />
+        </button>
+      )}
+      {previewing ? (
+        <button type="button" onClick={() => guard(() => undefined)} aria-label={tv("options")} className={iconButtonStyles("md")}>
+          <MoreHorizontal className="size-5" aria-hidden />
+        </button>
+      ) : (
+        <SafetyMenu target={{ kind: "user", id: user.id }} user={user} extraItems={viewerId ? [{ label: saved ? tv("unsave") : tv("save"), onSelect: toggleSave }] : []} buttonClassName={iconButtonStyles("md")} />
+      )}
+      {hosts && <ShareSheet target={{ kind: "profile", user }} open={sharing} onClose={() => setSharing(false)} />}
     </>
   );
 }
 
-/** "5 of 6" as a small ring (16px) – inside the Edit profile button, in its words' colour, the done part orange. */
-function ProgressRing({ done, total }: { done: number; total: number }) {
-  const r = 6;
-  const c = 2 * Math.PI * r;
+/**
+ * The frame's dark strip (FrameStrip): "4 Houses · 9 Lived with · 3 Countries" on the left (lib/metrics/profile.ts – no ratings); on the
+ * right your own "1 housemate to confirm" (only when there is one) and "Invite friends" (→ /invite, the light button on the dark strip);
+ * someone else's: "Invite to a House" (only your people, into a House of yours with room).
+ */
+function ProfileFrameStrip({ user, isMe, previewing, viewerId, today, preview, view }: { user: User; isMe: boolean; previewing: boolean; viewerId: string | null; today: string; preview?: boolean; view: ProfileVisibility }) {
+  const tv = useTranslations("profile.view");
+  const store = useStore();
+  const guard = usePreviewGuard();
+  const [confirming, setConfirming] = useState(false);
+  const [inviting, setInviting] = useState(false);
+  const m = profileMetrics(store, user, today);
+  const toConfirm = isMe ? view.toConfirm.filter((e) => !isBlocked(store, e.user.id)) : [];
+  const yours = !isMe && viewerId ? yourPeople(store, viewerId).some((p) => p.user.id === user.id) : false;
+  const mineOpen =
+    yours && viewerId && !previewing
+      ? store.stays
+          .filter((s) => canInvite(store, s, viewerId, today) && !store.joinRequests.some((r) => r.stayId === s.id && r.userId === user.id && ["invited", "pending", "accepted", "waitlisted", "waitlist_requested"].includes(r.status)))
+          .toSorted((a, b) => a.startDate.localeCompare(b.startDate))
+      : [];
+  const buttons = preview ? undefined : isMe ? (
+    <>
+      {toConfirm.length > 0 && (
+        <Button variant="creamOutline" size="md" onClick={() => setConfirming(true)}>
+          {tv("confirmButton", { count: toConfirm.length })}
+        </Button>
+      )}
+      <Button variant="cream" size="md" href="/invite">
+        <UserPlus aria-hidden />
+        {tv("inviteFriends")}
+      </Button>
+    </>
+  ) : mineOpen.length > 0 ? (
+    <Button variant="creamOutline" size="md" onClick={() => guard(() => setInviting(true))} data-preview-action>
+      <UserPlus aria-hidden />
+      {tv("inviteToHouse")}
+    </Button>
+  ) : undefined;
   return (
-    <svg viewBox="0 0 16 16" className="size-4 -rotate-90" aria-hidden>
-      <circle cx="8" cy="8" r={r} fill="none" stroke="currentColor" strokeOpacity={0.3} strokeWidth={2} />
-      <circle cx="8" cy="8" r={r} fill="none" className="stroke-accent" strokeWidth={2} strokeLinecap="round" strokeDasharray={`${(done / total) * c} ${c}`} />
-    </svg>
+    <>
+      <FrameStrip
+        figures={
+          <>
+            <StripFig value={String(m.houses)} label={tv("barHouses", { count: m.houses })} />
+            <StripFig value={String(m.livedWith)} label={tv("barLivedWith")} href={isMe && !preview ? "/people?tab=lived" : undefined} />
+            <StripFig value={String(m.countries)} label={tv("barCountries", { count: m.countries })} />
+          </>
+        }
+        buttons={buttons}
+      />
+      <Sheet open={confirming} onClose={() => setConfirming(false)} title={tv("confirmTitle")}>
+        <p className="text-small text-muted">{tv("toConfirm")}</p>
+        <ul className="mt-4 space-y-3">
+          {toConfirm.map((entry) => (
+            <li key={entry.user.id} className="flex items-center gap-3">
+              <Avatar user={entry.user} size="md" linked />
+              <span className="min-w-0 flex-1 truncate text-body font-semibold text-ink">{firstName(entry.user)}</span>
+              <Button variant="tertiary" onClick={() => store.confirmLivedWith(entry.user.id)}>
+                {tv("confirm")}
+              </Button>
+            </li>
+          ))}
+        </ul>
+      </Sheet>
+      {mineOpen.length > 0 && <InviteSheet houses={mineOpen} open={inviting} onClose={() => setInviting(false)} preselect={[user.id]} />}
+    </>
   );
 }
 
@@ -547,159 +523,108 @@ function visibleHouses(view: ProfileVisibility, userId: string, today: string): 
   return [...new Set([...visibleHostedHouses(view, userId, today), ...view.upcoming.filter((s) => s.endDate >= today)])].toSorted((a, b) => a.startDate.localeCompare(b.startDate));
 }
 
-/**
- * "HOSTING & GOING", the top of the stage's right column (360px): at most three rows of 56px – photo 48px (rounded square), the title, the state muted
- * ("Day 3 of 14" · "Next · in 78 days" · "Hosting · Mar 20" · "Going · Jan 17"), by date; a row opens the House (/h/[id]); then "X more →"
- * (your own: to Your houses; someone else's: a sheet with all). Your own empty: "Open to Houses" + "Your houses →".
- */
-function HostingGoing({ user, isMe, houses, today }: { user: User; isMe: boolean; houses: Stay[]; today: string }) {
-  const tv = useTranslations("profile.view");
-  const f = useFormat();
-  const store = useStore();
-  const [all, setAll] = useState(false);
-  const firstUpcoming = houses.find((s) => s.startDate > today);
-  const stateOf = (stay: Stay) => {
-    if (stay.startDate <= today) return tv("dayOf", { day: daysFrom(stay.startDate, today) + 1, days: daysFrom(stay.startDate, stay.endDate) });
-    if (isMe && stay === firstUpcoming) return tv("nextShort", { in: tv("inDays", { count: daysFrom(today, stay.startDate) }) });
-    return stay.hostId === user.id ? tv("hostingOn", { date: f.day(stay.startDate) }) : tv("goingOn", { date: f.day(stay.startDate) });
-  };
-  const row = (stay: Stay) => {
-    const photo = housePhotos(stay, findUser(store, stay.hostId))[0];
-    return (
-      <Link href={`/h/${stay.id}`} className="-mx-2 flex h-14 items-center gap-3 rounded-xl px-2 transition-colors duration-150 hover:bg-ink/5">
-        <span className="relative size-12 shrink-0 overflow-hidden rounded-xl bg-ink/6">{photo && <Img src={photo} alt="" fill sizes="48px" className="object-cover" />}</span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-body font-semibold text-ink">{stay.title}</span>
-          <span className="block truncate text-small text-muted">{stateOf(stay)}</span>
-        </span>
-      </Link>
-    );
-  };
-  const more = houses.length - HOUSES_SHOWN;
-  const moreClass = "mt-2 inline-block text-small font-semibold text-ink underline-offset-4 hover:underline";
-  return (
-    <section aria-labelledby="col-houses" className="flex min-w-0 flex-col">
-      <h2 id="col-houses" className="mb-2 text-eyebrow uppercase text-ink/60">
-        {tv("hostingGoing")}
-      </h2>
-      {houses.length > 0 ? (
-        <ul>
-          {houses.slice(0, HOUSES_SHOWN).map((stay) => (
-            <li key={stay.id}>{row(stay)}</li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-body text-muted">{tv("openToHouses")}</p>
-      )}
-      {more > 0 &&
-        (isMe ? (
-          <Link href="/your-houses" className={moreClass}>
-            {tv("moreHousesLink", { count: more })}
-          </Link>
-        ) : (
-          <button type="button" onClick={() => setAll(true)} className={cn(moreClass, "self-start")}>
-            {tv("moreHousesLink", { count: more })}
-          </button>
-        ))}
-      {isMe && more <= 0 && (
-        <Link href="/your-houses" className={moreClass}>
-          {tv("manageInYourHouses")}
-        </Link>
-      )}
-      <Sheet open={all} onClose={() => setAll(false)} title={tv("hostingGoing")}>
-        <ul>
-          {houses.map((stay) => (
-            <li key={stay.id}>{row(stay)}</li>
-          ))}
-        </ul>
-      </Sheet>
-    </section>
-  );
-}
-
-/** Your own: at most this many faces (small, on the stage). */
+/** Faces per row of Your people. */
 const PEOPLE_FACES = 6;
-/** Visitors: at most this many faces of people you both know. */
-const KNOWN_FACES = 5;
 
-/**
- * Your people, at the foot of the stage's middle column. Your own: small faces (40px), six at most, "See all {n} →" to /people, "1 housemate
- * to confirm →". Anyone else's (lib/privacy.ts – the list stays theirs): only "You both know Mara and Jonas" with the faces of the people you
- * share (your people who lived with them too); nobody shared – no section.
- */
-function PeopleSection({ user, isMe, view, viewerId }: { user: User; isMe: boolean; view: ProfileVisibility; viewerId: string | null }) {
+/** One row of Your people: its title (and "See all →"), then up to six round faces with the first name under each. */
+function PeopleRow({ title, people, seeAll, empty }: { title: string; people: User[]; seeAll?: string; empty?: ReactNode }) {
   const tv = useTranslations("profile.view");
-  const store = useStore();
-  const [confirming, setConfirming] = useState(false);
-  const people = isMe ? yourPeople(store, user.id).map((p) => p.user) : [];
-  const theirs = new Set(view.livedWith.filter((e) => !isBlocked(store, e.user.id)).map((e) => e.user.id));
-  const known = !isMe && viewerId ? yourPeople(store, viewerId).map((p) => p.user).filter((u) => u.id !== user.id && theirs.has(u.id)) : [];
-  const toConfirm = isMe ? view.toConfirm.filter((e) => !isBlocked(store, e.user.id)) : [];
-  if (!isMe && known.length === 0) return null;
-  const knownTitle =
-    known.length === 0
-      ? ""
-      : known.length === 1
-      ? tv("bothKnowOne", { name: firstName(known[0]) })
-      : known.length === 2
-        ? tv("bothKnowTwo", { a: firstName(known[0]), b: firstName(known[1]) })
-        : tv("bothKnowMore", { name: firstName(known[0]), count: known.length - 1 });
   return (
-    <section aria-labelledby="col-people" className="min-w-0">
-      <h2 id="col-people" className="mb-2.5 text-eyebrow uppercase text-ink/60">
-        {isMe ? (
-          <Link href="/people" className="underline-offset-4 hover:underline">
-            {tv("yourPeople")}
+    <div className="min-w-0">
+      <div className="mb-2 flex max-w-[460px] items-baseline justify-between gap-4">
+        <p className="text-small font-semibold text-ink">{title}</p>
+        {seeAll && people.length > 0 && (
+          <Link href={seeAll} className="shrink-0 text-small font-semibold text-ink underline-offset-4 hover:underline">
+            {tv("seeAllShort")}
           </Link>
-        ) : (
-          knownTitle
         )}
-      </h2>
-      {isMe ? (
-        people.length > 0 ? (
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            <ul className="flex -space-x-2">
-              {people.slice(0, PEOPLE_FACES).map((person) => (
-                <li key={person.id}>
-                  <Link href={profileHref(person.id)} aria-label={firstName(person)} data-tooltip={firstName(person)} className="block rounded-full">
-                    <PersonPhoto src={person.photos[0]} alt="" size={40} className="size-10 ring-2 ring-(--band)" />
-                  </Link>
-                </li>
-              ))}
-            </ul>
-            <Link href="/people" className="text-small font-semibold text-ink underline-offset-4 hover:underline">
-              {tv("seeAllPeople", { count: people.length })}
-            </Link>
-          </div>
-        ) : (
-          <p className="text-body text-muted">{tv("peopleEmpty")}</p>
-        )
-      ) : (
-        <span className="flex -space-x-2">
-          {known.slice(0, KNOWN_FACES).map((person) => (
-            <PersonPhoto key={person.id} src={person.photos[0]} alt="" size={40} className="size-10 ring-2 ring-(--band)" />
-          ))}
-        </span>
-      )}
-      {toConfirm.length > 0 && (
-        <button type="button" onClick={() => setConfirming(true)} className="mt-2 block text-small font-semibold text-ink underline-offset-4 hover:underline">
-          {tv("confirmLink", { count: toConfirm.length })}
-        </button>
-      )}
-      <Sheet open={confirming} onClose={() => setConfirming(false)} title={tv("confirmTitle")}>
-        <p className="text-small text-muted">{tv("toConfirm")}</p>
-        <ul className="mt-4 space-y-3">
-          {toConfirm.map((entry) => (
-            <li key={entry.user.id} className="flex items-center gap-3">
-              <Avatar user={entry.user} size="md" linked />
-              <span className="min-w-0 flex-1 truncate text-body font-semibold text-ink">{firstName(entry.user)}</span>
-              <Button variant="tertiary" onClick={() => store.confirmLivedWith(entry.user.id)}>
-                {tv("confirm")}
-              </Button>
+      </div>
+      {people.length > 0 ? (
+        <ul className="grid max-w-[460px] grid-cols-6 gap-3">
+          {people.slice(0, PEOPLE_FACES).map((person) => (
+            <li key={person.id} className="min-w-0">
+              <Link href={profileHref(person.id)} className="group flex flex-col items-center gap-1.5">
+                <PersonPhoto src={person.photos[0]} alt="" size={44} className="size-11" />
+                <span className="w-full truncate text-center text-small text-muted group-hover:text-ink">{firstName(person)}</span>
+              </Link>
             </li>
           ))}
         </ul>
-      </Sheet>
+      ) : (
+        empty
+      )}
+    </div>
+  );
+}
+
+/**
+ * Your people (CLAUDE.md "Profil als Netzwerk-Seite"), at the foot of the person. Your own: two rows – "Lived with" (automatic, from shared
+ * Houses, lib/yourPeople.ts livedWithPeople) and "Friends" (connected by hand through an invite, friendsOf), each with faces and "See all →";
+ * no friends yet: "Invite friends to connect →". Someone else's: their lists only when they show them (Settings › Privacy "Show my people on
+ * my profile", off by default); otherwise the people you both lived with ("You both lived with Hannah") and the total.
+ */
+function PeopleSection({ user, isMe, viewerId }: { user: User; isMe: boolean; view: ProfileVisibility; viewerId: string | null }) {
+  const tv = useTranslations("profile.view");
+  const store = useStore();
+  const livedWith = livedWithPeople(store, user.id);
+  const friends = friendsOf(store, user.id);
+  const heading = (
+    <h2 id="col-people" className="mb-3 text-eyebrow uppercase text-ink/60">
+      {tv("yourPeople")}
+    </h2>
+  );
+  if (isMe)
+    return (
+      <section aria-labelledby="col-people" className="flex min-w-0 flex-col gap-4">
+        {heading}
+        <PeopleRow title={tv("livedWithRow")} people={livedWith} seeAll="/people?tab=lived" empty={<p className="text-small text-muted">{tv("peopleEmpty")}</p>} />
+        <PeopleRow
+          title={tv("friendsRow")}
+          people={friends}
+          seeAll="/people"
+          empty={
+            <Link href="/invite" className="text-small font-semibold text-ink underline-offset-4 hover:underline">
+              {tv("friendsEmpty")}
+            </Link>
+          }
+        />
+      </section>
+    );
+  if (user.privacy?.showPeople)
+    return (
+      <section aria-labelledby="col-people" className="flex min-w-0 flex-col gap-4">
+        {heading}
+        {livedWith.length > 0 && <PeopleRow title={tv("livedWithRow")} people={livedWith} />}
+        {friends.length > 0 && <PeopleRow title={tv("friendsRow")} people={friends} />}
+      </section>
+    );
+  // Private (the default): only who you both lived with, and how many there are.
+  const theirs = new Set(livedWith.map((u) => u.id));
+  const known = viewerId ? livedWithPeople(store, viewerId).filter((u) => u.id !== user.id && theirs.has(u.id)) : [];
+  const total = new Set([...livedWith, ...friends].map((u) => u.id)).size;
+  if (known.length === 0 && total === 0) return null;
+  const knownLine =
+    known.length === 0
+      ? null
+      : known.length === 1
+        ? tv("bothLivedOne", { name: firstName(known[0]) })
+        : known.length === 2
+          ? tv("bothLivedTwo", { a: firstName(known[0]), b: firstName(known[1]) })
+          : tv("bothLivedMore", { name: firstName(known[0]), count: known.length - 1 });
+  return (
+    <section aria-labelledby="col-people" className="min-w-0">
+      {heading}
+      {knownLine && (
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="flex -space-x-2">
+            {known.slice(0, 5).map((person) => (
+              <PersonPhoto key={person.id} src={person.photos[0]} alt="" size={36} className="size-9 ring-2 ring-(--band)" />
+            ))}
+          </span>
+          <p className="text-body text-ink">{knownLine}</p>
+        </div>
+      )}
+      {total > 0 && <p className={cn("text-small text-muted", knownLine && "mt-2")}>{tv("peopleTotal", { count: total })}</p>}
     </section>
   );
 }

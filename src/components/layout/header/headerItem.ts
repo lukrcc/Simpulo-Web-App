@@ -1,5 +1,5 @@
-// The header's one text entry (CLAUDE.md "Kopfleiste neu geordnet"): Where, When, Short trips, Themes, Filters – no capsule, the same 36px height
-// and size as the tabs; a light surface only on hover or while its menu is open; chosen (a value set, Short trips on) semibold.
+// The header's one text entry (CLAUDE.md "Kopfleiste wie apple.com"): Short trips, Search, Themes, Filters – words only, no capsule and no
+// surface in any state. At rest the secondary colour (--hdr-item), on hover, while its panel is open and when chosen the primary one
+// (--hdr-item-on), the colour changing in 150ms; 14px regular – an active Short trips filter medium (500).
 export const hdrItem =
-  "hdr-item press inline-flex h-(--header-pill-h) min-w-0 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 text-nav-main text-ink transition-colors duration-150 hover:bg-(--hdr-tab-hover) aria-expanded:bg-(--hdr-tab-hover) data-on:font-semibold [&_svg]:size-4 [&_svg]:shrink-0";
-
+  "hdr-item inline-flex h-(--header-pill-h) min-w-0 shrink-0 items-center whitespace-nowrap px-2.5 text-nav font-normal text-(--hdr-item) transition-colors duration-150 hover:text-(--hdr-item-on) aria-expanded:text-(--hdr-item-on) data-on:font-medium data-on:text-(--hdr-item-on) focus-visible:rounded-md focus-visible:outline-2 focus-visible:outline-(--focus-ring)";

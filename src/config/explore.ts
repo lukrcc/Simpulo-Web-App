@@ -64,6 +64,11 @@ export const SPOTLIGHT_INTRO_KEY = "simpulo:spotlight-intro";
 
 /** The Spotlight only with at least this many Houses to choose from. */
 export const SPOTLIGHT_MIN = 5;
+/**
+ * The results head's counts (CLAUDE.md "Gesamtzahl mit Mindestwert"): the unfiltered "Open Houses" shows its number of Houses only from
+ * `showTotalCountMin`, else only "{M} countries" – and that only from `showCountriesMin`. Filtered views always show the number.
+ */
+export const EXPLORE_COUNTS = { showTotalCountMin: 50, showCountriesMin: 5 } as const;
 
 
 /** A new House belongs to the people whose search it answers this long: only they see it, and each has a token to join. */

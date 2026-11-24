@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
 import { useStore } from "@/lib/store";
+import { firstTouch } from "@/lib/growth";
 import type { AuthReason } from "@/config/auth-copy";
 import { TermsGate } from "@/components/consent/Agreements";
 import { AuthSheet } from "./AuthSheet";
@@ -27,7 +28,8 @@ interface PendingAction {
 const AuthContext = createContext<RequireAuth | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const { currentUserId } = useStore();
+  const store = useStore();
+  const { currentUserId } = store;
   const [pending, setPending] = useState<PendingAction | null>(null);
   const router = useRouter();
 
@@ -52,6 +54,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const action = pending?.action;
           setPending(null);
           action?.(userId);
+          // A new account that came through a friend's invite link (?ref={them}&src=friend): you're friends now, both ways (CLAUDE.md "Profil als
+          // Netzwerk-Seite").
+          const touch = info?.registered ? firstTouch() : null;
+          if (touch?.refUserId && touch.utmSource === "friend") store.addFriend(touch.refUserId);
           // A new account signing in for nothing else (no request, no House waiting): the onboarding (CLAUDE.md "Onboarding").
           if (info?.registered && !action) router.push("/settings/profile?setup=1");
         }}

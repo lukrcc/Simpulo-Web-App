@@ -16,7 +16,6 @@ import { Textarea } from "@/components/ui/Input";
 import { Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
 import { againHref } from "@/components/create/model";
-import { AFTER_MIN_ANSWERS, AFTER_RATINGS, PUBLIC_RATINGS_MIN } from "@/config/arc";
 import { track } from "@/lib/analytics";
 import { mutualChoices, nextHousesLike, useArcClock, useArcNow } from "@/lib/arc";
 import { useFormat } from "@/i18n/format";
@@ -177,25 +176,6 @@ export function ThirtyDaysForm({ stay }: { stay: Stay }) {
 
 // ── What past crews left (public) ─────────────────────────────────────────────────────────────────────────────────────────────
 
-function Averages({ averages, count }: { averages: Record<(typeof AFTER_RATINGS)[number], number | null>; count: number }) {
-  const t = useTranslations("house.afterwards");
-  const tr = useTranslations("house.goodbye.ratings");
-  return (
-    <div className="flex flex-col gap-3">
-      <dl className="grid grid-cols-2 gap-x-8 gap-y-3 sm:grid-cols-4">
-        {AFTER_RATINGS.map((r) =>
-          averages[r] !== null ? (
-            <div key={r}>
-              <dt className="text-small text-muted">{tr(r)}</dt>
-              <dd className="text-h3 tabular-nums text-ink">{averages[r]!.toFixed(1)}</dd>
-            </div>
-          ) : null,
-        )}
-      </dl>
-      <p className="text-small text-muted">{t("ratingsCount", { count })}</p>
-    </div>
-  );
-}
 
 function PastCrewsBody({ hostId }: { hostId: string }) {
   const t = useTranslations("house.afterwards");
@@ -206,7 +186,7 @@ function PastCrewsBody({ hostId }: { hostId: string }) {
   const month = (s: Stay) => format.dateTime(new Date(`${s.startDate.slice(0, 7)}-01T00:00:00Z`), { month: "long", year: "numeric", timeZone: "UTC" });
   return (
     <div className="flex flex-col gap-10">
-      {past.averages ? <Averages averages={past.averages} count={past.count} /> : <p className="text-body text-muted">{t("ratingsWait", { min: PUBLIC_RATINGS_MIN })}</p>}
+      {/* No ratings shown anywhere (CLAUDE.md "Profil als Netzwerk-Seite") – only the crews' tips and stories. */}
       {past.tips.length > 0 && (
         <div className="flex flex-col gap-4">
           <h3 className="text-h3 text-ink">{t("tipsTitle")}</h3>
@@ -244,7 +224,9 @@ export function PastCrews({ stay }: { stay: Stay }) {
   const t = useTranslations("house.afterwards");
   const store = useStore();
   const clock = useArcClock();
-  if (stay.isExample || !pastCrewsOf(store, stay.hostId, clock).any) return null;
+  const past = pastCrewsOf(store, stay.hostId, clock);
+  // Only tips and stories (no ratings any more): nothing to show without them.
+  if (stay.isExample || (past.tips.length === 0 && past.stories.length === 0)) return null;
   return (
     <section id="house-past-crews" aria-labelledby="past-crews-title" className="flex max-w-[960px] flex-col gap-6">
       <div>
@@ -259,7 +241,7 @@ export function PastCrews({ stay }: { stay: Stay }) {
 }
 
 /** The host's profile: one line "Past crews · 4.3 overall · 12 ratings →" – the rest in a sheet. Nothing when there's nothing yet. */
-export function PastCrewsLine({ hostId }: { hostId: string }) {
+export function PastCrewsLine({ hostId, inline = false }: { hostId: string; /** In the profile's facts line: "★ 3.7 (3 ratings →)" */ inline?: boolean }) {
   const t = useTranslations("house.afterwards");
   const store = useStore();
   const clock = useArcClock();
@@ -269,9 +251,15 @@ export function PastCrewsLine({ hostId }: { hostId: string }) {
   const host = first(findUser(store, hostId)?.name);
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className="mt-2 self-start text-body text-ink underline-offset-4 hover:underline">
-        {past.averages?.overall != null ? t("lineRated", { overall: past.averages.overall.toFixed(1), count: past.count }) : t("line")} →
-      </button>
+      {inline ? (
+        <button type="button" onClick={() => setOpen(true)} className="text-ink underline-offset-4 hover:underline">
+          {past.averages?.overall != null ? t("lineInline", { overall: past.averages.overall.toFixed(1), count: past.count }) : `${t("line")} →`}
+        </button>
+      ) : (
+        <button type="button" onClick={() => setOpen(true)} className="mt-2 self-start text-body text-ink underline-offset-4 hover:underline">
+          {past.averages?.overall != null ? t("lineRated", { overall: past.averages.overall.toFixed(1), count: past.count }) : t("line")} →
+        </button>
+      )}
       <Sheet open={open} onClose={() => setOpen(false)} title={t("pastTitle")} subtitle={t("pastSub", { host })}>
         <PastCrewsBody hostId={hostId} />
       </Sheet>
@@ -294,7 +282,7 @@ export function HostRatingsSection() {
       <h2 id="host-ratings-title" className="text-subhead text-ink">
         {t("hostTitle")}
       </h2>
-      {r.count >= AFTER_MIN_ANSWERS ? <Averages averages={r.averages} count={r.count} /> : <p className="text-body text-muted">{tg("hostWait", { min: AFTER_MIN_ANSWERS })}</p>}
+      {/* No ratings (CLAUDE.md "Profil als Netzwerk-Seite"): the crews' sentences only. */}
       <div>
         <p className="text-body font-semibold text-ink">{tg("hostNotes")}</p>
         {r.notes.length === 0 ? (

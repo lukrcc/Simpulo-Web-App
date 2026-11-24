@@ -1,5 +1,7 @@
 "use client";
 
+import { PageFrame } from "@/components/PageFrame";
+
 // /h/[id] for members (a guest with a request, a yes or a paid share) and the host – the House area (CLAUDE.md "House-Bereich"): the stage on
 // top in the HeroBand pattern (photo, title, dates · place, the crew's faces, where the House stands: "Starts in 12 days" / "Day 4 of 14" /
 // "Ended"), under it the tabs as capsules – Chat · Crew · Plan · Moments · Me, the host also Manage – their state in the URL (?tab=plan).
@@ -149,7 +151,7 @@ export function HouseArea({ stay, role, ended }: { stay: Stay; role: "member" | 
       {share.sheet}
       {!isHost && canBring && <InviteSheet stay={stay} open={inviting} onClose={() => setInviting(false)} />}
       {/* The stage: the HeroBand pattern (CLAUDE.md "Vollbild-Band") – the photos left, the House on the light band right. */}
-      <HeroBand media={<HeroPhotos photos={housePhotos(stay, host)} />} mediaFit="house" height="split:h-[clamp(320px,40vh,420px)]" aria-labelledby="house-area-title">
+      <PageFrame fullStrip={false} media={<HeroPhotos photos={housePhotos(stay, host)} />} mediaFit="house" height="split:h-[clamp(320px,40vh,420px)]" aria-labelledby="house-area-title">
         <div className="flex h-full min-w-0 flex-col gap-5">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
@@ -186,7 +188,7 @@ export function HouseArea({ stay, role, ended }: { stay: Stay; role: "member" | 
             </div>
           </div>
         </div>
-      </HeroBand>
+      </PageFrame>
 
       <div className="page-container explore-width">
         {/* The tabs as capsules (product style); on phones the row scrolls sideways and sticks under the header. */}

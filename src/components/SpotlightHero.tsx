@@ -341,7 +341,7 @@ function Slide({ ref, cardRef, dimRef, stay, host, guests, index, isActive, coun
         data-house-card={stay.id}
         className="notch-frame relative isolate h-full w-full max-md:origin-center"
       >
-        <div ref={clipRef} className="relative h-full w-full overflow-hidden rounded-3xl bg-stage max-md:rounded-tl-none">
+        <div ref={clipRef} data-notch-clip className="relative h-full w-full overflow-hidden rounded-3xl bg-stage max-md:rounded-tl-none">
           {/* Slow zoom while active; leaving the slide drops the animation, which snaps it back to 1.0. */}
           <div className={cn("absolute inset-0 will-change-transform", isActive && "motion-safe:animate-kenburns")}>
             <Img

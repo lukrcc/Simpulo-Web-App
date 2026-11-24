@@ -1,21 +1,19 @@
 "use client";
 
-import { LogIn, Plus, UserPlus } from "lucide-react";
+import { LogIn, Moon, Plus, Sun, UserPlus } from "lucide-react";
+import { useThemeToggle } from "@/components/settings/ThemeSwitch";
 import { useOpenHouseEntry } from "@/components/platform/useOpenHouseEntry";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { usePathname } from "next/navigation";
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { useIsPhone } from "@/lib/useMediaQuery";
 import { useHydrated } from "@/lib/useHydrated";
 import { useRequireAuth } from "@/components/auth/AuthProvider";
 import { useMessagesUnread } from "@/components/notifications/useNotifications";
 import { Avatar } from "@/components/ui/Avatar";
-import { MobileSheet } from "@/components/ui/MobileSheet";
 import { getCurrentUser, useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
-import { AccountMenuList } from "./header/AvatarMenu";
 import { filledIconOf } from "./header/FilledNavIcons";
 import { hidesTabBar, isNavActive, NAV_ITEMS, type NavItem } from "./nav";
 
@@ -32,8 +30,8 @@ const OFF = "font-medium text-muted hover:text-ink";
 
 /**
  * "Your Simpulo" – the personal navigation, ONE component for every width (CLAUDE.md "Persönliche Navigation als schwebende Leiste unten"):
- * Explore · Your houses · Messages (a muted orange dot for unread chats) · the avatar (the account menu, upwards: Profile · Your people ·
- * Saved · Settings · Log out). Logged out: Explore · Log in · Sign up. The header keeps only the discovery and "＋ Open a House".
+ * Explore · Your houses · Messages (unread chats as a badge) · the avatar "Profile" – straight to your own profile page, the centre for your
+ * account (CLAUDE.md "Profil ohne Pop-up"; no menu). Logged out: Explore · Log in · Sign up. The header keeps only the discovery and "Open a House".
  *  · Phones (< 744px): the fixed tab bar at the bottom over the full width, 56px + the safe area, icon over word; it stays put. Here (and on
  *    tablets, whose header has no "Open a House") the "+" sits in the middle.
  *  · From 744px: a floating capsule, centred, 20px above the window's edge (and its safe area), 44px high (compact about 40), 6px inside,
@@ -74,9 +72,6 @@ export function BottomTabBar() {
   const unread = useMessagesUnread().chats;
   // The "+": Open a House – before the launch without an accepted application "Apply to host".
   const openEntry = useOpenHouseEntry();
-  const [account, setAccount] = useState(false);
-  const phone = useIsPhone();
-  const profileRef = useRef<HTMLButtonElement>(null);
   const navRef = useRef<HTMLElement>(null);
   const hidden = hidesTabBar(pathname);
   const hydrated = useHydrated();
@@ -144,21 +139,18 @@ export function BottomTabBar() {
                 t("items.messages"),
                 unread > 0 ? <UnreadBadge count={unread} /> : undefined,
               )}
+              {/* Profile: straight to your own profile page – the centre for your account (CLAUDE.md "Profil ohne Pop-up"), no menu. */}
               <li className="flex-1 md:flex-none">
-                <button
-                  ref={profileRef}
-                  type="button"
-                  onClick={() => setAccount((open) => !open)}
-                  aria-haspopup="menu"
-                  aria-expanded={account}
-                  aria-label={tMenu("label")}
-                  className={cn(CELL, account || isNavActive("/profile", pathname) || pathname === "/me" ? ON : OFF)}
+                <Link
+                  href="/profile"
+                  aria-current={isNavActive("/profile", pathname) || pathname === "/me" ? "page" : undefined}
+                  className={cn(CELL, isNavActive("/profile", pathname) || pathname === "/me" ? ON : OFF)}
                 >
-                  <span className={cn("flex size-6 overflow-hidden rounded-full transition-shadow md:size-[22px]", (account || isNavActive("/profile", pathname)) && "ring-2 ring-ink/40")}>
+                  <span className={cn("flex size-6 overflow-hidden rounded-full transition-shadow md:size-[22px]", isNavActive("/profile", pathname) && "ring-2 ring-ink/40")}>
                     <Avatar user={me} size="xs" className="max-w-none" />
                   </span>
                   <span className="bar-label">{t("items.profile")}</span>
-                </button>
+                </Link>
               </li>
             </>
           ) : (
@@ -177,61 +169,31 @@ export function BottomTabBar() {
               </li>
             </>
           )}
+          {/* Light ↔ dark at the end (CLAUDE.md "Hell/Dunkel in die Tab-Leiste"), after a fine upright line; the icon shows where it goes –
+              the moon in the light mode, the sun in the dark one. From 744px; phones have it in Settings (no room). */}
+          <li aria-hidden className="mx-1 h-5 w-px self-center bg-line max-md:hidden" />
+          <li className="max-md:hidden">
+            <ThemeToggleButton />
+          </li>
         </ul>
       </nav>
   );
   return (
     <>
       {hydrated ? createPortal(bar, document.body) : bar}
-      {me && !phone && account && <AccountPopover anchor={profileRef} label={t("menu.label")} onClose={() => setAccount(false)} />}
-      {me && phone && (
-        <MobileSheet open={account} onClose={() => setAccount(false)} label={t("menu.label")} className="px-3">
-          <div role="menu" aria-label={t("menu.label")} className="pb-3 pt-1">
-            <AccountMenuList onDone={() => setAccount(false)} rowClassName="h-12" />
-          </div>
-        </MobileSheet>
-      )}
     </>
   );
 }
 
-/**
- * Tablets: the account menu as a popover above the Profile tab – the header's dark glass (.bar-menu, like the desktop's avatar menu), 256px,
- * right edges flush with the tab, 8px above the bar. A tap beside it, Escape or a pick closes it.
- */
-function AccountPopover({ anchor, label, onClose }: { anchor: React.RefObject<HTMLButtonElement | null>; label: string; onClose: () => void }) {
-  const panel = useRef<HTMLDivElement>(null);
-  const [style, setStyle] = useState<CSSProperties | null>(null);
-  useLayoutEffect(() => {
-    // Placed above the bar, again on resize (the window turning).
-    const place = () => {
-      const bar = anchor.current?.closest("[data-tab-bar]")?.getBoundingClientRect();
-      const r = anchor.current?.getBoundingClientRect();
-      if (!bar || !r) return;
-      setStyle({ position: "fixed", bottom: window.innerHeight - bar.top + 8, right: Math.max(8, document.documentElement.clientWidth - Math.min(bar.right, r.right + 40)) });
-    };
-    place();
-    window.addEventListener("resize", place);
-    return () => window.removeEventListener("resize", place);
-  }, [anchor]);
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    const onDown = (e: PointerEvent) => {
-      const target = e.target as Node;
-      if (!panel.current?.contains(target) && !anchor.current?.contains(target)) onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    document.addEventListener("pointerdown", onDown);
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      document.removeEventListener("pointerdown", onDown);
-    };
-  }, [anchor, onClose]);
-  if (!style) return null;
-  return createPortal(
-    <div ref={panel} style={style} data-site-header className="bar-menu z-72 w-72" role="menu" aria-label={label}>
-      <AccountMenuList onDone={onClose} />
-    </div>,
-    document.body,
+/** The tab bar's light/dark button: the same size and colour as the other icons (18px, the inactive grey, the primary on hover); its words
+ *  (aria-label and the tooltip) say where it goes – "Dark mode" / "Light mode". */
+function ThemeToggleButton() {
+  const t = useTranslations("settings.ui.appearance");
+  const { mode, toggle } = useThemeToggle();
+  const Icon = mode === "dark" ? Sun : Moon;
+  return (
+    <button type="button" onClick={toggle} aria-label={mode === "dark" ? t("toLight") : t("toDark")} className={cn(CELL, OFF, "md:px-2.5")}>
+      <Icon aria-hidden className="size-[22px] md:size-[18px]" strokeWidth={1.75} />
+    </button>
   );
 }

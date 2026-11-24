@@ -4,10 +4,10 @@
 //   large – the header's colour (--footer-surface = --header-surface), brand · Places · Themes · Explore · Host · Simpulo · Help · the legal line: Explore, the start
 //           page, place pages (/co-living/…), theme collections (/collections/…), /host, /about, the help center (/help). Phones: the
 //           columns as groups that open with a tap, links 44px high.
-//   slim  – one line on the page's own surface with a fine line on top (--footer-slim-line): Get help · Impressum · Privacy · Terms · Cookies. Every other page: the House page, Your houses,
-//           the profile, Settings, Safety, Cancellation, the legal pages …
-//   none  – Messages and Admin (one screen each, Impressum and Privacy via the avatar menu › Settings › Legal), and the flows: Open a
-//           House's focus mode (its legal line sits under Back/Next), the welcome step, onboarding (/settings/profile?setup=1), login.
+//   slim  – one line on the page's own surface with a fine line on top (--footer-slim-line): Get help · Impressum · Privacy · Terms · Cookies. The other
+//           public pages: the House page (/house/…), Safety, Cancellation, the legal pages, guides …
+//   none  – everything that is yours (profile, Your houses, a House's members' area, Messages, Settings, Your people, Saved, /invite),
+//           Admin and the flows (Open a House, the welcome step, onboarding, the password page).
 import { LAUNCH_HUBS } from "./launch";
 
 export type FooterVariant = "large" | "slim" | "none";
@@ -16,8 +16,10 @@ const LARGE_EXACT = ["/", "/explore", "/host", "/about", "/help", "/places", "/t
 const LARGE_PREFIXES = ["/co-living/", "/collections/", "/themes/"];
 /** Flows have no footer: Open a House, the welcome / onboarding step, the password page (/preview, preview gate and demo). Requests and payments are windows
  *  over their page (no page of their own). */
-const NONE_EXACT = ["/create", "/welcome", "/preview"];
-const NONE_PREFIXES = ["/messages", "/admin"];
+const NONE_EXACT = ["/create", "/welcome", "/preview", "/invite", "/me"];
+/** The footer only on public pages (CLAUDE.md "Footer nur auf öffentlichen Seiten"): your own areas have none – the profile (yours and
+ *  others'), Your houses, a House's members' area (/h/…), Messages, Settings, Your people, Saved, decisions about you, Open a House. */
+const NONE_PREFIXES = ["/messages", "/admin", "/profile", "/u", "/your-houses", "/h", "/settings", "/people", "/saved", "/notices", "/create", "/welcome"];
 
 export function footerOf(pathname: string, search?: URLSearchParams | null): FooterVariant {
   // Onboarding: Edit profile as the first steps (?setup=1) – a flow, no footer.

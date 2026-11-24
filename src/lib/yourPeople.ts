@@ -81,3 +81,18 @@ export function liveAgainCount(userId: string, housemateIds: readonly string[]):
   const seed = (s: string) => [...s].reduce((sum, c) => sum + c.charCodeAt(0), 0);
   return housemateIds.filter((id) => seed(userId + id) % 4 !== 0).length;
 }
+
+/** `userId`'s friends (CLAUDE.md "Profil als Netzwerk-Seite"): connected by hand through an invite, both ways – not blocked either way. */
+export function friendsOf(data: PeopleData, userId: string): User[] {
+  const me = data.users.find((u) => u.id === userId);
+  return (me?.friendIds ?? []).flatMap((id) => {
+    const friend = data.users.find((u) => u.id === id);
+    return friend && !blockedEitherWay(data, userId, id) ? [friend] : [];
+  });
+}
+
+/** Everyone `userId` lived with in a House (from shared Houses, automatic – confirmed or not), the most recent first, each once. */
+export function livedWithPeople(data: PeopleData, userId: string): User[] {
+  const seen = new Set<string>();
+  return livedWithFor(data, userId).flatMap((entry) => (seen.has(entry.user.id) || blockedEitherWay(data, userId, entry.user.id) ? [] : (seen.add(entry.user.id), [entry.user])));
+}

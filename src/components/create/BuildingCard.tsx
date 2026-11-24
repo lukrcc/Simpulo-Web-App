@@ -35,7 +35,7 @@ export function BuildingCard({ stay, host, theme, showPrice, showCrew, showTitle
   const cover = stay.photos?.[0];
   return (
     <article ref={revealRef} data-notch="pending" className="notch-frame relative isolate aspect-4/5">
-      <div ref={clipRef} className={cn("relative h-full w-full overflow-hidden rounded-3xl bg-(--card-blank)", host && "rounded-tl-none")}>
+      <div ref={clipRef} data-notch-clip className={cn("relative h-full w-full overflow-hidden rounded-3xl bg-(--card-blank)", host && "rounded-tl-none")}>
         <div aria-hidden className="absolute -inset-8 bg-linear-to-br from-(--card-blank-from) to-(--card-blank-to) blur-xl" />
         {cover && (
           <div key={cover} className="reveal-photo absolute inset-0">

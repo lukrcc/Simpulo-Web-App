@@ -1,5 +1,7 @@
 "use client";
 
+import { PageFrame } from "@/components/PageFrame";
+
 import { FoundingBadge } from "@/components/ui/FoundingBadge";
 import { isFoundingHost } from "@/lib/founding";
 import { profileHref } from "@/lib/privacy";
@@ -128,7 +130,7 @@ export function HouseHero({ stay, host, crew, cta, secondary, actions, stage, sh
     </div>
   );
   return (
-    <HeroBand
+    <PageFrame
       aria-labelledby="house-title"
       // The stage rule (globals.css --stage-image-h), like Your houses: the photo and the right side in one row of that height, whatever the
       // content (the same photo width and band tone #EAE4DD); the dark action strip (--stage-bar-h) across the full width under both.
@@ -148,7 +150,7 @@ export function HouseHero({ stay, host, crew, cta, secondary, actions, stage, sh
           </span>
         </>
       }
-      footer={strip}
+      strip={strip}
     >
       <div className="flex min-h-9 items-center justify-between gap-4">
         {/* The way back: phones and the installed app. */}
@@ -221,7 +223,7 @@ export function HouseHero({ stay, host, crew, cta, secondary, actions, stage, sh
         <PlaceTile stay={stay} host={host} />
       </div>
       {showHelp && <ContextHelp houseId={stay.id} action={tHelp("houseHelp")} className="mt-4" />}
-    </HeroBand>
+    </PageFrame>
   );
 }
 

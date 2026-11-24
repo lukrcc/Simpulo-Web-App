@@ -1,5 +1,7 @@
 "use client";
 
+import { PageFrame } from "@/components/PageFrame";
+
 import { profileHref } from "@/lib/privacy";
 import { useOpenHouseEntry } from "@/components/platform/useOpenHouseEntry";
 import { useReloadOnReturn } from "@/lib/useReloadOnReturn";
@@ -192,11 +194,11 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
   const smUp = useMediaQuery(MEDIA.tabletUp);
   const myCols = xlUp ? 5 : lgUp ? 4 : smUp ? 3 : 2;
   const probe = <div ref={setColumnProbe} aria-hidden className={cn(EXPLORE_GRID, "h-0")} />;
-  // Saved: the Houses you hearted (the avatar menu is gone – this row is where they live), as Explore's cards; "See all" → /saved.
+  // Saved: the Houses you hearted, as the same compact tile as your own (CLAUDE.md "Ein Seiten-Gerüst") – no large Explore cards; "See all" → /saved.
   const savedCards = (store.users.find((u) => u.id === me)?.savedStayIds ?? [])
     .map((id) => store.stays.find((s) => s.id === id))
     .filter((stay): stay is NonNullable<typeof stay> => Boolean(stay))
-    .map((stay) => ({ key: stay.id, node: <HouseCard stay={stay} host={findUser(store, stay.hostId)} crew={getCrew(store, stay)} /> }));
+    .map((stay) => ({ key: stay.id, node: <SavedTile stay={stay} now={now} /> }));
   const nextTripCards = nextTrip.map((stay) => ({ key: stay.id, node: <HouseCard stay={stay} host={findUser(store, stay.hostId)} crew={getCrew(store, stay)} /> }));
 
   // Never hosted, never joined: no dashboard, no cards – one calm invitation, and Houses for the first trip.
@@ -305,7 +307,7 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
         </BackLink>
         <RowHead id={`row-${group}`} title={tDash(`rows.${group}`)} count={row.cards.length} className="mt-3" />
         {/* Your own Houses as MyHouseTiles (5 · 4 · 3 a row; Lived in two more); For your next trip as Explore's grid. */}
-        <ul className={cn(group === "nextTrip" || group === "saved" ? EXPLORE_GRID : group === "livedIn" ? "grid grid-cols-3 gap-(--explore-gap) sm:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7" : "grid grid-cols-2 gap-x-(--explore-gap) gap-y-8 md:grid-cols-3 split:grid-cols-4 [@media(min-width:90rem)]:grid-cols-5", "mt-4")}>
+        <ul className={cn(group === "nextTrip" ? EXPLORE_GRID : MY_GRID, "mt-4")}>
           {row.cards.map((c) => (
             <li key={c.key}>{c.node}</li>
           ))}
@@ -319,7 +321,7 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
     <>
       {/* The dashboard as a full-width band under the header (components/HeroBand): left Up next – exactly one House, its photo to the edge –,
           right Ember to the window's edge: Needs you (the fixed columns), Coming up and the Payouts footer, --hero-h high. */}
-      <HeroBand
+      <PageFrame
         aria-labelledby="todo"
         // The stage rule (globals.css --stage-image-h): Up next's photo and the right side in one row of that height; the dark strip
         // across the full width under both – the photo ends on top of it. Coming up sits right on the strip (no padding under it).
@@ -328,8 +330,9 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
         // A breath of Up next's colour on the surface and the strip (lib/stageTint.ts); nothing planned: the plain tokens.
         height="split:h-(--stage-image-h)"
         bodyClassName="split:pb-0"
-        stageClassName="stage-cream"
-        footer={
+        // The to-dos on the page's own surface – no colour of their own (CLAUDE.md "Ein Seiten-Gerüst").
+        stageClassName="stage-page"
+        strip={
           <StageStrip
             today={today}
             host={hasHosted}
@@ -340,9 +343,9 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
             payOk={payOk}
           />
         }
-        media={<UpNextMedia stay={upNext} request={upNext ? joined.find((j) => j.stay.id === upNext.id)?.request : undefined} now={now} news={upNext ? activity.get(upNext.id) : undefined} />}>
+        media={<UpNextMedia stay={upNext} lastLived={livedIn[0]} request={upNext ? joined.find((j) => j.stay.id === upNext.id)?.request : undefined} now={now} news={upNext ? activity.get(upNext.id) : undefined} />}>
         <TodoTile groups={payOk ? TODO_GROUPS : TODO_GROUPS.filter((g) => g !== "pay")} entries={todo} now={now} timeline={timelineFor(store, now).filter((e) => !overlaps.some(([a, b]) => a.id === e.stay.id || b.id === e.stay.id))} />
-      </HeroBand>
+      </PageFrame>
     <Container className={cn("explore-width explore-root", tab === "joining" && nextTripCards.length > 0 ? "pb-0" : "pb-16")}>
       {probe}
       {/* Calm rows, no heading over them: 32px under the band – the window's edge (--stage-peek) cuts under the first row's title, at most
@@ -368,12 +371,11 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
         {tab === "joining" && shown.length === 0 && <p className="text-body text-muted">{tDash("tabs.joiningEmpty")}</p>}
         {shown.map((row) => (
           <Fragment key={row.key}>
-            <YourRow
+            <YourGrid
               id={row.key}
               title={tDash(`rows.${row.key}`)}
               cards={row.cards}
               extra={row.key === "hosting" ? (row.extra ?? (!hosts ? <OpenHouseTile /> : undefined)) : undefined}
-              cols={row.key === "nextTrip" || row.key === "saved" ? cols : row.key === "livedIn" ? myCols + 2 : myCols}
             />
             {row.key === "hosting" && <YourPlaces today={today} />}
           </Fragment>
@@ -400,11 +402,32 @@ function NextTripBand({ cards, cols, title }: { cards: { key: string; node: Reac
   );
 }
 
-/** One row of Your houses: the shared CardRow, "See all" to its own grid page. */
-function YourRow({ id, title, cards, extra, cols }: { id: YourRowKey; title: string; cards: { key: string; node: ReactNode }[]; extra?: ReactNode; cols: number }) {
-  // Your own Houses: MyHouseTile slots (5 · 4 · 3 a row, Lived in smaller); For your next trip: Explore's shelf cards.
-  const slide = id === "nextTrip" || id === "saved" ? "explore-slide" : id === "livedIn" ? "my-slide-small" : "my-slide";
-  return <CardRow id={id} title={title} cards={cards} extra={extra} cols={cols} seeAll={id === "saved" ? "/saved" : `/your-houses/all/${id}`} slideClass={slide} />;
+/** One section of Your houses (CLAUDE.md "Ein Seiten-Gerüst"): its head ("See all" when there are more than fit), then ONE grid of equal
+ *  compact tiles (photo 4:3, title, date · place, status line) – 4 a row from 1100px, 3 on tablets, 2 on phones; at most two rows here. */
+const GRID_SHOWN = 8;
+function YourGrid({ id, title, cards, extra }: { id: YourRowKey; title: string; cards: { key: string; node: ReactNode }[]; extra?: ReactNode }) {
+  const shown = cards.slice(0, extra ? GRID_SHOWN - 1 : GRID_SHOWN);
+  return (
+    <section aria-labelledby={`row-${id}`}>
+      <RowHead id={`row-${id}`} title={title} count={cards.length} seeAll={cards.length > shown.length ? (id === "saved" ? "/saved" : `/your-houses/all/${id}`) : undefined} />
+      <ul className={cn(MY_GRID, "mt-4")}>
+        {shown.map((c) => (
+          <li key={c.key} className="min-w-0">
+            {c.node}
+          </li>
+        ))}
+        {extra && <li className="min-w-0">{extra}</li>}
+      </ul>
+    </section>
+  );
+}
+/** The one grid of your own tiles: equal columns, 4 · 3 · 2. */
+const MY_GRID = "grid grid-cols-2 gap-x-(--explore-gap) gap-y-8 md:grid-cols-3 split:grid-cols-4";
+
+/** A saved House as the compact tile: the date left, its state right ("2 spots left", "Crew complete"). */
+function SavedTile({ stay, now }: { stay: Stay; now: string }) {
+  const statusText = useStatusText();
+  return <MyHouseTile stay={stay} href={`/house/${stay.slug}`} status={<MyHouseStatus>{statusText(stay, now)}</MyHouseStatus>} />;
 }
 
 /**
@@ -509,7 +532,7 @@ function OpenHouseTile() {
   const entry = useOpenHouseEntry();
   return (
     <Link href={entry.href} data-house-card="open" className="group block min-w-0 rounded-2xl">
-      <span className="flex aspect-16/10 items-center justify-center rounded-2xl border-[1.5px] border-dashed border-ink/15 transition-colors duration-150 group-hover:border-ink/30 group-hover:bg-ink/3">
+      <span className="flex aspect-4/3 items-center justify-center rounded-2xl border-[1.5px] border-dashed border-ink/15 transition-colors duration-150 group-hover:border-ink/30 group-hover:bg-ink/3">
         <span className="flex size-12 items-center justify-center rounded-full bg-ink/6 text-ink">
           <Plus className="size-5" aria-hidden />
         </span>
@@ -566,7 +589,7 @@ interface TodoEntry {
  * (components/CrewRow) and "{in} of {total}"; right "Open chat". Nothing planned: the calm default picture (config/upnext.ts), "Nothing
  * planned yet" and "Explore" (cream) and "Open a House" (outline).
  */
-function UpNextMedia({ stay, request, now, news }: { stay?: Stay; request?: JoinRequest; now: string; news?: ActivitySummary | null }) {
+function UpNextMedia({ stay, lastLived, request, now, news }: { stay?: Stay; /** Nothing next: the House you lived in last – "Do it again" (CLAUDE.md "Ein Seiten-Gerüst") */ lastLived?: Stay; request?: JoinRequest; now: string; news?: ActivitySummary | null }) {
   const t = useTranslations("houses.home");
   const td = useTranslations("houses.home.dash");
   const openEntry = useOpenHouseEntry();
@@ -574,22 +597,32 @@ function UpNextMedia({ stay, request, now, news }: { stay?: Stay; request?: Join
   const store = useStore();
   const router = useRouter();
   const taskOf = useCardTask();
-  if (!stay) {
+  // Nothing next: the last House you lived in with "Do it again"; never lived anywhere: a calm "Find your first House →".
+  if (!stay && lastLived) {
+    const lastPhoto = housePhotos(lastLived, findUser(store, lastLived.hostId))[0];
     return (
       <div className="absolute inset-0">
-        {UP_NEXT_EMPTY_IMAGE && <Img src={UP_NEXT_EMPTY_IMAGE} alt="" fill sizes={`${MEDIA.desktop} 640px, 100vw`} className="object-cover" />}
+        {lastPhoto && <Img src={lastPhoto} alt="" fill sizes={`${MEDIA.desktop} 640px, 100vw`} className="object-cover" />}
         <span aria-hidden className={cn("absolute inset-0", cardGradient)} />
-        <div className={cn("absolute inset-x-0 bottom-0 flex flex-col gap-4 p-6 text-on-image sm:p-8", cardTextShadow)}>
-          <p className="text-h2">{td("nothingPlanned")}</p>
-          <div className="flex flex-wrap gap-2 [text-shadow:none]">
-            <Button variant="cream" href="/">
-              {td("explore")}
-            </Button>
-            <Button variant="creamOutline" href={openEntry.href}>
-              {openEntry.allowed ? t("openHouse") : openEntry.label}
+        <div className={cn("absolute inset-x-0 bottom-0 flex flex-col gap-2 p-6 text-on-image sm:p-8", cardTextShadow)}>
+          <span className="text-eyebrow uppercase text-on-image/85">{td("livedInLast", { month: format.stayDates({ startDate: lastLived.startDate, endDate: lastLived.startDate, datesOpen: true }) })}</span>
+          <p className="line-clamp-2 text-h1">{lastLived.title}</p>
+          <span className="truncate text-small text-on-image/85">{placeShortOf(lastLived)}</span>
+          <div className="mt-2 flex flex-wrap gap-2 [text-shadow:none]">
+            <Button variant="cream" onClick={() => router.push(againHref(lastLived.id))}>
+              {td("doItAgain")}
             </Button>
           </div>
         </div>
+      </div>
+    );
+  }
+  if (!stay) {
+    return (
+      <div className="absolute inset-0 flex items-end bg-linear-to-br from-(--card-blank-from) to-(--card-blank-to) p-6 sm:p-8">
+        <Link href="/explore" className="text-h2 text-ink underline-offset-4 hover:underline">
+          {td("findFirst")}
+        </Link>
       </div>
     );
   }
@@ -945,7 +978,6 @@ function LivedInCard({ stay }: { stay: Stay }) {
   return (
     <MyHouseTile
       stay={stay}
-      square
       href={manageHref(stay)}
       status={
         <button type="button" onClick={() => router.push(againHref(stay.id))} className="text-small font-semibold text-ink underline-offset-4 hover:underline">

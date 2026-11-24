@@ -76,6 +76,7 @@ export const TEST_ROUTES: readonly TestRoute[] = [
   { route: "/profile", key: "profil", label: "Profil", core: true },
   { route: "/people", key: "your-people", label: "Your people" },
   { route: "/saved", key: "saved", label: "Saved" },
+  { route: "/invite", key: "invite-friends", label: "Invite friends" },
   { route: "/settings", key: "settings", label: "Settings", core: true },
   { route: "/settings/profile", key: "edit-profile", label: "Edit profile" },
   { route: "/settings/payouts", key: "settings-payouts", label: "Settings › Payouts" },

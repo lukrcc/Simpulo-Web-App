@@ -42,7 +42,7 @@ import { MEDIA } from "@/config/breakpoints";
  *   line (`live`) on the left, `status` on the right (a dark glass chip, or a light glass button when something needs doing – it opens
  *   its action, not the card). Status cards are calm: no heart, no photo arrows, no hover zoom; `menu` sits top right.
  *
- * Where a card is mounted rather than how it looks: `spotlight` (the Spotlight dims and scales it from outside), `gallery` (the House
+ * Where a card is mounted rather than how it looks (the Spotlight uses the shelf card as it is – CLAUDE.md "Spotlight-Karten = Reihen-Karte"): `gallery` (the House
  * page: every photo, no text, nothing opens) and `preview` (Open a House's live preview: no links).
  */
 interface HouseCardProps {
@@ -50,9 +50,9 @@ interface HouseCardProps {
   variant?: "grid" | "shelf";
   /** Explore's one highlight per block: two columns wide, as high as the row (the photo landscape) */
   wide?: boolean;
-  /** What the footer shows (default from `spotlight` / `variant`): spotlight – no footer, an urgency capsule instead; shelf – a footer only for a
+  /** What the footer shows (default from `variant`): shelf – a footer only for a
    *  personal link ("Anna is in"), else the note (or "1 spot left"); grid – the compact crew. */
-  context?: "spotlight" | "shelf" | "grid";
+  context?: "shelf" | "grid";
   /** Why it's highlighted – a small capsule top left ("Last spot", "Starts in 5 days") */
   highlight?: string;
   stay: Stay;
@@ -72,8 +72,6 @@ interface HouseCardProps {
   menu?: ReactNode;
   /** Where the card goes instead of the House page (Your houses: the House's own page there) */
   href?: string;
-  /** Mounted in the Spotlight: one photo, no heart, dimmed from outside (data-cf-dim) */
-  spotlight?: boolean;
   /** Load its photo at once (the Spotlight's cards near the centre); everything else loads lazily as it nears the window */
   eager?: boolean;
   /** Mounted on the House page: 3:4, every photo by swipe or drag, no text, nothing opens */
@@ -88,9 +86,8 @@ interface HouseCardProps {
 const CARD_SIZES = "(min-width: 1000px) 400px, (min-width: 700px) 50vw, 100vw";
 const MAX_PHOTOS = 5;
 /**
- * Hover (desktop, and keyboard focus): no veil, no zoom, no scale – the card rises 2px with a slightly deeper shadow, a faint warm light
- * comes up at its bottom edge (inside the card, under the text's gradient) and a soft light on the ground below it (globals.css
- * .card-hover, .card-light, .card-floor). Reduced motion: the lights only, no movement.
+ * Hover (desktop, and keyboard focus): only a very slight lift – scale 1.02 in 200ms, no shadow, no light, nothing under the card (globals.css
+ * .card-hover). Reduced motion: nothing moves.
  */
 /** The photo arrows: 16px from the card's edge, in the middle, while the pointer is over the card (or on keyboard focus). Touch swipes. */
 const PHOTO_ARROW = "photo-arrow absolute top-1/2 z-10 -translate-y-1/2 opacity-0 before:absolute before:-inset-1 group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:hidden";
@@ -108,7 +105,7 @@ function shadeOf(src: string): string {
   return `linear-gradient(to bottom, transparent ${SHADE_FROM}%, rgb(${rgb} / ${(0.35 + lum * 0.25).toFixed(3)}) ${SHADE_MID}%, rgb(${rgb} / ${(0.7 + lum * 0.2).toFixed(3)}) 100%)`;
 }
 
-export function HouseCard({ stay, host, crew = [], notch = "host", footer = "explore", status, live, liveDot = false, menu, href, spotlight = false, eager = false, gallery = false, preview = false, photoPlaceholder, variant = "grid", wide = false, highlight, context: contextProp, className }: HouseCardProps) {
+export function HouseCard({ stay, host, crew = [], notch = "host", footer = "explore", status, live, liveDot = false, menu, href, eager = false, gallery = false, preview = false, photoPlaceholder, variant = "grid", wide = false, highlight, context: contextProp, className }: HouseCardProps) {
   // Your own cards (footer="status", Your houses): calm – no heart, no photo arrows or dots, no hover zoom.
   const calm = footer !== "explore";
   const t = useTranslations("explore");
@@ -119,13 +116,12 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
   const format = useFormat();
   // Your people in this House (not in the Spotlight, which shows every card the same).
   const peopleHint = usePeopleSignal(stay);
-  const signal = spotlight || preview || stay.isExample ? null : peopleHint;
+  const signal = preview || stay.isExample ? null : peopleHint;
   const tCrew = useTranslations("common.ui.crewLine");
   // The cover first, then the rest of the House's world (the host's portrait belongs in the tab). The Spotlight shows one photo.
   // In a shelf (variant "shelf") only the first photo: no photo arrows, no dots – a sideways swipe moves the row, never the photos.
-  const single = spotlight || variant === "shelf";
-  const context = contextProp ?? (spotlight ? "spotlight" : variant === "shelf" ? "shelf" : "grid");
-  // The Spotlight's urgency (no footer there): one spot left, or starting within 7 days – a small capsule under the notch.
+  const single = variant === "shelf";
+  const context = contextProp ?? (variant === "shelf" ? "shelf" : "grid");
   const today = useTodayIso();
   const tHighlight = useTranslations("explore.cards.highlight");
   const startsIn = today ? Math.round((Date.parse(`${stay.startDate.slice(0, 10)}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000) : null;
@@ -133,7 +129,6 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
   // "1 spot left" or pay hints on cards.
   const phase = usePlatformPhase();
   const urgent = canPay(phase);
-  const urgency = context !== "spotlight" || !urgent ? undefined : openSpots(stay) === 1 ? tHighlight("lastSpot") : startsIn !== null && startsIn >= 0 && startsIn <= 7 ? tHighlight("startsIn", { days: startsIn }) : undefined;
   // An example House (pre-launch, beta): "Example" top left, no faces, no urgency; a founding House (beta): "Founding House".
   const example = Boolean(stay.isExample);
   const tPlatform = useTranslations("platform");
@@ -142,15 +137,15 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
   const depthOn = useDepthChoice();
   const depth = depthOf(stay, depthOn);
   const tDepth = useTranslations("depth.capsule");
-  const depthCapsule = depthOn && !spotlight && DEPTH_CAPSULE.includes(depth) ? tDepth(depth) : undefined;
+  const depthCapsule = depthOn && DEPTH_CAPSULE.includes(depth) ? tDepth(depth) : undefined;
   // "Host from your place" (lib/ownPlaces.ts): "Host lives here" in the same slot, after the urgency and before the depth – never in the
   // Spotlight (like the depth capsule).
-  const homeCapsule = !spotlight && hostLivesHere(stay) ? tPlatform("ownPlace.capsule") : undefined;
+  const homeCapsule = hostLivesHere(stay) ? tPlatform("ownPlace.capsule") : undefined;
   // A real last spot (from the bookings, never an example): "Last spot" top left on every card, in the grid and the shelves too – the one
   // hint; the footer stays the usual "3 of 4 in" (CLAUDE.md "Explore – breite Karte nur für echten letzten Platz").
   const lastSpot = urgent && !example && openSpots(stay) === 1;
-  const lastSpotLabel = lastSpot && context !== "spotlight" ? tHighlight("lastSpot") : undefined;
-  const capsule = example ? tPlatform("example.capsule") : stay.isFounding ? tPlatform("founding.capsule") : ((urgent ? (highlight ?? urgency ?? lastSpotLabel) : undefined) ?? homeCapsule ?? depthCapsule);
+  const lastSpotLabel = lastSpot ? tHighlight("lastSpot") : undefined;
+  const capsule = example ? tPlatform("example.capsule") : stay.isFounding ? tPlatform("founding.capsule") : ((urgent ? (highlight ?? lastSpotLabel) : undefined) ?? homeCapsule ?? depthCapsule);
   const capsuleDot = !example && !stay.isFounding && capsule !== depthCapsule && capsule !== homeCapsule;
   const capsuleCalm = capsule === tHighlight("lastSpot");
   const photos = host ? housePhotos(stay, host).slice(0, gallery ? undefined : single ? 1 : MAX_PHOTOS) : single ? housePhotos(stay).slice(0, 1) : housePhotos(stay).slice(0, MAX_PHOTOS);
@@ -177,7 +172,7 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
   // "you": the viewer; logged out (How it works shows how a host sees it) the person given as host stands in.
   // "none": no tab at all (the House page names its host beside the photo).
   const tabPerson = notch === "none" ? undefined : notch === "you" ? (me ?? host) : host;
-  const arrowSize = gallery || spotlight ? "md" : "sm";
+  const arrowSize = gallery ? "md" : "sm";
 
   return (
     // The frame scales on hover as one element (clipped card + tab); the clip sits on the inner layer.
@@ -187,7 +182,7 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
       data-house-card={stay.id}
       className={cn(
         "notch-frame group relative isolate",
-        gallery ? "aspect-4/5" : spotlight ? "h-full" : calm ? "aspect-4/5" : wide ? "card-hover h-full" : "card-hover aspect-4/5",
+        gallery ? "aspect-4/5" : calm ? "aspect-4/5" : wide ? "card-hover h-full" : "card-hover aspect-4/5",
         // Mobile only: fade/slide in once when scrolled into view.
         !revealed && "max-md:motion-safe:translate-y-3 max-md:motion-safe:opacity-0",
         className,
@@ -196,8 +191,8 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
       {/* The one rounded layer: 24px radius, overflow hidden (notched by clip-path), surface behind the photo; no border, ring or outline. */}
       {/* Depth: a wrapper with the shadow (filter: drop-shadow follows the notch; on the clipped layer itself the clip would cut it off) – only
           the Spotlight's cards have one (globals.css .card-depth). Same box as the card: no size or place changes. */}
-      <div className={cn("card-depth h-full w-full", spotlight && "card-depth-spotlight")}>
-      <div ref={clipRef} data-surface="dark" className={cn("relative h-full w-full overflow-hidden rounded-3xl bg-surface", tabPerson && "rounded-tl-none")}>
+      <div className="card-depth h-full w-full">
+      <div ref={clipRef} data-notch-clip data-surface="dark" className={cn("relative h-full w-full overflow-hidden rounded-3xl bg-surface", tabPerson && "rounded-tl-none")}>
         {/* Photo track – each slide is the card link, so swiping and tapping both work. The Spotlight has no scroller (its carousel swipes). */}
         <div ref={ref} onScroll={onScroll} {...drag.props} className={cn("flex h-full", single ? "overflow-hidden" : "no-scrollbar snap-x snap-mandatory overflow-x-auto", drag.className)}>
           {photos.length === 0 &&
@@ -221,7 +216,7 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
                 src={src}
                 alt={t("cards.photoAlt", { title: stay.title, number: i + 1 })}
                 fill
-                sizes={gallery ? `${MEDIA.desktop} 600px, 520px` : spotlight ? "(min-width: 744px) 28vw, 85vw" : CARD_SIZES}
+                sizes={gallery ? `${MEDIA.desktop} 600px, 520px` : CARD_SIZES}
                 loading={eager || (gallery && i === 0) ? "eager" : "lazy"}
                 className="object-cover"
                 style={i === 0 && stay.focalPoint ? { objectPosition: `${stay.focalPoint.x}% ${stay.focalPoint.y}%` } : undefined}
@@ -266,16 +261,14 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
         </div>
 
         {/* The one hover light: a faint warm glow at the bottom edge, over the photo, under the text's gradient (which stays as dark). */}
-        {!spotlight && !gallery && !calm && <div aria-hidden className="card-light pointer-events-none absolute inset-0" />}
         {/* Readability, on every card (grid, bands, the Spotlight): in each slide the stepped blur of the lower ~40 % and the darkening in the
             photo's own colour (above). The same on hover. */}
 
         {capsule && <span className="absolute left-4 top-14 z-10 [text-shadow:none]"><CardStatusChip attention={capsuleDot} calm={capsuleCalm}>{capsule}</CardStatusChip></span>}
 
         {/* The Spotlight: black over the whole card, the further from the centre the more (set per frame). */}
-        {spotlight && <div aria-hidden data-cf-dim className="pointer-events-none absolute inset-0 z-20 bg-shade opacity-0" />}
 
-        {!preview && !spotlight && !calm && (
+        {!preview && !calm && (
           <div className="absolute right-2 top-2 z-10 flex">
             <SaveButton stay={stay} />
           </div>
@@ -285,7 +278,7 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
         {/* Bottom: title (up to two lines, then an ellipsis), dates · place (one line), the footer. Pointer events pass through to the photo links. */}
         <div hidden={gallery} className={cn("pointer-events-none absolute inset-x-0 bottom-0 px-5 pb-5 text-on-image", houseCardTextShadow)}>
           {invited && footer === "explore" && <Badge className="mb-2 [text-shadow:none]">{t("cards.invited")}</Badge>}
-          <h3 className={cn(spotlight ? "truncate" : "line-clamp-2", context === "shelf" && "max-md:line-clamp-1", "text-card-title", cardTitle)}>{stay.title || t("untitledHouse")}</h3>
+          <h3 className={cn("line-clamp-2", context === "shelf" && "max-md:line-clamp-1", "text-card-title", cardTitle)}>{stay.title || t("untitledHouse")}</h3>
           {/* Date · Place.short – the city or region, never the country. */}
           <p className="mt-1 truncate text-small text-on-image/85">
             {format.stayDates(stay)}
@@ -373,7 +366,6 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
       {/* The heart's 40px hit area top right takes 48px; the tab stops 16px short of it. */}
       {tabPerson && <CardTab host={tabPerson} label={example ? tPlatform("example.house") : notch === "you" ? tHome("you") : undefined} anonymous={example} className="max-w-[calc(100%-64px)]" />}
       {/* The light on the ground under the card, on hover (behind the card, 8px under its edge). */}
-      {!spotlight && !gallery && !calm && <div aria-hidden className="card-floor pointer-events-none" />}
     </article>
   );
 }

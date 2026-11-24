@@ -234,6 +234,7 @@ type StoreAction =
   | { type: "markThreadRead"; threadId: string; at: string }
   | { type: "setChatTheme"; threadId: string | null; theme: ChatThemeId | null }
   | { type: "markHintSeen"; hint: string }
+  | { type: "addFriend"; otherId: string }
   | { type: "agree"; records: ConsentRecord[] }
   | { type: "reportContent"; report: Report }
   | { type: "noteInviteOpened"; token: string }
@@ -438,6 +439,8 @@ interface StoreActions {
   setChatTheme: (threadId: string | null, theme: ChatThemeId | null) => void;
   /** A one-time hint seen – on the account, so it never comes back */
   markHintSeen: (hint: string) => void;
+  /** Friends (CLAUDE.md "Profil als Netzwerk-Seite"): connect the signed-in person with `otherId`, both ways – a sign-up through their invite link */
+  addFriend: (otherId: string) => void;
   /** Agreements (lib/consent.ts): append these records to the current user's – the history stays (config/consent.ts) */
   agree: (records: ConsentRecord[]) => void;
   /** Dev only: forget the current user's agreements (to test sign-up and the first request) */
@@ -2248,6 +2251,12 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
       return { ...state, users: state.users.map((u) => (u.id === me ? { ...u, settings: { ...settingsOf(u), consents: [] } } : u)) };
     }
 
+    case "addFriend": {
+      if (!me || me === action.otherId || !state.users.some((u) => u.id === action.otherId)) return state;
+      const add = (list: string[] | undefined, id: string) => (list?.includes(id) ? list : [...(list ?? []), id]);
+      return { ...state, users: state.users.map((u) => (u.id === me ? { ...u, friendIds: add(u.friendIds, action.otherId) } : u.id === action.otherId ? { ...u, friendIds: add(u.friendIds, me) } : u)) };
+    }
+
     case "markHintSeen": {
       if (!me) return state;
       return {
@@ -3270,6 +3279,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [threads],
   );
   const markHintSeen = useCallback((hint: string) => dispatch({ type: "markHintSeen", hint }), []);
+  const addFriend = useCallback((otherId: string) => dispatch({ type: "addFriend", otherId }), []);
   const agree = useCallback((records: ConsentRecord[]) => dispatch({ type: "agree", records }), []);
   const resetConsents = useCallback(() => dispatch({ type: "resetConsents" }), []);
   const setArcStep = useCallback((houseId: string, stepId: string, state: "done" | "skipped" | "open", note?: string) => dispatch({ type: "setArcStep", houseId, stepId, state, note }), []);
@@ -3499,6 +3509,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       markThreadRead,
       setChatTheme,
       markHintSeen,
+      addFriend,
       agree,
       resetConsents,
       setArcStep,

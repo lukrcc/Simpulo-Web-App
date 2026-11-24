@@ -101,7 +101,9 @@ export interface User extends Attribution {
   /** `paused`: Settings › Privacy & safety › Your data › Pause account – profile and Houses invisible to others, nothing deleted (pausedAt: when) */
   /** `nearby`: Your people see when you're in the same city (lib/nearby.ts) – consent, off by default */
   /** `messages`: who can start a direct chat (lib/messagePermission.ts) – none: "Everyone after a request" */
-  privacy?: { showOnHousePages?: boolean; showAge?: boolean; hidePhotoUntilAccepted?: boolean; hostPageInSearch?: boolean; paused?: boolean; pausedAt?: string; nearby?: boolean; messages?: "crew" | "people" | "afterRequest" };
+  privacy?: { showOnHousePages?: boolean; showAge?: boolean; hidePhotoUntilAccepted?: boolean; hostPageInSearch?: boolean; paused?: boolean; pausedAt?: string; nearby?: boolean; messages?: "crew" | "people" | "afterRequest"; /** Others see your full lists of people on your profile (Lived with, Friends) – default off: only shared acquaintances and a number */ showPeople?: boolean };
+  /** Friends: connected by hand through an invite (CLAUDE.md "Profil als Netzwerk-Seite") – both ways, unlike Lived with (from shared Houses) */
+  friendIds?: string[];
   deletedAt?: string;       // mock "Delete account"
   suspendedAt?: string;     // Admin › Posteingang › Sicherheit "Konto sperren" (moderation)
   /** 'admin' opens /admin (lib/admin/access.ts useIsAdmin); unset = 'user'. ⚠ Real protection comes in phase 4: a Firebase custom claim,
@@ -1764,8 +1766,15 @@ function houseToStay(house: ExtraHouse): Stay {
  */
 const mockPrivacy = (user: User): User => {
   const n = Number(user.id.replace(/\D/g, "")) || user.id.length;
-  return { ...user, privacy: { showAge: n % 3 !== 0, ...(user.id === "u4" && { showOnHousePages: false }) } };
+  const friends = MOCK_FRIENDS.flatMap(([a, b]) => (a === user.id ? [b] : b === user.id ? [a] : []));
+  return { ...user, privacy: { showAge: n % 3 !== 0, ...(user.id === "u4" && { showOnHousePages: false }) }, ...(friends.length > 0 && { friendIds: friends }) };
 };
+/** ⚠ MOCK friends (both ways): people Lukas (u1) connected with through his invite link. */
+const MOCK_FRIENDS: [string, string][] = [
+  ["u1", "u12"],
+  ["u1", "u15"],
+  ["u1", "u20"],
+];
 
 /**
  * Agreements (config/consent.ts): everyone with a complete profile agreed to the Terms, confirmed 18+ and agreed to the guidelines when

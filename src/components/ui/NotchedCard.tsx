@@ -28,7 +28,7 @@ export function NotchedCard({ className, style, clipClassName, tab, tabKey, chil
   useNotchClip(frameRef, clipRef, tabKey);
   return (
     <div ref={frameRef} data-notch="pending" style={style} className={cn("notch-frame relative isolate", className)}>
-      <div ref={clipRef} className={cn("relative h-full w-full overflow-hidden", tab !== undefined && tab !== null && tab !== false && "rounded-tl-none", clipClassName)}>
+      <div ref={clipRef} data-notch-clip className={cn("relative h-full w-full overflow-hidden", tab !== undefined && tab !== null && tab !== false && "rounded-tl-none", clipClassName)}>
         {children}
       </div>
       {tab}

@@ -2,7 +2,7 @@
 
 import { hidesPhotoUntilAccepted, hostPageInSearch, hostsPublicly } from "@/lib/privacy";
 import { useMyApplication } from "@/components/platform/HostApply";
-import { Bell, Check, MessageCircle, LayoutDashboard, ChevronLeft, ChevronRight, CircleUser, CreditCard, Lock, Plus, Search, Settings2, ShieldCheck, SunMoon, Wallet, type LucideIcon } from "lucide-react";
+import { Bell, Check, HelpCircle, Languages, LogOut, MessageCircle, LayoutDashboard, ChevronLeft, ChevronRight, CircleUser, CreditCard, Lock, Plus, Search, Settings2, ShieldCheck, SunMoon, Wallet, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
@@ -15,6 +15,7 @@ import { LegalLine } from "@/components/layout/LegalLine";
 import { PayoutSetupSheet, useStartOnboarding } from "@/components/payouts/PayoutSetup";
 import { RefundLine } from "@/components/payments/Refund";
 import { IconTile, RowSelect, SettingsGroup, SettingsRow } from "@/components/settings/SettingsList";
+import { ThemeSwitch } from "@/components/settings/ThemeSwitch";
 import { ChatBackgroundPicker } from "@/components/chat/ChatBackground";
 import { SideNav } from "@/components/settings/SideNav";
 import { Button } from "@/components/ui/ActionButton";
@@ -44,8 +45,9 @@ import type { User } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { MEDIA } from "@/config/breakpoints";
 
-/** The areas, in the side list's order; each is its URL hash (#payments), a page behind one is "#payments/history". */
-const SECTIONS = ["account", "payments", "notifications", "chats", "appearance", "privacy", "general"] as const;
+/** The areas, in the side list's order (CLAUDE.md "Profil ohne Pop-up": Account · Notifications · Appearance · Privacy · Language first,
+ *  then the rest); each is its URL hash (#payments), a page behind one is "#payments/history". */
+const SECTIONS = ["account", "notifications", "appearance", "privacy", "language", "payments", "chats", "general"] as const;
 type Section = (typeof SECTIONS)[number];
 const SUBPAGES = ["payments/history", "general/currency", "general/language"] as const;
 type Subpage = (typeof SUBPAGES)[number];
@@ -61,6 +63,7 @@ const SECTION_ICONS: Record<Section, LucideIcon> = {
   chats: MessageCircle,
   appearance: SunMoon,
   privacy: ShieldCheck,
+  language: Languages,
   general: Settings2,
 };
 
@@ -117,64 +120,123 @@ function useSaved() {
 }
 
 /**
- * /settings, like the system settings on a Mac: from 1024px ONE block centred in the window, at most 1000px – the side list (260px: the profile
- * card, the five areas as capsules) and, 56px beside it, the chosen area (up to 680px) as grouped lists; 64px under the header. The area's title
- * stands level with the profile card. Below 1024px like iOS: the list first, an area opens as its own view with "‹ Settings". No Save: every
- * change is saved right away ("Saved ✓").
+ * /settings like the iOS settings on every width (CLAUDE.md "Profilseite neu"): first ONE list – Account · Notifications · Appearance (System ·
+ * Light · Dark right in the row) · Privacy · Language, then Payments & payouts · Chats · General, then Help, and set apart at the end Log out (no
+ * chevron); an area opens as its own view with "‹ Settings". Rows with an icon, the title and a chevron, fine lines between, no boxes. No Save:
+ * every change is saved right away ("Saved ✓").
  */
 function SettingsContent({ me }: { me: User }) {
   const t = useTranslations("settings");
   const tu = useTranslations("settings.ui");
   const { section, subpage } = useRoute();
   const isAdmin = useIsAdmin() === true;
-  const shown: Section = section ?? "account";
 
   return (
-    <Container className="pb-10 pt-6 md:pt-10 lg:pt-16">
+    <Container className="pb-10 pt-6 md:pt-10 lg:pt-14">
       <h1 className="sr-only">{t("title")}</h1>
-      <div className="lg:mx-auto lg:grid lg:max-w-[1000px] lg:grid-cols-[260px_minmax(0,680px)] lg:items-start lg:gap-14">
-        {/* The side list – on the phone the first view, gone once an area is open. */}
-        <div className={cn("lg:sticky lg:top-[calc(var(--header-h)+64px)]", section !== null && "max-lg:hidden")}>
-          <SideNav
-            label={t("title")}
-            hash
-            plain={section === null}
-            items={SECTIONS.map((key) => ({ key, href: `#${key}`, label: tu(`nav.${key}`), icon: SECTION_ICONS[key], selected: shown === key, current: section === key }))}
-            top={
-              // The profile as its own light card: avatar 56px, name, "Profile & photos", the chevron – to Edit profile.
-              <Link href="/settings/profile" className="flex min-h-20 items-center gap-3 rounded-2xl bg-(--surface) p-3 transition-colors duration-150 hover:bg-[color-mix(in_srgb,var(--surface)_80%,white)]">
-                <Avatar user={me} size="lg" />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-body font-semibold text-ink">{me.name}</span>
-                  <span className="block truncate text-small text-muted">{tu("profileSub")}</span>
-                </span>
-                <ChevronRight aria-hidden className="size-4 shrink-0 text-ink/40" />
-              </Link>
-            }
-          />
-          {/* Admins only (lib/admin/access.ts): set apart at the very bottom – the way to /admin; there is no avatar menu. */}
-          {isAdmin && <SideNav label={tu("general.admin")} className="mt-8" items={[{ key: "admin", href: "/admin", label: tu("general.admin"), icon: LayoutDashboard, selected: false }]} />}
-        </div>
-
-        <div className={cn("min-w-0", section === null && "max-lg:hidden")}>
-          {/* The phone: back one level, like iOS – from a page behind an area to the area, from an area to the list. */}
-          <button type="button" onClick={() => go(subpage ? shown : "")} className="-ml-1 mb-3 inline-flex min-h-11 items-center gap-0.5 text-body text-ink lg:hidden">
-            <ChevronLeft aria-hidden className="size-5" />
-            {subpage ? tu(`nav.${shown}`) : tu("back")}
-          </button>
-          {shown === "account" && <AccountArea me={me} />}
-          {shown === "payments" && (subpage === "payments/history" ? <PaymentHistory me={me} /> : <PaymentsArea me={me} />)}
-          {shown === "notifications" && <NotificationsArea me={me} />}
-          {shown === "chats" && <ChatsArea />}
-          {shown === "appearance" && <AppearanceArea />}
-          {shown === "privacy" && <PrivacyArea me={me} />}
-          {shown === "general" && (subpage === "general/currency" ? <CurrencyPage me={me} /> : subpage === "general/language" && SHOW_LANGUAGE_SETTING ? <LanguagePage /> : <GeneralArea me={me} />)}
-        </div>
+      <div className="mx-auto max-w-[720px]">
+        {section === null ? (
+          <SettingsHome isAdmin={isAdmin} />
+        ) : (
+          <div className="min-w-0">
+            {/* Back one level, like iOS – from a page behind an area to the area, from an area to the list. */}
+            <button type="button" onClick={() => go(subpage ? section : "")} className="-ml-1 mb-3 inline-flex min-h-11 items-center gap-0.5 text-body text-ink">
+              <ChevronLeft aria-hidden className="size-5" />
+              {subpage ? tu(`nav.${section}`) : tu("back")}
+            </button>
+            {section === "account" && <AccountArea me={me} />}
+            {section === "payments" && (subpage === "payments/history" ? <PaymentHistory me={me} /> : <PaymentsArea me={me} />)}
+            {section === "notifications" && <NotificationsArea me={me} />}
+            {section === "chats" && <ChatsArea />}
+            {section === "appearance" && <AppearanceArea />}
+            {section === "language" && <LanguageArea />}
+            {section === "privacy" && <PrivacyArea me={me} />}
+            {section === "general" && (subpage === "general/currency" ? <CurrencyPage me={me} /> : subpage === "general/language" && SHOW_LANGUAGE_SETTING ? <LanguagePage /> : <GeneralArea me={me} />)}
+          </div>
+        )}
       </div>
       {/* Phones and the installed app: the legal links at the very bottom of Settings too. */}
       <LegalLine align="center" className="mt-10 md:hidden" />
     </Container>
   );
+}
+
+/** The list (iOS): areas with a chevron, Appearance with its switch in the row, Help, and Log out set apart at the end. */
+function SettingsHome({ isAdmin }: { isAdmin: boolean }) {
+  const tu = useTranslations("settings.ui");
+  const tm = useTranslations("nav.menu");
+  const store = useStore();
+  const router = useRouter();
+  const showToast = useToast();
+  const row = "flex min-h-14 w-full items-center gap-4 py-3 text-left text-body-lg text-ink transition-colors duration-150 hover:bg-ink/3";
+  const area = (key: Section) => (
+    <li key={key} className="border-b border-line last:border-b-0">
+      <a href={`#${key}`} className={row}>
+        <RowIcon icon={SECTION_ICONS[key]} />
+        <span className="min-w-0 flex-1 truncate">{tu(`nav.${key}`)}</span>
+        <ChevronRight aria-hidden className="size-4 shrink-0 text-ink/30" />
+      </a>
+    </li>
+  );
+  return (
+    <nav aria-label={tu("sidebarTitle")} className="space-y-8">
+      <ul>
+        {area("account")}
+        {area("notifications")}
+        {/* Light and dark right in the row – the same change as the tab bar's button. */}
+        <li className="border-b border-line">
+          <div className={cn(row, "flex-wrap gap-y-2 hover:bg-transparent")}>
+            <RowIcon icon={SECTION_ICONS.appearance} />
+            <span className="min-w-0 flex-1 truncate">{tu("nav.appearance")}</span>
+            <ThemeSwitch />
+          </div>
+        </li>
+        {area("privacy")}
+        {area("language")}
+      </ul>
+      <ul>
+        {area("payments")}
+        {area("chats")}
+        {area("general")}
+        {isAdmin && (
+          <li className="border-b border-line last:border-b-0">
+            <Link href="/admin" className={row}>
+              <RowIcon icon={LayoutDashboard} />
+              <span className="min-w-0 flex-1 truncate">{tu("general.admin")}</span>
+              <ChevronRight aria-hidden className="size-4 shrink-0 text-ink/30" />
+            </Link>
+          </li>
+        )}
+      </ul>
+      <ul>
+        <li className="border-b border-line">
+          <button type="button" onClick={() => openGetHelp()} className={row}>
+            <RowIcon icon={HelpCircle} />
+            <span className="min-w-0 flex-1 truncate">{tm("help")}</span>
+            <ChevronRight aria-hidden className="size-4 shrink-0 text-ink/30" />
+          </button>
+        </li>
+        <li>
+          <button
+            type="button"
+            onClick={() => {
+              store.logout();
+              showToast(tm("loggedOut"));
+              router.push("/");
+            }}
+            className={row}
+          >
+            <RowIcon icon={LogOut} />
+            <span className="min-w-0 flex-1 truncate">{tm("logOut")}</span>
+          </button>
+        </li>
+      </ul>
+    </nav>
+  );
+}
+
+function RowIcon({ icon: Icon }: { icon: LucideIcon }) {
+  return <Icon aria-hidden className="size-5 shrink-0 text-muted" strokeWidth={1.75} />;
 }
 
 /** An area's title (and a page's way back to its area). */
@@ -535,6 +597,7 @@ function PrivacyArea({ me }: { me: User }) {
     hidePhotoUntilAccepted: hidesPhotoUntilAccepted(me),
     hostPageInSearch: hostPageInSearch(me),
     nearby: Boolean(me.privacy?.nearby),
+    showPeople: Boolean(me.privacy?.showPeople),
   };
   // The host page switch only for people who host publicly (lib/privacy.ts).
   const hosts = hostsPublicly(store, me.id);
@@ -586,6 +649,8 @@ function PrivacyArea({ me }: { me: User }) {
         <SettingsRow title={t("showOnHousePages")} subtitle={t("showOnHousePagesText")} control={<Switch on={privacy.showOnHousePages} label={t("showOnHousePages")} onChange={(on) => setPrivacy({ showOnHousePages: on })} />} />
         <SettingsRow title={t("showAge")} subtitle={t("showAgeText")} control={<Switch on={privacy.showAge} label={t("showAge")} onChange={(on) => setPrivacy({ showAge: on })} />} />
         <SettingsRow title={t("hidePhoto")} subtitle={t("hidePhotoText")} control={<Switch on={privacy.hidePhotoUntilAccepted} label={t("hidePhoto")} onChange={(on) => setPrivacy({ hidePhotoUntilAccepted: on })} />} />
+        {/* Your lists of people on your profile (CLAUDE.md "Profil als Netzwerk-Seite"): private by default. */}
+        <SettingsRow title={t("showPeople")} subtitle={t("showPeopleText")} control={<Switch on={privacy.showPeople} label={t("showPeople")} onChange={(on) => setPrivacy({ showPeople: on })} />} />
         {hosts && <SettingsRow title={t("hostPage")} subtitle={t("hostPageText")} control={<Switch on={privacy.hostPageInSearch} label={t("hostPage")} onChange={(on) => setPrivacy({ hostPageInSearch: on })} />} />}
         {/* Nearby (lib/nearby.ts): consent, off by default – only Your people, only when they turned it on too. */}
         <SettingsRow title={t("nearby")} subtitle={t("nearbyText")} control={<Switch on={privacy.nearby} label={t("nearby")} onChange={(on) => setPrivacy({ nearby: on })} />} />
@@ -696,27 +761,27 @@ function PrivacyArea({ me }: { me: User }) {
  */
 function AppearanceArea() {
   const tu = useTranslations("settings.ui");
-  const store = useStore();
-  const pref = useThemePref();
-  const saved = useSaved();
-  const choose = (next: ThemePref) => {
-    if (next === pref) return;
-    applyThemePref(next);
-    store.setAppearance(next);
-    saved();
-  };
   return (
     <div className="space-y-8">
       <AreaTitle title={tu("nav.appearance")} />
-      <SettingsGroup footer={tu("appearance.hint")}>
-        {THEME_PREFS.map((option) => (
-          <SettingsRow
-            key={option}
-            title={tu(`appearance.${option}`)}
-            control={pref === option ? <Check aria-hidden className="size-4 text-ink" strokeWidth={2.5} /> : undefined}
-            onClick={() => choose(option)}
-          />
-        ))}
+      {/* Light · Dark (components/settings/ThemeSwitch – the same change as the tab bar's button): the first visit starts from the device,
+          a choice is kept on this device and on the account. */}
+      <div className="space-y-3">
+        <ThemeSwitch />
+        <p className="text-small text-muted">{tu("appearance.hint")}</p>
+      </div>
+    </div>
+  );
+}
+
+/** Language: English only for now (the account field is ready, i18n/config.ts). */
+function LanguageArea() {
+  const tu = useTranslations("settings.ui");
+  return (
+    <div className="space-y-8">
+      <AreaTitle title={tu("nav.language")} />
+      <SettingsGroup footer={tu("general.languageSoon")}>
+        <SettingsRow title={tu("general.english")} control={<Check aria-hidden className="size-4 text-ink" strokeWidth={2.5} />} />
       </SettingsGroup>
     </div>
   );

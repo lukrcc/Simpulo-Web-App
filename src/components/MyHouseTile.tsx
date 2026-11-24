@@ -13,7 +13,7 @@ import { cn, housePhotos } from "@/lib/utils";
 
 /**
  * One of your own Houses (Hosting · Going · Waiting · Lived in · Up next): no notch, no heart, no socials, no text on the photo – that's the
- * HouseCard's, for open Houses you can join. The photo 16:10 (Lived in: 1:1), only the picture rounded (16); under it, on the page: the
+ * HouseCard's, for open Houses you can join. ONE size for all (CLAUDE.md "Ein Seiten-Gerüst"): the photo 4:3, only the picture rounded (16); under it, on the page: the
  * title (one line, 17px semibold), "date · place" muted (Place.short: "Madeira", never the House's short name), then the status line – no
  * crew faces, no "+" circles: left `meta` (Going/Waiting "in 66 days" or the date; Hosting "2 of 4 in"), right the status ("You're in",
  * "Waiting for host", "Pay · 48h" orange, "● Review 1 request", "Open for requests"). `menu`: top right on the photo.
@@ -45,9 +45,9 @@ export function MyHouseTile({
   return (
     <div className="group relative min-w-0" onClickCapture={onClickCapture}>
       <Link href={href} className="block rounded-2xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)">
-        <span className={cn("relative flex items-center justify-center overflow-hidden rounded-2xl bg-linear-to-br from-(--card-blank-from) to-(--card-blank-to) text-ink/30", square ? "aspect-square" : "aspect-16/10")}>
+        <span className={cn("relative flex items-center justify-center overflow-hidden rounded-2xl bg-linear-to-br from-(--card-blank-from) to-(--card-blank-to) text-ink/30", "aspect-4/3")}>
           {photo ? (
-            <Img src={photo} alt="" fill sizes={square ? "200px" : "(min-width: 1440px) 270px, (min-width: 1024px) 25vw, 33vw"} className="object-cover transition-transform duration-350 group-hover:scale-[1.03]" />
+            <Img src={photo} alt="" fill sizes="(min-width: 1440px) 340px, (min-width: 1100px) 25vw, (min-width: 744px) 33vw, 50vw" className="object-cover transition-transform duration-350 group-hover:scale-[1.03]" />
           ) : (
             <Camera aria-hidden className="size-8" />
           )}

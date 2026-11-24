@@ -274,6 +274,14 @@ function PersonRow({ user, today, canInviteTo, onInvite, onRemove }: { user: Use
   const inFor = today ? activeInForOf(store.inFor, user.id, today)[0] : undefined;
   const current = today ? currentHouseOf(store, user.id, today) : undefined;
   const name = firstName(user);
+  // The Houses you both were in (host or crew), the most recent first.
+  const me = store.currentUserId;
+  const shared = me
+    ? store.stays
+        .filter((stay) => (stay.hostId === me || isCrewMember(store, stay, me)) && (stay.hostId === user.id || isCrewMember(store, stay, user.id)))
+        .toSorted((a, b) => b.startDate.localeCompare(a.startDate))
+    : [];
+  const latest = shared[0];
   return (
     <li className="flex items-start gap-4">
       <Link href={profileHref(user.id)} className="shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--focus-ring)" aria-label={name}>
@@ -286,7 +294,15 @@ function PersonRow({ user, today, canInviteTo, onInvite, onRemove }: { user: Use
         {/* "Now in …" only from a House they're in right now – there's no place field. */}
         {current && <p className="truncate text-small text-muted">{t("nowIn", { city: placeShortOf(current) })}</p>}
         {inFor && <p className="mt-0.5 truncate text-small text-ink">{t("inFor", { line: line(inFor) })}</p>}
+        {/* The Houses you shared – the most recent named (CLAUDE.md "Profilseite neu"). */}
+        {latest && <p className="mt-0.5 truncate text-small text-muted">{t("together", { count: shared.length, name: shortNameOf(latest) })}</p>}
         <div className="mt-3 flex flex-wrap items-center gap-2">
+          {/* "Message": the crew chat of your most recent shared House – no free direct chats between people (DIRECT_MESSAGE_POLICY). */}
+          {latest && (
+            <Button variant="secondary" size="sm" href={`/messages/${crewThreadId(latest.id)}`}>
+              {t("message")}
+            </Button>
+          )}
           {canInviteTo && (
             <Button variant="secondary" size="sm" onClick={onInvite}>
               {t("invite")}

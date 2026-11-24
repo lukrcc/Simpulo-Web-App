@@ -123,7 +123,7 @@ export async function SlimFooter() {
   const legal = await legalLinks();
   return (
     <footer data-footer-slim className="border-t border-(--footer-slim-line) bg-(--footer-slim-surface)">
-      <Container className="flex min-h-(--footer-slim-h) items-center py-(--footer-slim-pad) text-small text-muted">
+      <Container className="flex min-h-(--footer-slim-h) flex-wrap items-center justify-between gap-x-6 gap-y-2 py-(--footer-slim-pad) text-small text-muted">
         <nav aria-label={t("legalLabel")} className="flex flex-wrap items-center gap-x-1.5">
           <SupportLink kind="help" className="min-h-11 md:min-h-0" label={tl("links.getHelp")} />
           {[{ href: "/report-content", label: tl("links.reportContent") }, ...legal].map(({ href, label }) => (

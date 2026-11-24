@@ -4,6 +4,7 @@
 // arrows; an open entry in the full text colour with a soft surface, an active Getaways filter semibold (no line between them, no count on Filters – the active filters show as chips on the page) – plain words, no capsules, centred between the logo and the right group. Explore passes its filter state
 // (ExploreFeed portals it into the bar's slot); every other page gets HeaderCenterNav, whose entries lead to Explore.
 import type { PanelHandlers } from "./HeaderPanel";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useLayoutEffect, useMemo, useRef, useState, type Ref } from "react";
@@ -20,6 +21,9 @@ const CENTER_AIR = 24;
 /** How many steps the middle can move together (0 = as it is). */
 const SQUEEZE_STEPS = 3;
 
+/** The Short Trips results: Explore with the length filter "up to 5 nights". */
+const SHORT_TRIPS_HREF = "/explore?len=weekend";
+
 export interface HeaderCenterProps {
   place: string | null;
   month: string | null;
@@ -30,8 +34,10 @@ export interface HeaderCenterProps {
   /** The sheet closed (the other pages go to Explore with a place chosen) */
   onWhereWhenClose?: () => void;
   autoOpen?: boolean;
+  /** The Short Trips results are what's shown (the link's active state) */
   shortTrips: boolean;
-  onShortTrips: () => void;
+  /** On Explore itself: show the Short Trips results in place (its filters don't follow a link to the same page); elsewhere the link navigates */
+  onShortTrips?: () => void;
   vibes: readonly string[];
   sub: string | null;
   onTheme: (vibe: string | null) => void;
@@ -39,8 +45,6 @@ export interface HeaderCenterProps {
   filterCount: number;
   filtersOpen?: boolean;
   onFilters: () => void;
-  /** Only "⌕ Where · When" (every page but the start page and Explore) */
-  compact?: boolean;
   /** Filters' hover and click from the page's header panel (useHeaderPanel); without, a click calls onFilters */
   filtersTrigger?: PanelHandlers["trigger"];
   /** The element All filters' sheet hangs under */
@@ -98,18 +102,28 @@ export function HeaderCenter({ filtersRef, ...p }: HeaderCenterProps) {
       data-squeeze={squeeze}
       className="flex min-w-0 items-center gap-1"
     >
-      {/* Getaways · Search · Themes · Filters (CLAUDE.md "Kopfleiste nur Text"); compact: only Search. */}
-      {!p.compact && (
-        <button
-          type="button"
-          aria-pressed={p.shortTrips}
-          aria-label={tf("shortTrips")}
+      {/* Short Trips · Search · Themes · Filters (CLAUDE.md "Kopfleiste wie apple.com"). */}
+      {(
+        // Short Trips is a link to its results (CLAUDE.md "Short Trips als Link"), not a switch: on them already, a click stays and glides to
+        // the top. The filter goes only with its "Short Trips ×" chip or "Clear all". Active: the primary colour, medium.
+        <Link
+          href={SHORT_TRIPS_HREF}
+          aria-current={p.shortTrips ? "page" : undefined}
           data-on={p.shortTrips ? "" : undefined}
-          onClick={p.onShortTrips}
+          onClick={(e) => {
+            if (!p.shortTrips) {
+              if (!p.onShortTrips) return;
+              e.preventDefault();
+              p.onShortTrips();
+              return;
+            }
+            e.preventDefault();
+            window.scrollTo({ top: 0, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+          }}
           className={cn(hdrItem, "hdr-short-trips")}
         >
           {tf("shortTrips")}
-        </button>
+        </Link>
       )}
       <SearchField
         trigger="text"
@@ -119,7 +133,7 @@ export function HeaderCenter({ filtersRef, ...p }: HeaderCenterProps) {
         onClose={p.onWhereWhenClose}
         autoOpen={p.autoOpen}
       />
-      {!p.compact && (
+      {(
         <>
           <BarCategories buttonClass={hdrItem} label={tThemes("menuLabel")} themesLabel={tThemes("themes")} all={options}
             value={p.vibes}
@@ -149,8 +163,8 @@ export function HeaderCenter({ filtersRef, ...p }: HeaderCenterProps) {
   );
 }
 
-/** Every page but Explore: its entries lead to Explore with the choice set – the start page the full group, the others `compact` (only Where · When). */
-export function HeaderCenterNav({ compact = false }: { compact?: boolean }) {
+/** The start page and the result pages without Explore's own state: the entries lead to Explore with the choice set. */
+export function HeaderCenterNav() {
   const router = useRouter();
   const [picked, setPicked] = useState<{
     place: string | null;
@@ -169,7 +183,6 @@ export function HeaderCenterNav({ compact = false }: { compact?: boolean }) {
   };
   return (
     <HeaderCenter
-      compact={compact}
       place={picked.place}
       month={picked.month}
       onWhereWhen={(change) => {
@@ -189,7 +202,6 @@ export function HeaderCenterNav({ compact = false }: { compact?: boolean }) {
         }
       }}
       shortTrips={false}
-      onShortTrips={() => go({ len: "weekend" })}
       vibes={[]}
       sub={null}
       onTheme={(vibe) => go({ vibe })}

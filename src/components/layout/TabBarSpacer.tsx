@@ -12,12 +12,13 @@ export const OWN_BAR_SPACER = "h-[calc(92px+var(--safe-bottom))]";
  * Leiste unten"): exactly what the bar covers (--tabbar-clear; 0 where there's none). Uses
  * usePathname – render it inside a Suspense boundary with <TabBarSpacerFallback /> as the fallback.
  */
+// The footer ends with the tab bar's room plus 32px (CLAUDE.md "Footer-Abstand"): the floating bar lies over free ground, never over a link.
 export function TabBarSpacer() {
   const pathname = usePathname();
   // The House page's booking bar counts in --tabbar-clear (html[data-house-bar]); other routes without the bar keep room for their own.
-  return <div aria-hidden className={hidesTabBar(pathname) && !pathname.startsWith("/house/") ? cn(OWN_BAR_SPACER, "split:hidden") : "h-(--tabbar-clear)"} />;
+  return <div aria-hidden className={hidesTabBar(pathname) && !pathname.startsWith("/house/") ? cn(OWN_BAR_SPACER, "split:hidden") : "h-[calc(var(--tabbar-clear)+32px)]"} />;
 }
 
 export function TabBarSpacerFallback() {
-  return <div aria-hidden className="h-(--tabbar-clear)" />;
+  return <div aria-hidden className="h-[calc(var(--tabbar-clear)+32px)]" />;
 }

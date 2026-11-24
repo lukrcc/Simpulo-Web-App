@@ -3,8 +3,10 @@ import { HeaderBack } from "@/components/layout/HeaderBack";
 import { useOpenHouseEntry } from "@/components/platform/useOpenHouseEntry";
 import { CompactSearch } from "./CompactSearch";
 import { HeaderCenterNav } from "./HeaderCenter";
+import { HeaderPanelShell } from "./HeaderPanel";
 import { setAdminHeaderSlot, setHeaderSlot } from "@/lib/headerSlot";
 
+import { HousePlus } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Suspense, useEffect } from "react";
@@ -18,7 +20,7 @@ import { useStore } from "@/lib/store";
  * ONE bar on every page (from 1100px and in the admin --header-bar-h = one capsule height --header-pill-h + the same gap above and below + the foot line; 64px on tablets; --header-h), fixed at the top, transparent graphite glass (.40, at the very top .62), full width, a 1px line white 10 % at
  * its foot, above the page (only dialogs go over it); the content gets its height as padding-top. It never moves while scrolling. The same on
  * every page: the wordmark (→ Explore) · in the middle Explore's quick search, elsewhere the capsule "Where to next?" (the same Where/When
- * sheet, then Explore with the filter) · right the text tabs Explore · Your houses · Messages, the avatar (its account menu, AvatarMenu)
+ * sheet, then Explore with the filter) · right the text tabs Explore · Your houses · Messages, the avatar
  * and "Open a House" as a thin outline button. The tab you're on a filled capsule cream 12 % (no edge). Below 1100px the tabs are icons
  * with a tooltip and "Open a House" only its "+".
  */
@@ -57,8 +59,10 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
   // Explore's header (its quick search in the bar's slot, driving the page's own filters): /explore, / once signed in, and every "See all"
   // page (/collections/…, CLAUDE.md "Aufräumen – ein Design").
   const explorePage = pathname === "/explore" || Boolean(pathname?.startsWith("/collections/")) || (pathname === "/" && Boolean(store.sessionRestored && store.currentUserId));
-  // Only "⌕ Search" on the pages of one thing of yours or one House: the House page, Your houses, Messages, the profile, Open a House.
-  const compactCenter = Boolean(pathname && /^\/(house|h|your-houses|messages|profile|u|me|create)(\/|$)/.test(pathname));
+  // The middle (Short Trips · Search · Themes · Filters) only where you look for Houses (CLAUDE.md "Profilseite neu"): the start page, Explore and
+  // the result pages (collections, cities, themes). Everywhere else – profile, Your houses, Messages, the House page, Settings, Open a House – it
+  // stays empty.
+  const discoveryPage = pathname === "/" || Boolean(pathname && /^\/(explore|collections|co-living|themes)(\/|$)/.test(pathname));
   // The admin: the same compact bar (--header-bar-h, data-admin → --header-h in globals.css) and its own search (⌘K, AdminCommandSearch portalled into the slot).
   const adminPage = pathname === "/admin" || Boolean(pathname?.startsWith("/admin/"));
   // At the very top (scrollY < 8) the glass is a little more opaque: an IntersectionObserver on AppShell's 1px mark – no scroll listener; only
@@ -96,8 +100,7 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
           <div ref={setAdminHeaderSlot} data-admin-slot className="flex min-w-0 flex-1 max-split:hidden" />
         ) : (
           <div data-center-slot className="flex min-w-0 flex-1 items-center justify-center max-split:hidden split:justify-self-center">
-            {/* The full group – compact ("⌕ Search" alone) only on the House page, Your houses, Messages, the profile, Open a House. */}
-            <HeaderCenterNav compact={compactCenter} />
+            {discoveryPage && <HeaderCenterNav />}
           </div>
         )}
         {/* Below 1100px (tablets): ONE light search field across the width with the filter button inside (CompactSearch) – Explore's quick
@@ -110,10 +113,14 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
             live in the floating bar at the bottom (BottomTabBar). */}
         <div data-header-right className="ml-6 flex shrink-0 items-center max-split:hidden split:justify-self-end">
           <Link href={openEntry.href} className={headerActionStyles}>
+            {/* A house with a plus, 16px, in the words' colour (CLAUDE.md "Symbol bei Open a House"). */}
+            <HousePlus aria-hidden strokeWidth={1.75} />
             {openEntry.label}
           </Link>
         </div>
       </div>
+      {/* The ONE panel under the bar for Search, Themes and Filters (its surface and the soft layer behind), portalled to the body. */}
+      <HeaderPanelShell />
     </header>
   );
 }

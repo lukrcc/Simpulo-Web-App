@@ -20,7 +20,8 @@ import { firstName } from "@/lib/utils";
  * while the row rests. The copies are aria-hidden (their links out of the tab order). Arrows: one card each (scrollBy, smooth). No autoplay.
  * Every card the same size: three whole cards in the middle and about a third of one on each side; the stage is exactly the window under the
  * header less the tab bar (always visible), the room left by the text and the cards split into three equal gaps – above the text, between
- * text and cards, and from the cards to the tab bar's top edge. Hover lifts a card 1.03 (globals.css), never while scrolling.
+ * text and cards, and from the cards to the tab bar's top edge. The cards are the shelves' own (HouseCard variant="shelf"), nothing behind
+ * them – no glow, no surface (CLAUDE.md "Spotlight-Karten = Reihen-Karte"); their hover is theirs (scale 1.02, no shadow).
  */
 
 /** Room between the cards (the row's gap, globals.css .shelf-track). */
@@ -49,9 +50,9 @@ export function SpotlightCoverflow({ stays, countOf, onPickVibe, launchHero }: {
     return remembered !== null && remembered < houses.length ? remembered : 0;
   });
 
-  // The theme on the right: the card nearest the middle, read when the row rests (Shelf onRest) – positions only, nothing moved.
-  const [vibe, setVibe] = useState<Vibe | null>(null);
-  const themeVibe = vibe ?? houses[startIndex]?.stay.vibe ?? houses[0]?.stay.vibe;
+  // The theme on the right runs on its own clock (CLAUDE.md "Spotlight-Kopftexte"): the categories of these Houses, in their order, each once.
+  const themeVibes = useMemo(() => [...new Set(houses.map((h) => h.stay.vibe))].filter((v) => countOf(v) > 0), [houses, countOf]);
+  // When the row rests: remember where it is (back from a House) and which Houses were seen – positions only, nothing moved.
   const onRest = useCallback((viewport: HTMLDivElement) => {
     const box = viewport.getBoundingClientRect();
     const centre = box.left + box.width / 2;
@@ -67,7 +68,6 @@ export function SpotlightCoverflow({ stays, countOf, onPickVibe, launchHero }: {
         nearest = slide;
       }
     }
-    if (nearest?.dataset.vibe) setVibe(nearest.dataset.vibe as Vibe);
     if (nearest?.dataset.index) rememberSpotlight(Number(nearest.dataset.index));
     if (seen.size > 0) markHeroSeen([...seen]);
   }, []);
@@ -125,11 +125,11 @@ export function SpotlightCoverflow({ stays, countOf, onPickVibe, launchHero }: {
 
   return (
     // Exactly the window under the header; the three gaps from --spot-gap.
-    <StageBand from="lg" className="hidden h-[calc(100dvh-var(--header-total))] flex-col pt-(--spot-gap,40px) md:flex [&>.stage-gradient]:md:block">
+    <StageBand from="lg" className="hidden h-[calc(100dvh-var(--header-total))] flex-col pt-(--spot-gap,40px) md:flex [&>.stage-gradient]:hidden">
       <div ref={textRef} data-spot-text className="relative z-2 shrink-0">
-        {themeVibe && (
+        {(themeVibes.length > 0 || launchHero) && (
           <Container>
-            <SpotlightGreeting launch={launchHero} name={me ? firstName(me) : null} vibe={themeVibe} countOf={countOf} onPick={onPickVibe} />
+            <SpotlightGreeting launch={launchHero} name={me ? firstName(me) : null} vibes={themeVibes} countOf={countOf} onPick={onPickVibe} />
           </Container>
         )}
       </div>
@@ -145,9 +145,10 @@ export function SpotlightCoverflow({ stays, countOf, onPickVibe, launchHero }: {
                 data-index={i}
                 data-surface="dark"
                 className="cf-slide"
-                style={{ width: "var(--spot-w)", height: "var(--spot-h)" }}
+                style={{ width: "var(--spot-w)" }}
               >
-                <HouseCard stay={stay} host={host} crew={crew} spotlight eager={copy === middleCopy && Math.abs(i - startIndex) < 4} />
+                {/* Exactly the shelves' card ("Your people are going": variant="shelf", the same props) – no card of its own, no wrapper look. */}
+                <HouseCard variant="shelf" stay={stay} host={host} crew={crew} />
               </div>
             )),
           )}

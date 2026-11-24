@@ -91,7 +91,7 @@
    options and fields): 40px, padding 0 16px, 15px medium, icon 16px in the words' colour, fully round, white 8 % (--header-pill), no edge;
    hover 12 %; chosen (or open) 16 % and semibold (--header-pill-active) – the same values in the bar and in its menus. No orange here – only the unread dot and the active-filter count. */
 [data-site-header] :is(.bar-capsule, .chip-row [role="radiogroup"] > :is(button, a)),
-:is(.bar-sheet, .bar-menu) :is([data-chip], .pick-option, .filters-capsule.panel-field) {
+:is(.bar-sheet, .bar-menu, .themes-menu) :is([data-chip], .pick-option, .filters-capsule.panel-field) {
   height: 40px;
   padding: 0 16px;
   gap: 8px;
@@ -108,37 +108,37 @@
 }
 /* Icon → words exactly 8px (the capsule's gap): no extra margin on an icon of its own. */
 [data-site-header] :is(.bar-capsule, .chip-row [role="radiogroup"] > :is(button, a)) > [aria-hidden],
-:is(.bar-sheet, .bar-menu) :is([data-chip], .pick-option) > [aria-hidden] {
+:is(.bar-sheet, .bar-menu, .themes-menu) :is([data-chip], .pick-option) > [aria-hidden] {
   margin: 0;
 }
 /* A field with a button inside: the inner button holds the padding. */
-:is(.bar-sheet, .bar-menu) .filters-capsule.panel-field {
+:is(.bar-sheet, .bar-menu, .themes-menu) .filters-capsule.panel-field {
   padding: 0;
   gap: 0;
 }
 [data-site-header] :is(.bar-capsule, .chip-row [role="radiogroup"] > :is(button, a)) svg,
-:is(.bar-sheet, .bar-menu) :is([data-chip], .pick-option, .filters-capsule.panel-field) svg {
+:is(.bar-sheet, .bar-menu, .themes-menu) :is([data-chip], .pick-option, .filters-capsule.panel-field) svg {
   width: 16px;
   height: 16px;
   color: inherit;
 }
 [data-site-header] :is(.bar-capsule, .chip-row [role="radiogroup"] > :is(button, a)) :is([aria-hidden]:not(.tabular-nums), span:not(.tabular-nums), button),
-:is(.bar-sheet, .bar-menu) :is([data-chip], .pick-option, .filters-capsule.panel-field) :is([aria-hidden]:not(.tabular-nums), span:not(.tabular-nums), button) {
+:is(.bar-sheet, .bar-menu, .themes-menu) :is([data-chip], .pick-option, .filters-capsule.panel-field) :is([aria-hidden]:not(.tabular-nums), span:not(.tabular-nums), button) {
   color: inherit;
 }
 [data-site-header] :is(.bar-capsule, .chip-row [role="radiogroup"] > :is(button, a)):hover,
-:is(.bar-sheet, .bar-menu) :is([data-chip], .pick-option, .filters-capsule.panel-field):hover {
+:is(.bar-sheet, .bar-menu, .themes-menu) :is([data-chip], .pick-option, .filters-capsule.panel-field):hover {
   background-color: var(--header-pill-hover);
 }
 [data-site-header] :is(.bar-capsule:is([aria-expanded="true"], [aria-pressed="true"]), .chip-row [role="radiogroup"] > :is([aria-checked="true"], [aria-expanded="true"], [data-picked])),
-:is(.bar-sheet, .bar-menu) .pick-option[aria-expanded="true"] {
+:is(.bar-sheet, .bar-menu, .themes-menu) .pick-option[aria-expanded="true"] {
   background-color: var(--header-pill-active);
   font-weight: 600;
 }
 /* Chosen in the header's menus (Sort, Category, Length, Crew size, the months, a set dropdown): white filled, graphite words and icon. Not chosen
    stays the glass capsule above. */
-:is(.bar-sheet, .bar-menu) :is([data-chip][aria-pressed="true"], [data-chip][aria-checked="true"], .pick-option.pick-on, .filters-capsule.panel-field[data-active]),
-:is(.bar-sheet, .bar-menu) :is([data-chip][aria-pressed="true"], [data-chip][aria-checked="true"], .pick-option.pick-on, .filters-capsule.panel-field[data-active]):hover {
+:is(.bar-sheet, .bar-menu, .themes-menu) :is([data-chip][aria-pressed="true"], [data-chip][aria-checked="true"], .pick-option.pick-on, .filters-capsule.panel-field[data-active]),
+:is(.bar-sheet, .bar-menu, .themes-menu) :is([data-chip][aria-pressed="true"], [data-chip][aria-checked="true"], .pick-option.pick-on, .filters-capsule.panel-field[data-active]):hover {
   background-color: var(--menu-pick-bg);
   box-shadow: none;
   color: var(--menu-pick-text);
@@ -547,19 +547,6 @@
     transition: none;
   }
 }
-/* The Spotlight (CLAUDE.md "Spotlight natives Scrollen"): every card lifts 1.03 on hover with a deeper box-shadow – never while the row
-   scrolls (data-scrolling on the shelf), never with reduced motion. */
-.cf-slide > * {
-  transition: transform 200ms ease-out;
-}
-@media (hover: hover) and (prefers-reduced-motion: no-preference) {
-  [data-spot-row] .shelf:not([data-scrolling]) .cf-slide:hover > * {
-    transform: scale(1.03);
-  }
-  [data-spot-row] .shelf:not([data-scrolling]) .cf-slide:hover .card-depth-spotlight {
-    box-shadow: var(--spot-card-hover-shadow);
-  }
-}
 /* Its arrows: dark glass in both modes, a white arrow (doubled class: wins over the raised button's own surface). */
 .spot-arrow.spot-arrow {
   background-color: var(--spot-arrow-bg);
@@ -571,11 +558,15 @@
 .spot-arrow.spot-arrow:hover {
   background-color: var(--spot-arrow-bg-hover);
 }
-/* Never over an open panel of the header (Search, Themes, Filters – lib/headerPanels.ts). */
-html[data-panel-open] [data-tab-bar] {
-  visibility: hidden;
-  pointer-events: none;
+/* Phones: never over an open sheet from the header (lib/headerPanels.ts). From 744px the tab bar stays above an open panel and its soft
+   layer (CLAUDE.md "Panels fast deckend"). */
+@media (max-width: 46.49rem) {
+  html[data-panel-open] [data-tab-bar] {
+    visibility: hidden;
+    pointer-events: none;
+  }
 }
+
 /* What covers the bottom edge: the tab bar (phones) or otherwise the safe area – anything fixed at the bottom (toasts, the Dev button, sticky
    save bars) sits above this. */
 :root {
@@ -1211,7 +1202,7 @@ html[data-at-top] .milk-glass {
   margin-left: auto;
 }
 /* The panel's Where / When fields: the inner button holds the capsule's 16px. */
-:is(.bar-sheet, .bar-menu) .filters-capsule.panel-field > button:first-child {
+:is(.bar-sheet, .bar-menu, .themes-menu) .filters-capsule.panel-field > button:first-child {
   padding-inline: 16px;
 }
 /* The bar's content and its full-width sheet (All filters): at most 1600px, 32px from the window's edges. */
@@ -1647,12 +1638,16 @@ input[type="number"]::-webkit-inner-spin-button {
 
 /* Notched cards (useNotchClip): once the card clips itself around the host tab, the tab needs no page-coloured
    background or corner pieces – they were what left a hairline along the notch. Unlayered, so it beats utilities. */
-[data-notch="ready"] .card-tab {
+/* The notch never has a surface of its own (CLAUDE.md "Spotlight-Karten = Reihen-Karte"): the host tab is always transparent, whatever lies
+   behind the card shows (light, dark, glass). Before the notch is measured (the first paint, a hidden card) the card leaves its top 40px –
+   the tab's height – out instead of painting the page's colour around the tab. */
+.card-tab,
+.card-tab::before,
+.card-tab::after {
   background: transparent;
 }
-[data-notch="ready"] .card-tab::before,
-[data-notch="ready"] .card-tab::after {
-  display: none;
+[data-notch="pending"] [data-notch-clip] {
+  clip-path: inset(40px 0 0 0 round 24px);
 }
 /* The frame moves as one layer (card + tab together), on whole pixels where the browser can. */
 .notch-frame {
@@ -1697,62 +1692,15 @@ input[type="number"]::-webkit-inner-spin-button {
 .band-dark .card-edge path {
   stroke: rgba(255, 255, 255, 0.12);
 }
-/* The Spotlight's depth (HouseCard .card-depth-spotlight): ONE box-shadow, no filter (CLAUDE.md "Spotlight natives Scrollen"); rounded like
-   the card, so only the notch's corner differs. */
-.card-depth-spotlight {
-  border-radius: 24px;
-  box-shadow: var(--spot-depth);
-  transition: box-shadow 200ms ease-out;
-}
-/* The HouseCard's hover – fine, at the bottom only (components/HouseCard). No veil, no brightness, no zoom, no scale. The card rises 2px, its
-   shadow a little deeper; inside it a faint warm light comes up at the bottom edge – radial-gradient(ellipse 70% 28% at 50% 100%), warm white
-   .10, soft-light, only the lowest ~25 % – over the photo, under the text's gradient (which stays as dark); under it a light on the ground
-   (60 % of its width, 24px high, 8px under its edge, warm .08 on the light page, .14 in a dark band, blur 16px). In 260ms ease-out.
-   Reduced motion: no movement, only the lights. */
-/* (CLAUDE.md "Karten-Aussparung zurückgesetzt"): on hover only the card itself lifts – scale 1.03, a shadow on the image surface (.card-depth,
-   rounded like it; a box-shadow only paints outside its box, so the notch never gets a fill, a rim or a light). The notch stays as it is. */
+/* The HouseCard's hover – every card alike, the Spotlight's too (CLAUDE.md "Spotlight-Karten = Reihen-Karte"): no shadow on the card or around
+   it, no light and no glow under it – only a very slight lift, scale 1.02 in 200ms. The whole card scales (image surface and host tab as one),
+   so the notch stays exactly around the tab and shows the ground behind it. Reduced motion: none. */
 .card-hover {
-  transition: scale 260ms ease-out, opacity 260ms ease-out;
+  transition: scale 200ms ease-out;
 }
-.card-hover .card-depth {
-  border-radius: 24px;
-  transition: box-shadow 260ms ease-out;
-}
-.card-light {
-  background: radial-gradient(ellipse 70% 28% at 50% 100%, rgba(255, 210, 170, 0.1), transparent 70%);
-  mix-blend-mode: soft-light;
-  opacity: 0;
-  transition: opacity 260ms ease-out;
-}
-.card-floor {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 20%;
-  z-index: -1;
-  width: 60%;
-  height: 24px;
-  background: radial-gradient(closest-side, var(--card-floor-light), transparent);
-  filter: blur(16px);
-  opacity: 0;
-  transition: opacity 260ms ease-out;
-}
-.band-dark .card-floor {
-  background: radial-gradient(closest-side, rgba(255, 200, 150, 0.14), transparent);
-}
-@media (hover: hover) and (min-width: 46.5rem) {
+@media (hover: hover) and (min-width: 46.5rem) and (prefers-reduced-motion: no-preference) {
   .card-hover:is(:hover, :has(:focus-visible)) {
-    scale: 1.03;
-  }
-  .card-hover:is(:hover, :has(:focus-visible)) .card-depth {
-    box-shadow: var(--card-hover-shadow);
-  }
-  .card-hover:is(:hover, :has(:focus-visible)) :is(.card-light, .card-floor) {
-    opacity: 1;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .card-hover:is(:hover, :has(:focus-visible)) {
-    scale: none;
+    scale: 1.02;
   }
 }
 
@@ -2082,13 +2030,13 @@ main:has([data-preview-gate]) {
    container query can't work in the grid's auto column): words only, so it only gets tighter – the same room between all entries at every
    step (1: 10px, 2: 8px, 3: 6px each side). Only then does the grid let the middle move off the window's middle. */
 [data-header-center][data-squeeze="1"] .hdr-item {
-  padding-inline: 10px;
-}
-[data-header-center][data-squeeze="2"] .hdr-item {
   padding-inline: 8px;
 }
-[data-header-center][data-squeeze="3"] .hdr-item {
+[data-header-center][data-squeeze="2"] .hdr-item {
   padding-inline: 6px;
+}
+[data-header-center][data-squeeze="3"] .hdr-item {
+  padding-inline: 4px;
 }
 
 /* The bar in Hell from 1100px (CLAUDE.md "Kopfleiste neu geordnet"): light glass – white 85 % over blur 20px, a fine line at its foot,
@@ -2272,16 +2220,16 @@ body:has([data-last-tone="dark"]) footer.footer-dark {
     box-shadow: inset 0 -1px 0 var(--graphite-glass-line), 0 24px 60px rgb(0 0 0 / 0.08);
     border-bottom-color: transparent;
   }
-  :root :is(.bar-sheet, .bar-menu) :is(input:not([type="checkbox"], [type="radio"], [type="range"]), textarea) {
+  :root :is(.bar-sheet, .bar-menu, .themes-menu) :is(input:not([type="checkbox"], [type="radio"], [type="range"]), textarea) {
     background-color: var(--panel-field);
     color: var(--text);
     text-shadow: none;
   }
-  :root :is(.bar-sheet, .bar-menu) :is(input:not([type="checkbox"], [type="radio"], [type="range"]), textarea):focus {
+  :root :is(.bar-sheet, .bar-menu, .themes-menu) :is(input:not([type="checkbox"], [type="radio"], [type="range"]), textarea):focus {
     background-color: var(--panel-field-focus);
     text-shadow: none;
   }
-  :root :is(.bar-sheet, .bar-menu) ::placeholder {
+  :root :is(.bar-sheet, .bar-menu, .themes-menu) ::placeholder {
     color: var(--text-muted);
   }
 }
@@ -2318,5 +2266,136 @@ body:has([data-last-tone="dark"]) footer.footer-dark {
     --hdr-fg: var(--bar-text);
     --hdr-muted: var(--bar-muted);
     --open-house-text: var(--bar-text);
+  }
+}
+
+/* The header's panels – Search, Themes, Filters (CLAUDE.md "Panels fast deckend", from 1100px; HeaderPanel .themes-menu, BarSheet): almost
+   opaque in the page's colour (--panel-solid .96), only a light blur (8px) for the edge, a fine line at the foot, a soft shadow – nothing of
+   the page's photos shows through. Inside, the capsules have a soft fill instead of an edge, chosen graphite (the rules above). */
+@media (min-width: 68.75rem) {
+  :root .bar-sheet.bar-sheet {
+    background: var(--panel-solid);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    border: 0;
+    border-bottom: 1px solid var(--line);
+    box-shadow: var(--panel-solid-shadow);
+  }
+}
+/* Behind an open panel (CLAUDE.md "Seite dahinter weich"): one layer over the page, under the panel, the header and the tab bar – the page a
+   little darker and soft (blur 6px), in and out in 150ms; a click on it closes the panel. */
+.panel-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 39;
+  background: var(--panel-scrim);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 150ms ease-out,
+    visibility 0s 150ms;
+}
+.panel-scrim[data-open] {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 150ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .panel-scrim,
+  .panel-scrim[data-open] {
+    transition: none;
+  }
+}
+
+/* The ONE header panel (CLAUDE.md "Kopfleiste wie apple.com", HeaderPanelShell): its surface under the open content – almost opaque in the
+   page's colour (--panel-solid), a light blur for the edge, a fine line at its foot, a soft shadow; the height glides to the content's in
+   200ms, the shell fades in and out in 200ms and stays while the content switches. The contents themselves (.themes-menu) are transparent. */
+.header-panel-shell {
+  position: fixed;
+  inset-inline: 0;
+  top: var(--header-total);
+  z-index: 40;
+  pointer-events: none;
+  background: var(--panel-solid);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+  box-shadow: var(--panel-solid-shadow);
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 200ms ease-out,
+    height 200ms ease-out,
+    visibility 0s 200ms;
+}
+.header-panel-shell[data-open] {
+  opacity: 1;
+  visibility: visible;
+  transition:
+    opacity 200ms ease-out,
+    height 200ms ease-out;
+}
+:root .themes-menu.themes-menu {
+  background: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  border: 0;
+  box-shadow: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .header-panel-shell,
+  .header-panel-shell[data-open] {
+    transition: none;
+  }
+}
+
+/* The Spotlight's head (CLAUDE.md "Spotlight-Kopftexte – feste Typo-Hierarchie", explore/SpotlightIntro.tsx): fixed sizes, no fitting. The
+   small lines 13px capitals, 0.08em, the secondary grey; the one large line 56px semibold; the theme's sentence 22px medium, two lines kept
+   (--spot-line-box); its link 15px. */
+:root {
+  --spot-kicker-size: 13px;
+  --spot-title-size: 56px;
+  --spot-line-size: 22px;
+  --spot-line-leading: 1.3;
+  --spot-line-box: calc(2 * var(--spot-line-size) * var(--spot-line-leading));
+  --spot-link-size: 15px;
+}
+.spot-kicker {
+  font-size: var(--spot-kicker-size);
+  line-height: 1.4;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.spot-title {
+  font-family: var(--font-display);
+  font-size: var(--spot-title-size);
+  line-height: 1.05;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  color: var(--text);
+}
+.spot-line {
+  font-size: var(--spot-line-size);
+  line-height: var(--spot-line-leading);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+.spot-link {
+  font-size: var(--spot-link-size);
+  line-height: 1.4;
+  font-weight: 500;
+  color: var(--text);
+}
+
+/* No footer (config/footer.ts "none" – your own areas): the page ends right above the tab bar, no --footer-gap below it (CLAUDE.md "Footer nur auf
+   öffentlichen Seiten") – the profile fits one screen. */
+@media (min-width: 46.5rem) {
+  html[data-footer="none"] main:not(:has([data-app-pane])) {
+    padding-bottom: var(--tabbar-clear);
   }
 }

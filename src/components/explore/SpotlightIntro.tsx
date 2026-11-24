@@ -10,24 +10,17 @@ import type { Vibe } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/ActionButton";
 
-/** The main line on the left ("Hi Sam, where to next?"): about 44px, one line – smaller steps only if it wouldn't fit its half. */
-const TITLE_SIZES = [44, 40, 36, 32];
-/** The main line on the right (the category's sentence): about 32px, one line – smaller steps only if the longest wouldn't fit. */
-const SENTENCE_SIZES = [32, 30, 28, 26, 24, 22];
-/** The right block keeps 32px more room to the right edge than the page margin (pr-8). */
-const RIGHT_INSET = 32;
-
 interface GreetingProps {
-  /** Logged in: "Hi {name}." · "Where to next?"; null (visitors): "Share a place." · "Find your people." */
+  /** Signed in: "Where to next, {name}?"; null (visitors): "Where to next?" */
   name: string | null;
-  /** The centre card's category, once it has settled there */
-  vibe: Vibe;
+  /** The categories the theme block on the right cycles through (in this order) */
+  vibes: readonly Vibe[];
   /** Open Houses of a category */
   countOf: (vibe: Vibe) => number;
   /** Sets that category's chip and scrolls to the grid */
   onPick: (vibe: Vibe) => void;
-  /** Before the launch and in the beta (config/platform.ts): the launch line above "Find your people.", and on the right "Come for the place,
-   *  stay for the people." with "Join the waitlist" and "Become a Founding Host" instead of the category sentence */
+  /** Before the launch and in the beta (config/platform.ts): the launch line, and on the right "Come for the place, stay for the people."
+   *  with "Join the waitlist" and "Become a Founding Host" instead of the category sentence */
   launch?: LaunchHero;
 }
 
@@ -38,140 +31,141 @@ export interface LaunchHero {
   hostHref: string;
 }
 
+/** The theme block changes on its own clock (CLAUDE.md "Spotlight-Kopftexte"), not with the cards. */
+const THEME_EVERY_MS = 8000;
+/** Out, then in at the same place. */
+const FADE_MS = 250;
+
 /**
- * The Spotlight's text, logged in and out alike, one row with a common top edge. Left, and it stays: "Hi Sam." and "Where to next?" (the "?"
- * breathes) – for visitors "Share a place." and "Find your people." (its "." an ordinary letter in the gradient – nothing breathes there). Right, following the centre card's
- * category: its name, a sentence (visitors get the more inviting one) and the way to its Houses. Only the link takes the pointer: the
- * carousel's drag area is around it.
+ * The Spotlight's text (CLAUDE.md "Spotlight-Kopftexte – feste Typo-Hierarchie"), signed in and out alike, fixed sizes (tokens, globals.css
+ * .spot-kicker · .spot-title · .spot-line · .spot-link): left the small line "FIND YOUR PEOPLE" and the one large line "Where to next, {Name}?"
+ * (visitors "Where to next?"); right, right-aligned, a block of a fixed height (two lines of sentence kept): the category, its sentence, "X
+ * houses open →". Both small lines on the same top edge; the link's baseline on the large line's baseline (measured once per size – the left
+ * line moves down to it). Only the link takes the pointer: the cards' area is around it.
  */
-export function SpotlightGreeting({ name, vibe, countOf, onPick, launch }: GreetingProps) {
+export function SpotlightGreeting({ name, vibes, countOf, onPick, launch }: GreetingProps) {
   const t = useTranslations("explore.spotlightGreeting");
   const tIntro = useTranslations("explore.spotlightIntro");
-  const { lines, fallback } = useSpotlightThemeLines(name === null);
   const rootRef = useRef<HTMLDivElement>(null);
   const title = launch ? tIntro("second") : name ? t("whereNextName", { name }) : t("whereNext");
-  // Mirrored (CLAUDE.md "Kopftexte gespiegelt"): one grid of two halves – row 1 the small lines (left "FIND YOUR PEOPLE", right the category),
-  // row 2 the main lines (left the title, right the sentence), row 3 the link on the right. align-items: baseline puts the small lines on one
-  // line and the main lines on one baseline – no measuring. Only the sizes are fitted: the title and the longest sentence each on one line in
-  // its half (--title-size, --theme-size).
-  const sentences = Object.values(lines).join("\n");
+  // The large line's baseline onto the link's (the right block is the taller one): the left column ends with it, and the difference of the
+  // two baselines is taken off at its foot. Measured with a zero-height probe on each baseline; again on every size change.
   useLayoutEffect(() => {
     const root = rootRef.current;
     if (!root) return;
     const fit = () => {
-      const half = root.clientWidth / 2 - 12;
-      const probe = document.createElement("span");
-      probe.className = "text-h2";
-      probe.style.cssText = "position:absolute;visibility:hidden;white-space:nowrap;";
-      root.append(probe);
-      const widest = (texts: string[], size: number, family?: string) => {
-        probe.style.fontSize = `${size}px`;
-        if (family) probe.style.fontFamily = family;
-        return Math.max(...texts.map((text) => ((probe.textContent = text), probe.offsetWidth)));
-      };
       const titleEl = root.querySelector<HTMLElement>("[data-spot-title]");
-      const titleFamily = titleEl ? getComputedStyle(titleEl).fontFamily : undefined;
-      const titleSize = TITLE_SIZES.find((size) => widest([title], size, titleFamily) <= half) ?? TITLE_SIZES[TITLE_SIZES.length - 1];
-      probe.style.fontFamily = "";
-      const sentenceSize = SENTENCE_SIZES.find((size) => widest(sentences.split("\n"), size) <= half - RIGHT_INSET) ?? SENTENCE_SIZES[SENTENCE_SIZES.length - 1];
-      probe.remove();
-      root.style.setProperty("--title-size", `${titleSize}px`);
-      root.style.setProperty("--theme-size", `${sentenceSize}px`);
+      const anchor = root.querySelector<HTMLElement>("[data-spot-baseline]");
+      if (!titleEl || !anchor) return;
+      titleEl.style.marginBottom = "0px";
+      const base = (el: HTMLElement) => {
+        const probe = document.createElement("span");
+        probe.style.cssText = "display:inline-block;width:0;height:0;vertical-align:baseline";
+        el.append(probe);
+        const y = probe.getBoundingClientRect().top;
+        probe.remove();
+        return y;
+      };
+      const diff = base(anchor) - base(titleEl);
+      titleEl.style.marginBottom = `${Math.round(-diff * 100) / 100}px`;
     };
     fit();
     const observer = new ResizeObserver(fit);
     observer.observe(root);
     void document.fonts?.ready.then(fit);
     return () => observer.disconnect();
-  }, [sentences, title]);
+  }, [title]);
   return (
-    <div ref={rootRef} data-spotlight-greeting className="pointer-events-none relative grid grid-cols-2 items-baseline gap-x-6">
-      {/* Row 1: the small lines – grey, capitals. */}
-      <p data-align-top className="text-eyebrow uppercase text-muted">
-        {launch ? launch.label : t("findYourPeople")}
-      </p>
-      {/* Rows 1–3 on the right: the category, its sentence, the link (ThemeBlock – one fade for all three). */}
-      {launch ? (
-        <LaunchBlock launch={launch} />
-      ) : (
-        <ThemeBlock vibe={vibe} countOf={countOf} onPick={onPick} lines={lines} fallback={fallback} />
-      )}
-      {/* Row 3 left: the main line, one colour, no gradient – on the link's baseline, so the right block ends on it (CLAUDE.md
-          "Startseite-Spotlight final"). */}
-      <h2 data-spot-title style={TITLE_SIZE} className="stage-title col-start-1 row-start-3 whitespace-nowrap text-ink">
-        {title}
-      </h2>
+    <div ref={rootRef} data-spotlight-greeting className="pointer-events-none relative flex items-stretch justify-between gap-6">
+      {/* Left: the small line on top, the one large line at the foot (its baseline on the link's). */}
+      <div className="flex min-w-0 flex-col justify-between gap-3">
+        <p data-align-top className="spot-kicker">
+          {launch ? launch.label : t("findYourPeople")}
+        </p>
+        <h2 data-spot-title className="spot-title whitespace-nowrap">
+          {title}
+        </h2>
+      </div>
+      {launch ? <LaunchBlock launch={launch} /> : <ThemeBlock vibes={vibes} countOf={countOf} onPick={onPick} visitor={name === null} />}
     </div>
   );
 }
 
 /**
- * Follows the category (CLAUDE.md "Hero-Textwechsel ruhig"): the whole block – name, sentence, "N houses open →" – fades out completely
- * (250ms), then the new one fades in at exactly the same place (250ms). Never two texts at once, nothing moves; the block keeps a fixed
- * height (two lines of sentence reserved). Reduced motion: an immediate swap.
+ * The theme on the right (CLAUDE.md "Spotlight-Kopftexte"): its own clock – every THEME_EVERY_MS the whole block (category, sentence, link)
+ * fades out (250ms), then the next fades in at the same place (250ms); never two at once, a fixed height (two lines of sentence), nothing
+ * moves. Independent of the cards (scrolling, arrows). Paused while the pointer is over it; reduced motion: no automatic change. The link
+ * leads to the theme shown.
  */
-function ThemeBlock({ vibe, countOf, onPick, lines, fallback }: Pick<GreetingProps, "vibe" | "countOf" | "onPick"> & { lines: Record<Vibe, string>; fallback: (count: number) => string }) {
+function ThemeBlock({ vibes, countOf, onPick, visitor }: Pick<GreetingProps, "vibes" | "countOf" | "onPick"> & { /** Visitors get the more inviting sentences */ visitor: boolean }) {
   const t = useTranslations("explore.spotlightGreeting");
   const format = useFormat();
-  // What's shown, and what it's going to (a new category starts the fade-out; the swap happens once it is out).
-  const [shown, setShown] = useState(vibe);
-  const [target, setTarget] = useState(vibe);
+  const { lines, fallback } = useSpotlightThemeLines(visitor);
+  const [index, setIndex] = useState(0);
   const [out, setOut] = useState(false);
-  if (target !== vibe) {
-    setTarget(vibe);
-    setOut(vibe !== shown);
-  }
+  const paused = useRef(false);
+  const count = vibes.length;
   useEffect(() => {
-    if (!out) return;
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const id = window.setTimeout(() => {
-      setShown(target);
-      setOut(false);
-    }, reduce ? 0 : FADE_MS);
-    return () => window.clearTimeout(id);
-  }, [out, target]);
-  const sentenceOf = (v: Vibe) => lines[v] ?? fallback(countOf(v));
-  // Three cells of the greeting's grid (right column, rows 1–3), right-aligned; one fade for all three (data-out).
-  const cell = cn("col-start-2 pr-8 text-right transition-opacity duration-[250ms] ease-in-out motion-reduce:transition-none", out && "opacity-0");
+    if (count < 2 || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let swap = 0;
+    const id = window.setInterval(() => {
+      if (paused.current || document.hidden) return;
+      setOut(true);
+      swap = window.setTimeout(() => {
+        setIndex((i) => (i + 1) % count);
+        setOut(false);
+      }, FADE_MS);
+    }, THEME_EVERY_MS);
+    return () => {
+      window.clearInterval(id);
+      window.clearTimeout(swap);
+    };
+  }, [count]);
+  const shown = vibes[index % Math.max(1, count)];
+  if (!shown) return null;
+  const sentence = lines[shown] ?? fallback(countOf(shown));
   return (
-    <>
-      <p data-theme-eyebrow aria-live="polite" className={cn(cell, "row-start-1 text-eyebrow uppercase text-muted")}>
+    <div
+      data-theme-block
+      onMouseEnter={() => (paused.current = true)}
+      onMouseLeave={() => (paused.current = false)}
+      className={cn("pointer-events-auto flex min-w-0 max-w-[50%] flex-col items-end pr-8 text-right transition-opacity duration-[250ms] ease-in-out motion-reduce:transition-none", out && "opacity-0")}
+    >
+      <p data-theme-eyebrow aria-live="polite" className="spot-kicker">
         {format.vibe(shown)}
       </p>
-      <p data-theme-sentence style={THEME_SIZE} className={cn(cell, "row-start-2 mt-2 whitespace-nowrap text-h2 text-ink")}>
-        {sentenceOf(shown)}
+      {/* Two lines kept, so a short sentence never moves the link. */}
+      <p data-theme-sentence className="spot-line mt-2 line-clamp-2 h-(--spot-line-box)">
+        {sentence}
       </p>
-      <div data-theme-link className={cn(cell, "row-start-3 mt-2")}>
-        <Link
-          href={`/?${withFilters(new URLSearchParams(), { ...EMPTY_FILTERS, vibes: [shown] })}`}
-          onClick={(e) => {
-            e.preventDefault();
-            onPick(shown);
-          }}
-          className="pointer-events-auto inline-block text-body font-semibold text-ink underline-offset-4 hover:underline"
-        >
-          {lines[shown] ? t("open", { count: countOf(shown) }) : t("seeHouses")}
-        </Link>
-      </div>
-    </>
+      <Link
+        href={`/explore${withFilters(new URLSearchParams(), { ...EMPTY_FILTERS, vibes: [shown] })}`}
+        onClick={(e) => {
+          e.preventDefault();
+          onPick(shown);
+        }}
+        data-theme-link
+        className="spot-link mt-2 underline-offset-4 hover:underline"
+      >
+        <span data-spot-baseline>{lines[shown] ? t("open", { count: countOf(shown) }) : t("seeHouses")}</span>
+      </Link>
+    </div>
   );
 }
-// The swap a breath after the 250ms fade-out, so the old text is fully gone.
-const FADE_MS = 260;
 
 /** Before the launch and in the beta: the place of the category sentence – "Come for the place, stay for the people." and the two actions. */
 function LaunchBlock({ launch }: { launch: LaunchHero }) {
   const t = useTranslations("platform");
-  // The right column's main line and actions (rows 2 and 3 of the greeting's grid).
   return (
-    <>
-      <p data-theme-sentence style={THEME_SIZE} className="col-start-2 row-start-2 mt-2 pr-8 text-right text-h2 text-ink">
+    <div className="pointer-events-auto flex min-w-0 max-w-[50%] flex-col items-end pr-8 text-right">
+      <p className="spot-kicker">&nbsp;</p>
+      <p data-theme-sentence className="spot-line mt-2 line-clamp-2 h-(--spot-line-box)">
         {t("hero.sub")}
       </p>
-      <div className="col-start-2 row-start-3 mt-3 flex justify-end pr-8">
+      <div className="mt-2 flex justify-end">
         <LaunchActions launch={launch} oneRow />
       </div>
-    </>
+    </div>
   );
 }
 
@@ -204,5 +198,4 @@ export function LaunchIntro({ launch, className }: { launch: LaunchHero; classNa
   );
 }
 
-const THEME_SIZE = { fontSize: "var(--theme-size, 32px)" };
-const TITLE_SIZE = { fontSize: "var(--title-size, 44px)", lineHeight: 1.05 };
+
