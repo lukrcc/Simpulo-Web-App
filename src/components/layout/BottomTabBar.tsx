@@ -8,6 +8,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useIsPhone } from "@/lib/useMediaQuery";
+import { useHydrated } from "@/lib/useHydrated";
 import { useRequireAuth } from "@/components/auth/AuthProvider";
 import { useMessagesUnread } from "@/components/notifications/useNotifications";
 import { Avatar } from "@/components/ui/Avatar";
@@ -22,10 +23,11 @@ const item = (href: NavItem["href"]) => NAV_ITEMS.find((i) => i.href === href)!;
 
 /** Phones: one cell, the icon over its word (13px), centred. From 744px: a capsule entry, the icon beside its word. */
 const CELL =
-  "press bar-cell flex h-full w-full flex-col items-center justify-center gap-1 text-small transition-colors duration-150 md:h-9 md:w-auto md:flex-row md:gap-2 md:rounded-full md:px-3.5 md:text-nav focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)";
+  "press bar-cell flex h-full w-full flex-col items-center justify-center gap-1 text-small transition-colors duration-200 md:h-9 md:w-auto md:flex-row md:gap-2 md:rounded-full md:px-3.5 md:text-nav focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)";
 /** The page you're on: the primary text colour with a soft surface (from 744px); the others grey. */
 /** The page you're on: only the primary text colour and the filled icon – no surface (CLAUDE.md "Tab-Leiste im iOS-Glas-Stil"). */
-const ON = "font-semibold text-ink md:font-medium";
+const ON = "font-semibold text-ink";
+// (From 1100px the words sit on the glass: inactive the secondary grey, the one you're on the primary colour – no surface.)
 const OFF = "font-medium text-muted hover:text-ink";
 
 /**
@@ -77,6 +79,7 @@ export function BottomTabBar() {
   const profileRef = useRef<HTMLButtonElement>(null);
   const navRef = useRef<HTMLElement>(null);
   const hidden = hidesTabBar(pathname);
+  const hydrated = useHydrated();
   // What the bar covers (--tabbar-clear, globals.css): it counts by default; a route without the bar says "none".
   useEffect(() => {
     if (!hidden) return;
@@ -112,15 +115,15 @@ export function BottomTabBar() {
       </li>
     );
   };
-  return (
-    <>
+  // Straight under <body> (a portal once hydrated): no parent with transform, filter or overflow can break its glass.
+  const bar = (
       <nav
         ref={navRef}
         aria-label={t("yourSimpulo")}
         data-site-header
         data-tab-bar
         className={cn(
-          "header-glass tab-bar fixed inset-x-0 bottom-0 z-40 pb-(--safe-bottom)",
+          "header-glass glass-bar tab-bar fixed inset-x-0 bottom-0 z-40 pb-(--safe-bottom)",
           "md:inset-x-auto md:left-0 md:right-0 md:mx-auto md:bottom-[calc(12px+var(--safe-bottom))] md:w-fit md:max-w-[calc(100%-32px)] md:rounded-full md:px-1.5 md:pb-0 md:shadow-(--shadow-float) split:shadow-none",
           admin && "md:hidden",
         )}
@@ -176,6 +179,10 @@ export function BottomTabBar() {
           )}
         </ul>
       </nav>
+  );
+  return (
+    <>
+      {hydrated ? createPortal(bar, document.body) : bar}
       {me && !phone && account && <AccountPopover anchor={profileRef} label={t("menu.label")} onClose={() => setAccount(false)} />}
       {me && phone && (
         <MobileSheet open={account} onClose={() => setAccount(false)} label={t("menu.label")} className="px-3">

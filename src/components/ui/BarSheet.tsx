@@ -144,7 +144,7 @@ export function BarSheet({ open, onClose, anchor, label, head, footer, className
   }
   if (!shown || !place) return null;
   const sheet = (
-    <div ref={sheetRef} role="dialog" aria-modal="true" aria-label={label} data-closing={closing || undefined} className={cn("bar-sheet pointer-events-auto flex max-h-[calc(100vh-148px)] flex-col", className)}>
+    <div ref={sheetRef} role="dialog" aria-modal="true" aria-label={label} data-closing={closing || undefined} className={cn("bar-sheet glass-bar pointer-events-auto flex max-h-[calc(100vh-148px)] flex-col", className)}>
       {head && <div className="bar-sheet-body shrink-0">{head}</div>}
       <div className="bar-sheet-body min-h-0 flex-1 overflow-y-auto overscroll-contain">{children}</div>
       {footer && <div className="bar-sheet-body shrink-0">{footer}</div>}

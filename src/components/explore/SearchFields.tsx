@@ -162,7 +162,6 @@ export function SearchField({
           data-empty={!placeName && !monthFull ? "" : undefined}
           className={hdrItem}
         >
-          <Search aria-hidden />
           {!placeName && !monthFull ? (
             <span className="truncate">{t("searchShort")}</span>
           ) : (

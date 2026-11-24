@@ -924,7 +924,7 @@ function StageStrip({ today, host, earnings, payoutStatus, hostingCount, livedIn
     // Never the whole strip a link: each number is its own (→ after its label) – earnings and payouts to the Earnings page (payouts with its
     // set-up window open), hosting and fill rate to the Hosting row, Your people to /people.
     // Phones: lower than the 120px (16px above and below) and the numbers one sideways-scrolling row (StripRow).
-    <div className="ember ember-strip band-inset band-inset-full flex items-center py-4 md:h-(--stage-bar-h) md:py-0">
+    <div data-surface="dark" className="ember ember-strip band-inset band-inset-full flex items-center py-4 md:h-(--stage-bar-h) md:py-0">
       <StripRow className="flex-1 md:flex-nowrap">
         {figs.map((fig) => (
           <StripFig key={fig.key} value={fig.value} label={fig.label} sub={fig.sub} dot={fig.dot} href={fig.href} />

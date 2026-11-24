@@ -143,7 +143,7 @@ export function HeaderPanel({
       data-header-panel
       {...handlers}
       className={cn(
-        "themes-menu fixed inset-x-0 top-(--header-total) z-40 border-b border-(--graphite-glass-line) bg-(--header-bg) [backdrop-filter:var(--header-filter)] [-webkit-backdrop-filter:var(--header-filter)]",
+        "themes-menu glass-bar fixed inset-x-0 top-(--header-total) z-40 border-b border-(--graphite-glass-line)",
         // Visible at once on opening (so the focus can land), hidden only after the fade on closing.
         "duration-[180ms] ease-out motion-reduce:transition-none",
         open ? "visible translate-y-0 opacity-100 transition-[opacity,translate]" : "pointer-events-none invisible -translate-y-1 opacity-0 transition-[opacity,translate,visibility]",

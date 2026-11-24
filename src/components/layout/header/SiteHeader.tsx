@@ -4,7 +4,6 @@ import { useOpenHouseEntry } from "@/components/platform/useOpenHouseEntry";
 import { CompactSearch } from "./CompactSearch";
 import { HeaderCenterNav } from "./HeaderCenter";
 import { setAdminHeaderSlot, setHeaderSlot } from "@/lib/headerSlot";
-import { Plus } from "lucide-react";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -79,7 +78,7 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
   return (
     // ONE bar on every page: the wordmark · in the middle Explore's quick search (ExploreFeed's portal) or, elsewhere, the capsule "Where to
     // next?" · right the tabs Explore · Your houses · Messages, the avatar and "Open a House".
-    <header data-site-header data-admin={adminPage || undefined} className="header-glass fixed inset-x-0 top-(--band-h) z-40 hidden h-(--header-h) md:block">
+    <header data-site-header data-admin={adminPage || undefined} className="header-glass glass-bar fixed inset-x-0 top-(--band-h) z-40 hidden h-(--header-h) md:block">
       {/* Logo · 32px · the groups, 20px apart, left-aligned from the logo · what's left over · 20px at least · the right group, flush right. */}
       {/* From 1100px a three-part grid (CLAUDE.md "Kopfleiste zentriert"): 1fr auto 1fr – the logo flush left, the right group flush right,
           the middle exactly in the window's middle (it moves together before it would move off the middle, HeaderCenter). */}
@@ -111,7 +110,6 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
             live in the floating bar at the bottom (BottomTabBar). */}
         <div data-header-right className="ml-6 flex shrink-0 items-center max-split:hidden split:justify-self-end">
           <Link href={openEntry.href} className={headerActionStyles}>
-            <Plus aria-hidden />
             {openEntry.label}
           </Link>
         </div>

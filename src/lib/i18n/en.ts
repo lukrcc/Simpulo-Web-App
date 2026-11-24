@@ -367,7 +367,7 @@ const en = {
       "allPlaces": "All places →",
       "allThemes": "All themes →",
       "links": {
-        "shortTrips": "Short trips",
+        "shortTrips": "Getaways",
         "startingSoon": "Starting soon",
         "guides": "Guides",
         "becomeHost": "Become a host",
@@ -1010,7 +1010,7 @@ const en = {
         "eyebrow": "New"
       },
       "shortTrips": {
-        "title": "Short trips",
+        "title": "Getaways",
         "subline": "Five nights or fewer – easy to fit in.",
         "eyebrow": "Weekends"
       },
@@ -1064,7 +1064,7 @@ const en = {
         "none": "Not included"
       },
       "verifiedOnly": "Verified hosts only",
-      "shortTrips": "Short trips",
+      "shortTrips": "Getaways",
       "noMatches": "No matches",
       "month": "Month",
       "budget": "Budget",
@@ -1140,7 +1140,7 @@ const en = {
     },
     "spotlightGreeting": {
       "findYourPeople": "Find your people",
-      "hiWhereNext": "Hi {name}, where to next?",
+      "whereNextName": "Where to next, {name}?",
       "hi": "Hi {name}.",
       "whereNext": "Where to next?",
       "open": "{count, plural, one {# house open} other {# houses open}} →",
@@ -5643,7 +5643,7 @@ const en = {
     "from": "From",
     "until": "Until",
     "howLong": "How long",
-    "short": "Short trip",
+    "short": "Getaway",
     "month": "About a month",
     "long": "Longer",
     "categories": "Into (optional)",

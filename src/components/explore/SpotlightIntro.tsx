@@ -14,6 +14,8 @@ import { Button } from "@/components/ui/ActionButton";
 const TITLE_SIZES = [44, 40, 36, 32];
 /** The main line on the right (the category's sentence): about 32px, one line – smaller steps only if the longest wouldn't fit. */
 const SENTENCE_SIZES = [32, 30, 28, 26, 24, 22];
+/** The right block keeps 32px more room to the right edge than the page margin (pr-8). */
+const RIGHT_INSET = 32;
 
 interface GreetingProps {
   /** Logged in: "Hi {name}." · "Where to next?"; null (visitors): "Share a place." · "Find your people." */
@@ -47,7 +49,7 @@ export function SpotlightGreeting({ name, vibe, countOf, onPick, launch }: Greet
   const tIntro = useTranslations("explore.spotlightIntro");
   const { lines, fallback } = useSpotlightThemeLines(name === null);
   const rootRef = useRef<HTMLDivElement>(null);
-  const title = launch ? tIntro("second") : name ? t("hiWhereNext", { name }) : t("whereNext");
+  const title = launch ? tIntro("second") : name ? t("whereNextName", { name }) : t("whereNext");
   // Mirrored (CLAUDE.md "Kopftexte gespiegelt"): one grid of two halves – row 1 the small lines (left "FIND YOUR PEOPLE", right the category),
   // row 2 the main lines (left the title, right the sentence), row 3 the link on the right. align-items: baseline puts the small lines on one
   // line and the main lines on one baseline – no measuring. Only the sizes are fitted: the title and the longest sentence each on one line in
@@ -71,7 +73,7 @@ export function SpotlightGreeting({ name, vibe, countOf, onPick, launch }: Greet
       const titleFamily = titleEl ? getComputedStyle(titleEl).fontFamily : undefined;
       const titleSize = TITLE_SIZES.find((size) => widest([title], size, titleFamily) <= half) ?? TITLE_SIZES[TITLE_SIZES.length - 1];
       probe.style.fontFamily = "";
-      const sentenceSize = SENTENCE_SIZES.find((size) => widest(sentences.split("\n"), size) <= half) ?? SENTENCE_SIZES[SENTENCE_SIZES.length - 1];
+      const sentenceSize = SENTENCE_SIZES.find((size) => widest(sentences.split("\n"), size) <= half - RIGHT_INSET) ?? SENTENCE_SIZES[SENTENCE_SIZES.length - 1];
       probe.remove();
       root.style.setProperty("--title-size", `${titleSize}px`);
       root.style.setProperty("--theme-size", `${sentenceSize}px`);
@@ -94,8 +96,9 @@ export function SpotlightGreeting({ name, vibe, countOf, onPick, launch }: Greet
       ) : (
         <ThemeBlock vibe={vibe} countOf={countOf} onPick={onPick} lines={lines} fallback={fallback} />
       )}
-      {/* Row 2 left: the main line, one colour, no gradient. */}
-      <h2 data-spot-title style={TITLE_SIZE} className="stage-title col-start-1 row-start-2 mt-2 whitespace-nowrap text-ink">
+      {/* Row 3 left: the main line, one colour, no gradient – on the link's baseline, so the right block ends on it (CLAUDE.md
+          "Startseite-Spotlight final"). */}
+      <h2 data-spot-title style={TITLE_SIZE} className="stage-title col-start-1 row-start-3 whitespace-nowrap text-ink">
         {title}
       </h2>
     </div>
@@ -129,7 +132,7 @@ function ThemeBlock({ vibe, countOf, onPick, lines, fallback }: Pick<GreetingPro
   }, [out, target]);
   const sentenceOf = (v: Vibe) => lines[v] ?? fallback(countOf(v));
   // Three cells of the greeting's grid (right column, rows 1–3), right-aligned; one fade for all three (data-out).
-  const cell = cn("col-start-2 text-right transition-opacity duration-[250ms] ease-in-out motion-reduce:transition-none", out && "opacity-0");
+  const cell = cn("col-start-2 pr-8 text-right transition-opacity duration-[250ms] ease-in-out motion-reduce:transition-none", out && "opacity-0");
   return (
     <>
       <p data-theme-eyebrow aria-live="polite" className={cn(cell, "row-start-1 text-eyebrow uppercase text-muted")}>
@@ -162,10 +165,10 @@ function LaunchBlock({ launch }: { launch: LaunchHero }) {
   // The right column's main line and actions (rows 2 and 3 of the greeting's grid).
   return (
     <>
-      <p data-theme-sentence style={THEME_SIZE} className="col-start-2 row-start-2 mt-2 text-right text-h2 text-ink">
+      <p data-theme-sentence style={THEME_SIZE} className="col-start-2 row-start-2 mt-2 pr-8 text-right text-h2 text-ink">
         {t("hero.sub")}
       </p>
-      <div className="col-start-2 row-start-3 mt-3 flex justify-end">
+      <div className="col-start-2 row-start-3 mt-3 flex justify-end pr-8">
         <LaunchActions launch={launch} oneRow />
       </div>
     </>

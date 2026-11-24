@@ -100,7 +100,7 @@ export function HouseHero({ stay, host, crew, cta, secondary, actions, stage, sh
   const strip = (
     // Phones and tablets (< 1100px): the booking bar – fixed at the bottom instead of the tab bar (which the House page leaves out), over the safe area; its measured
     // height is what the page keeps free under its end (--house-bar-h → --tabbar-clear, BookingBarHeight).
-    <div ref={ref as Ref<HTMLDivElement>} data-house-strip className="ember ember-strip band-inset band-inset-full max-split:fixed max-split:inset-x-0 max-split:bottom-0 max-split:z-30 max-split:px-(--page-margin) max-split:pb-[calc(12px+var(--safe-bottom))] max-split:pt-3 flex shrink-0 flex-col justify-center gap-2 split:h-(--stage-bar-h) split:py-0">
+    <div ref={ref as Ref<HTMLDivElement>} data-house-strip data-surface="dark" className="ember ember-strip band-inset band-inset-full max-split:fixed max-split:inset-x-0 max-split:bottom-0 max-split:z-30 max-split:px-(--page-margin) max-split:pb-[calc(12px+var(--safe-bottom))] max-split:pt-3 flex shrink-0 flex-col justify-center gap-2 split:h-(--stage-bar-h) split:py-0">
       <BookingBarHeight />
       {/* Left: the price in the strip's number size (--stage-bar-num), under it small the currency and the way in ("Free to request · …").
           Right: the actions – Request to join · Request with a friend · "Message {host}". */}

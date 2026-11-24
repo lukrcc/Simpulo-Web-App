@@ -1,9 +1,8 @@
 "use client";
 
-// The header's middle from 1100px (CLAUDE.md "Kopfleiste neu geordnet", "ruhiger Feinschliff"): "⌕ Where" · "When" · "Short trips" ·
-// "Themes ▾" · "Filters ▾" (no line between them, no count on Filters – the active filters show as chips on the page) – plain words, no capsules, centred between the logo and the right group. Explore passes its filter state
+// The header's middle from 1100px (CLAUDE.md "Kopfleiste nur Text"): "Getaways · Search · Themes · Filters" – words only, no icons, no
+// arrows; an open entry in the full text colour with a soft surface, an active Getaways filter semibold (no line between them, no count on Filters – the active filters show as chips on the page) – plain words, no capsules, centred between the logo and the right group. Explore passes its filter state
 // (ExploreFeed portals it into the bar's slot); every other page gets HeaderCenterNav, whose entries lead to Explore.
-import { ChevronDown } from "lucide-react";
 import type { PanelHandlers } from "./HeaderPanel";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -20,15 +19,6 @@ import { hdrItem } from "./headerItem";
 const CENTER_AIR = 24;
 /** How many steps the middle can move together (0 = as it is). */
 const SQUEEZE_STEPS = 3;
-
-/** Short trips' mark – neutral now (no orange in the calm bar), in the words' colour. */
-function Bolt() {
-  return (
-    <svg aria-hidden viewBox="0 0 24 24" fill="currentColor">
-      <path d="M14.2 1.6 5.6 13.4a.6.6 0 0 0 .5 1h5.2l-1.6 7.5c-.1.6.6.9 1 .4l8.6-11.8a.6.6 0 0 0-.5-1h-5.2l1.6-7.5c.1-.6-.6-.9-1-.4Z" />
-    </svg>
-  );
-}
 
 export interface HeaderCenterProps {
   place: string | null;
@@ -72,8 +62,8 @@ export function HeaderCenter({ filtersRef, ...p }: HeaderCenterProps) {
     [format],
   );
   // Exactly centred (CLAUDE.md "Kopfleiste zentriert"): the middle may be as wide as the window less twice the wider side (logo or right
-  // group) – too wide, it moves together step by step (globals.css [data-squeeze]: 1 Short trips only its bolt · 2 tighter entries · 3 Where ·
-  // When only its magnifier while nothing is chosen) before the grid would push it off the middle.
+  // group) – too wide, it moves together step by step (globals.css [data-squeeze]: the entries tighter, in three steps) before the grid
+  // would push it off the middle.
   const box = useRef<HTMLDivElement>(null);
   const [squeeze, setSqueeze] = useState(0);
   useLayoutEffect(() => {
@@ -108,7 +98,7 @@ export function HeaderCenter({ filtersRef, ...p }: HeaderCenterProps) {
       data-squeeze={squeeze}
       className="flex min-w-0 items-center gap-1"
     >
-      {/* ⚡ Short trips · ⌕ Search · Themes ▾ · Filters ▾ (CLAUDE.md "Persönliche Navigation als schwebende Leiste unten"); compact: only Search. */}
+      {/* Getaways · Search · Themes · Filters (CLAUDE.md "Kopfleiste nur Text"); compact: only Search. */}
       {!p.compact && (
         <button
           type="button"
@@ -118,8 +108,7 @@ export function HeaderCenter({ filtersRef, ...p }: HeaderCenterProps) {
           onClick={p.onShortTrips}
           className={cn(hdrItem, "hdr-short-trips")}
         >
-          <Bolt />
-          <span className="hdr-short-trips-label">{tf("shortTrips")}</span>
+          {tf("shortTrips")}
         </button>
       )}
       <SearchField
@@ -152,13 +141,6 @@ export function HeaderCenter({ filtersRef, ...p }: HeaderCenterProps) {
               className={hdrItem}
             >
               {t("filters")}
-              <ChevronDown
-                aria-hidden
-                className={cn(
-                  "transition-transform duration-200",
-                  p.filtersOpen && "rotate-180",
-                )}
-              />
             </button>
           </span>
         </>

@@ -519,23 +519,25 @@
     --tabbar-clear: 0px;
   }
 }
-/* From 1100px a lighter, more transparent glass with a hairline edge and a very soft shadow (below, the bar keeps the fixed graphite of the
-   header's surface – its words are light there). */
+/* ONE fixed glass from 1100px (CLAUDE.md "Tab-Leiste und Kopfleiste – festes Glas"): the tab bar, the header (at the top and scrolled
+   alike – no switching) and the header's panels (HeaderPanel, BarSheet). Tokens --glass-bar-* per mode (tokens.css): background, blur 16px +
+   saturate 170 % (backdrop-filter AND -webkit-backdrop-filter), a hairline edge, a light edge on top (light mode). As specific as it must be
+   to win over .header-glass, html[data-at-top] .header-glass and the panels' own material. Below 1100px the fixed graphite surface stays
+   (CLAUDE.md "Glas nur auf Desktop"). */
 @media (min-width: 68.75rem) {
-  /* As specific as it must be to win over html[data-at-top] .header-glass. */
-  /* iOS glass (CLAUDE.md "Tab-Leiste im iOS-Glas-Stil"): blur 24px + saturate 180 %, a fine light edge on top, a hairline all round, a soft
-     shadow. */
-  :root .header-glass.tab-bar[data-tab-bar] {
-    --text-muted: var(--float-bar-muted);
-    text-shadow: var(--float-bar-text-shadow);
-    background: var(--float-bar-bg);
-    -webkit-backdrop-filter: blur(30px) saturate(2) var(--float-bar-tone);
-    backdrop-filter: blur(30px) saturate(2) var(--float-bar-tone);
-    border: 0;
-    box-shadow:
-      inset 0 1px 0 var(--float-bar-highlight),
-      0 0 0 1px var(--float-bar-edge),
-      var(--float-bar-shadow);
+  :root .glass-bar.glass-bar,
+  html[data-at-top] header.glass-bar.glass-bar {
+    background: var(--glass-bar-bg);
+    -webkit-backdrop-filter: blur(16px) saturate(170%);
+    backdrop-filter: blur(16px) saturate(170%);
+    border: 1px solid var(--glass-bar-edge);
+    box-shadow: var(--glass-bar-shadow);
+    text-shadow: var(--glass-bar-text-shadow);
+  }
+  /* The header and the full-width panel: only the line at the foot. */
+  :root header.glass-bar.glass-bar,
+  :root .themes-menu.glass-bar.glass-bar {
+    border-width: 0 0 1px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -545,27 +547,17 @@
     transition: none;
   }
 }
-/* The Spotlight ("uniform", CLAUDE.md "Spotlight final"): the card under the pointer like Apple TV – scale 1.03 and a softer, larger shadow,
-   200ms; never while the row scrolls (data-scrolling), never with reduced motion. Only transform and filter on the card's own box. */
-.spot-uni-card {
-  transition:
-    transform 200ms ease-out,
-    filter 200ms ease-out;
-}
-@media (hover: hover) and (prefers-reduced-motion: no-preference) {
-  [data-spot-scroller]:not([data-scrolling]) .spot-uni-card:hover {
-    transform: scale(1.03);
-    filter: var(--spot-card-hover-shadow);
-  }
-}
-/* "step" (CLAUDE.md "Spotlight neu ausbalancieren"): the hover lift (1.03) for the neighbours only, never the centre card, never while the
-   cards move (data-moving on Embla's viewport), never with reduced motion. On the card inside the element the focus curve moves. */
-.cf-slide > * > * {
+/* The Spotlight (CLAUDE.md "Spotlight natives Scrollen"): every card lifts 1.03 on hover with a deeper box-shadow – never while the row
+   scrolls (data-scrolling on the shelf), never with reduced motion. */
+.cf-slide > * {
   transition: transform 200ms ease-out;
 }
 @media (hover: hover) and (prefers-reduced-motion: no-preference) {
-  [data-spotlight-viewport]:not([data-moving]) .cf-slide:not([data-centre]) > :hover > * {
+  [data-spot-row] .shelf:not([data-scrolling]) .cf-slide:hover > * {
     transform: scale(1.03);
+  }
+  [data-spot-row] .shelf:not([data-scrolling]) .cf-slide:hover .card-depth-spotlight {
+    box-shadow: var(--spot-card-hover-shadow);
   }
 }
 /* Its arrows: dark glass in both modes, a white arrow (doubled class: wins over the raised button's own surface). */
@@ -1499,6 +1491,15 @@ html[data-dialog-open] [data-tab-bar] {
   scroll-padding-inline-start: var(--row-gutter);
   overscroll-behavior-x: contain;
   scrollbar-width: none;
+  /* Performance (CLAUDE.md "Spotlight natives Scrollen"): its layout and painting stay inside it. */
+  contain: layout paint;
+}
+/* Without snap points (the Spotlight, <Shelf snap={false}>): free native scrolling, nothing settles it. */
+.shelf[data-snap="off"] {
+  scroll-snap-type: none;
+}
+.shelf[data-snap="off"] .shelf-track > * {
+  scroll-snap-align: none;
 }
 .shelf::-webkit-scrollbar {
   display: none;
@@ -1577,15 +1578,6 @@ html[data-dialog-open] [data-tab-bar] {
   .animate-tab-out {
     animation: none;
   }
-}
-/* The Spotlight's entrance: nothing shows until it starts (SpotlightCoverflow takes this off). If that never comes, everything appears anyway. */
-@keyframes spot-intro-failsafe {
-  to { opacity: 1; }
-}
-html[data-spot-intro] .cf-slide > * > *,
-html[data-spot-intro] [data-spot-text] {
-  opacity: 0;
-  animation: spot-intro-failsafe 1ms 3s forwards;
 }
 /* Open a House's preview: an answer takes its placeholder's place, the cover fades in over the surface. */
 @keyframes reveal-in {
@@ -1705,22 +1697,26 @@ input[type="number"]::-webkit-inner-spin-button {
 .band-dark .card-edge path {
   stroke: rgba(255, 255, 255, 0.12);
 }
-/* The Spotlight's depth (HouseCard .card-depth-spotlight; drop-shadow, so it follows the notch): the middle card two steps, the side cards
-   (inert) one softer step. Nothing moves or grows. */
+/* The Spotlight's depth (HouseCard .card-depth-spotlight): ONE box-shadow, no filter (CLAUDE.md "Spotlight natives Scrollen"); rounded like
+   the card, so only the notch's corner differs. */
 .card-depth-spotlight {
-  filter: var(--spot-depth);
-  transition: filter 300ms ease-out;
-}
-[inert] .card-depth-spotlight {
-  filter: var(--spot-depth-side);
+  border-radius: 24px;
+  box-shadow: var(--spot-depth);
+  transition: box-shadow 200ms ease-out;
 }
 /* The HouseCard's hover – fine, at the bottom only (components/HouseCard). No veil, no brightness, no zoom, no scale. The card rises 2px, its
    shadow a little deeper; inside it a faint warm light comes up at the bottom edge – radial-gradient(ellipse 70% 28% at 50% 100%), warm white
    .10, soft-light, only the lowest ~25 % – over the photo, under the text's gradient (which stays as dark); under it a light on the ground
    (60 % of its width, 24px high, 8px under its edge, warm .08 on the light page, .14 in a dark band, blur 16px). In 260ms ease-out.
    Reduced motion: no movement, only the lights. */
+/* (CLAUDE.md "Karten-Aussparung zurückgesetzt"): on hover only the card itself lifts – scale 1.03, a shadow on the image surface (.card-depth,
+   rounded like it; a box-shadow only paints outside its box, so the notch never gets a fill, a rim or a light). The notch stays as it is. */
 .card-hover {
-  transition: translate 260ms ease-out, filter 260ms ease-out, opacity 260ms ease-out;
+  transition: scale 260ms ease-out, opacity 260ms ease-out;
+}
+.card-hover .card-depth {
+  border-radius: 24px;
+  transition: box-shadow 260ms ease-out;
 }
 .card-light {
   background: radial-gradient(ellipse 70% 28% at 50% 100%, rgba(255, 210, 170, 0.1), transparent 70%);
@@ -1745,8 +1741,10 @@ input[type="number"]::-webkit-inner-spin-button {
 }
 @media (hover: hover) and (min-width: 46.5rem) {
   .card-hover:is(:hover, :has(:focus-visible)) {
-    translate: 0 -2px;
-    filter: var(--card-hover-shadow);
+    scale: 1.03;
+  }
+  .card-hover:is(:hover, :has(:focus-visible)) .card-depth {
+    box-shadow: var(--card-hover-shadow);
   }
   .card-hover:is(:hover, :has(:focus-visible)) :is(.card-light, .card-floor) {
     opacity: 1;
@@ -1754,7 +1752,7 @@ input[type="number"]::-webkit-inner-spin-button {
 }
 @media (prefers-reduced-motion: reduce) {
   .card-hover:is(:hover, :has(:focus-visible)) {
-    translate: none;
+    scale: none;
   }
 }
 
@@ -2080,17 +2078,17 @@ main:has([data-preview-gate]) {
 
 
 
-/* The bar's middle moves together by its room (CLAUDE.md "Kopfleiste zentriert", measured in HeaderCenter – a container query can't work in
-   the grid's auto column): 1 Short trips keeps only its bolt (its name is the tooltip) · 2 the entries a little tighter · 3 "Where · When" only
-   its magnifier while nothing is chosen. Filters always stays; only then does the grid let the middle move off the window's middle. */
-[data-header-center]:is([data-squeeze="1"], [data-squeeze="2"], [data-squeeze="3"]) .hdr-short-trips-label {
-  display: none;
+/* The bar's middle moves together by its room (CLAUDE.md "Kopfleiste zentriert", "Kopfleiste nur Text"; measured in HeaderCenter – a
+   container query can't work in the grid's auto column): words only, so it only gets tighter – the same room between all entries at every
+   step (1: 10px, 2: 8px, 3: 6px each side). Only then does the grid let the middle move off the window's middle. */
+[data-header-center][data-squeeze="1"] .hdr-item {
+  padding-inline: 10px;
 }
-[data-header-center]:is([data-squeeze="2"], [data-squeeze="3"]) .hdr-item {
+[data-header-center][data-squeeze="2"] .hdr-item {
   padding-inline: 8px;
 }
-[data-header-center][data-squeeze="3"] [data-where-when] button[data-empty] > span {
-  display: none;
+[data-header-center][data-squeeze="3"] .hdr-item {
+  padding-inline: 6px;
 }
 
 /* The bar in Hell from 1100px (CLAUDE.md "Kopfleiste neu geordnet"): light glass – white 85 % over blur 20px, a fine line at its foot,
@@ -2305,4 +2303,20 @@ body:has([data-last-tone="dark"]) footer.footer-dark {
 .row-strip,
 :root[data-theme="dark"] .row-strip {
   background: linear-gradient(90deg, var(--row-strip-from), var(--row-strip-to));
+}
+
+/* The tab bar and the header: ONE fixed glass per mode, no switching (CLAUDE.md "Tab-Leiste und Kopfleiste – festes Glas", from 1100px):
+   words and icons in the bar's own colour (--bar-text), inactive at 70 % (dark: white 75 %) – no mid grey; the badge stays the mode's own
+   (--badge-*). */
+@media (min-width: 68.75rem) {
+  :root [data-tab-bar][data-tab-bar],
+  :root header[data-site-header].glass-bar {
+    --text: var(--bar-text);
+    --text-muted: var(--bar-muted);
+    --text-faint: var(--bar-muted);
+    --header-fg: var(--bar-text);
+    --hdr-fg: var(--bar-text);
+    --hdr-muted: var(--bar-muted);
+    --open-house-text: var(--bar-text);
+  }
 }

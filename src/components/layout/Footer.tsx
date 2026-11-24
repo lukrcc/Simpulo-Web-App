@@ -72,7 +72,7 @@ export async function Footer() {
     );
   return (
     // The room above it is --footer-gap (main's padding); after a dark last section it keeps 64px of light (globals.css).
-    <footer className="footer-dark text-small">
+    <footer data-surface="dark" className="footer-dark text-small">
       <Container className="pb-10 pt-16">
         <FooterWaitlist />
         {/* Brand and six columns: phones one column, the six as groups that open (FooterColumn); tablets three columns under the brand;

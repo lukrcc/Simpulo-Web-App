@@ -1,4 +1,3 @@
-import { SPOTLIGHT_INTRO_KEY } from "@/config/explore";
 import { STANDALONE_SCRIPT } from "@/lib/install";
 import { THEME_COLOR, THEME_SCRIPT } from "@/lib/themeScript";
 import { ThemeSync } from "@/components/layout/ThemeSync";
@@ -83,12 +82,6 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       </head>
       {/* relative + isolate: the frame for the Spotlight glow's z-index −1, no overflow and no fixed height. */}
       <body className="relative isolate flex min-h-full flex-col">
-        {/* Before anything paints: the Spotlight's first showing of this session starts hidden (SpotlightCoverflow). Through next/script
-            (beforeInteractive, like the gate below): a bare <script> in a component is never run on the client, and React reports it – the
-            "1 Issue" in Next's overlay. */}
-        <Script id="spotlight-intro-gate" strategy="beforeInteractive">
-          {`try{if(!sessionStorage.getItem(${JSON.stringify(SPOTLIGHT_INTRO_KEY)})&&!matchMedia("(prefers-reduced-motion: reduce)").matches)document.documentElement.setAttribute("data-spot-intro","")}catch(e){}`}
-        </Script>
         {/* Before anything paints: is-standalone on <html> in the installed app (and the Dev menu's simulation of it). */}
         <Script id="standalone" strategy="beforeInteractive">
           {STANDALONE_SCRIPT}

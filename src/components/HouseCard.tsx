@@ -197,7 +197,7 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
       {/* Depth: a wrapper with the shadow (filter: drop-shadow follows the notch; on the clipped layer itself the clip would cut it off) – only
           the Spotlight's cards have one (globals.css .card-depth). Same box as the card: no size or place changes. */}
       <div className={cn("card-depth h-full w-full", spotlight && "card-depth-spotlight")}>
-      <div ref={clipRef} className={cn("relative h-full w-full overflow-hidden rounded-3xl bg-surface", tabPerson && "rounded-tl-none")}>
+      <div ref={clipRef} data-surface="dark" className={cn("relative h-full w-full overflow-hidden rounded-3xl bg-surface", tabPerson && "rounded-tl-none")}>
         {/* Photo track – each slide is the card link, so swiping and tapping both work. The Spotlight has no scroller (its carousel swipes). */}
         <div ref={ref} onScroll={onScroll} {...drag.props} className={cn("flex h-full", single ? "overflow-hidden" : "no-scrollbar snap-x snap-mandatory overflow-x-auto", drag.className)}>
           {photos.length === 0 &&
@@ -221,7 +221,7 @@ export function HouseCard({ stay, host, crew = [], notch = "host", footer = "exp
                 src={src}
                 alt={t("cards.photoAlt", { title: stay.title, number: i + 1 })}
                 fill
-                sizes={gallery ? `${MEDIA.desktop} 600px, 520px` : spotlight ? "(min-width: 1600px) 620px, 520px" : CARD_SIZES}
+                sizes={gallery ? `${MEDIA.desktop} 600px, 520px` : spotlight ? "(min-width: 744px) 28vw, 85vw" : CARD_SIZES}
                 loading={eager || (gallery && i === 0) ? "eager" : "lazy"}
                 className="object-cover"
                 style={i === 0 && stay.focalPoint ? { objectPosition: `${stay.focalPoint.x}% ${stay.focalPoint.y}%` } : undefined}

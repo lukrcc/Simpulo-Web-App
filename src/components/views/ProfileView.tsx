@@ -502,7 +502,7 @@ function ProfileStrip({ user, isMe, previewing, viewerId, today, preview }: Pick
   return (
     <>
     {/* Phones: lower than the 120px (16px above and below), the numbers one sideways-scrolling row (StripRow); the buttons under it. */}
-    <div className="ember ember-strip band-inset band-inset-full flex flex-wrap items-center justify-between gap-x-6 gap-y-4 py-4 md:h-(--stage-bar-h) md:flex-nowrap md:py-0">
+    <div data-surface="dark" className="ember ember-strip band-inset band-inset-full flex flex-wrap items-center justify-between gap-x-6 gap-y-4 py-4 md:h-(--stage-bar-h) md:flex-nowrap md:py-0">
       <StripRow className="max-md:w-full md:flex-nowrap">
         {figs.map((n) => (
           <StripFig key={n.key} value={n.value} label={n.label} href={"href" in n ? n.href : undefined} />

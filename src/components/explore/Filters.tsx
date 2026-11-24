@@ -304,7 +304,6 @@ export function BarCategories({ label, themesLabel, all, value, onSelect, onSele
         className={buttonClass}
       >
         <span className="truncate">{chosen ?? themesLabel}</span>
-        <ChevronDown aria-hidden className={cn("transition-transform", open && "rotate-180")} />
       </button>
       <HeaderPanel id="themes-menu" open={open} onClose={close} label={label} handlers={handlers.panel} triggerRef={rootRef} panelRef={panelRef}>
         <div role="menu" aria-label={label} onKeyDown={move} className="grid grid-cols-6 gap-x-8 gap-y-7">
