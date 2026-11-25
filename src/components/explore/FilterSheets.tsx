@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState, type ReactNode, type RefObject } from "react";
-import { ChevronDown, type LucideIcon } from "lucide-react";
+import { type LucideIcon } from "lucide-react";
 import { PanelCapsule, PanelCapsules } from "@/components/ui/PanelCapsule";
 import { cn } from "@/lib/utils";
 import { CurrencyPicker } from "@/components/layout/CurrencyPicker";
@@ -76,12 +76,9 @@ export function FilterSheets(props: FilterSheetsProps) {
   const tc = useTranslations("common");
   const format = useFormat();
 
-  // The draft: a copy of the applied filters, taken each time the sheet opens (CLAUDE.md "Filter erst beim Bestätigen"). "More filters"
-  // opens with the panel when one of its filters is set – so what's active is always in view.
-  const moreActive = (f: ExploreFilters) => [f.who, f.age, f.accommodation, f.spots, f.hostExperience, f.depth].some((v) => v !== null) || f.languages.length > 0 || f.verifiedOnly;
+  // The draft: a copy of the applied filters, taken each time the sheet opens (CLAUDE.md "Filter erst beim Bestätigen").
   const [wasOpen, setWasOpen] = useState(open);
   const [draft, setDraft] = useState(filters);
-  const [moreOpen, setMoreOpen] = useState(() => moreActive(filters));
   // What the number counts: the draft, 200ms after its last change.
   const [counted, setCounted] = useState(filters);
   if (open !== wasOpen) {
@@ -89,7 +86,6 @@ export function FilterSheets(props: FilterSheetsProps) {
     if (open) {
       setDraft(filters);
       setCounted(filters);
-      setMoreOpen(moreActive(filters));
     }
   }
   useEffect(() => {
@@ -218,47 +214,18 @@ export function FilterSheets(props: FilterSheetsProps) {
     ) : (
       label
     );
-  const panelRows = {
-    category: showVibes && (
-      <FilterRow stacked label={tf("category")} count={draft.vibes.length}>
-        <PanelCapsules multiple label={tf("category")} options={vibeOptions.map((o) => ({ value: o.value, label: withIcon(o.icon, o.label) }))} value={draft.vibes} onChange={(vibes) => update({ vibes: vibes as Vibe[] })} />
-      </FilterRow>
-    ),
-    length: (
-      <FilterRow stacked label={tf("length")} count={draft.lengths.length}>
-        <PanelCapsules multiple label={tf("length")} options={LENGTH_KEYS.map((key) => ({ value: key, label: tf(`lengthOptions.${key}`) }))} value={draft.lengths} onChange={(lengths) => update({ lengths })} />
-      </FilterRow>
-    ),
-    crew: (
-      <FilterRow stacked label={tf("crewSize")} count={draft.crewSizes.length}>
-        <PanelCapsules multiple label={tf("crewSize")} options={CREW_SIZE_KEYS.map((key) => ({ value: key, label: key.replace("-", "–") }))} value={draft.crewSizes} onChange={(crewSizes) => update({ crewSizes })} />
-      </FilterRow>
-    ),
-  };
-  const moreCount = [draft.who, draft.age, draft.accommodation, draft.spots, draft.hostExperience, draft.depth].filter((v) => v !== null).length + (draft.languages.length > 0 ? 1 : 0) + (draft.verifiedOnly ? 1 : 0);
-  // Each filter a row – its label left, its options as capsules; the rows in the panel's two columns, so the panel stays on one screen.
-  const moreRow = (label: string, control: ReactNode) => (
-    <div className="grid grid-cols-[136px_minmax(0,1fr)] items-center gap-x-4">
-      <span className="text-nav font-semibold text-ink">{label}</span>
+  // One group: its label left in a fixed column (120px, with the count of what's picked), its capsules right – they wrap.
+  const groupRow = (label: string, control: ReactNode, count = 0) => (
+    <div className="grid grid-cols-[120px_minmax(0,1fr)] items-start gap-x-4">
+      <span className="flex min-h-10 items-center gap-2 text-nav font-semibold text-ink">
+        {label}
+        {count > 0 && (
+          <span aria-hidden data-filter-count className="flex size-4.5 shrink-0 items-center justify-center rounded-full bg-accent text-eyebrow leading-none tracking-normal text-on-signal tabular-nums">
+            {count}
+          </span>
+        )}
+      </span>
       {control}
-    </div>
-  );
-  const moreRows = (
-    <div data-more-filters className="mt-8 grid grid-cols-2 gap-x-16 gap-y-3">
-      {moreRow(tf("who"), <PanelCapsules label={tf("who")} options={WHO_KEYS.map((key) => ({ value: key, label: tf(`whoOptions.${key}`) }))} value={one(draft.who)} onChange={(v) => update({ who: v[0] ?? null })} />)}
-      {moreRow(tf("age"), <PanelCapsules label={tf("age")} options={AGE_KEYS.map((key) => ({ value: key, label: tf(`ageOptions.${key}`) }))} value={one(draft.age)} onChange={(v) => update({ age: v[0] ?? null })} />)}
-      {moreRow(tf("accommodation"), <PanelCapsules label={tf("accommodation")} options={ACCOMMODATION_KEYS.map((key) => ({ value: key, label: tf(`accommodationOptions.${key}`) }))} value={one(draft.accommodation)} onChange={(v) => update({ accommodation: v[0] ?? null })} />)}
-      {moreRow(tf("spots"), <PanelCapsules label={tf("spots")} options={SPOTS_MINS.map((n) => ({ value: n, label: tf("spotsOptions.atLeast", { count: n }) }))} value={one(draft.spots)} onChange={(v) => update({ spots: v[0] ?? null })} />)}
-      {languageOptions.length > 0 && moreRow(t("language"), <PanelCapsules multiple label={t("language")} options={languageOptions.map((o) => ({ value: o.value, label: o.label }))} value={draft.languages} onChange={(languages) => update({ languages })} />)}
-      {hostPremium && moreRow(tf("hostExperience"), <PanelCapsules label={tf("hostExperience")} options={HOST_EXPERIENCE_KEYS.map((key) => ({ value: key, label: tf(`hostExperienceOptions.${key}`) }))} value={one(draft.hostExperience)} onChange={(v) => update({ hostExperience: v[0] ?? null })} />)}
-      {depthOn && moreRow(tf("depth"), <PanelCapsules label={tf("depth")} options={DEPTH_KEYS.map((key) => ({ value: key, label: tf(`depthOptions.${key}`) }))} value={one(draft.depth)} onChange={(v) => update({ depth: v[0] ?? null })} />)}
-      {moreRow(tf("hosts"), (
-        <div className="flex">
-          <PanelCapsule on={draft.verifiedOnly} aria-pressed={draft.verifiedOnly} onClick={() => update({ verifiedOnly: !draft.verifiedOnly })}>
-            {withIcon(FILTER_ICONS.verified, tf("verifiedChip"))}
-          </PanelCapsule>
-        </div>
-      ))}
     </div>
   );
 
@@ -280,26 +247,40 @@ export function FilterSheets(props: FilterSheetsProps) {
             <span className="text-small text-muted">{label}</span>
           </div>
         }
-        // No lines in the panel (CLAUDE.md "Panels einheitlich"): only spacing above the foot.
-        footer={<div className="mt-8 flex items-center justify-between gap-4">{footer(true, true)}</div>}
+        // No lines in the panel (CLAUDE.md "Panels einheitlich"): only spacing above the foot. The foot and the head stay; the groups scroll.
+        scroll
+        footer={<div className="mt-5 flex items-center justify-between gap-4">{footer(true, true)}</div>}
       >
-        <div data-filter-panel>
-          <div className="grid grid-cols-2 gap-x-16">
-            <div className="flex min-w-0 flex-col gap-7">
-              {panelRows.category}
-              {panelRows.length}
-            </div>
-            <div className="flex min-w-0 flex-col gap-7">
-              {panelRows.crew}
-              {bar.price}
-              <button type="button" aria-expanded={moreOpen} onClick={() => setMoreOpen((o) => !o)} className="inline-flex w-fit items-center gap-1.5 text-nav font-semibold text-ink underline-offset-4 hover:underline">
-                {tf("moreFilters")}
-                {moreCount > 0 && <span className="text-muted">· {moreCount}</span>}
-                <ChevronDown aria-hidden className={cn("size-4 transition-transform duration-150", moreOpen && "rotate-180")} />
-              </button>
-            </div>
+        {/* CLAUDE.md "Filter-Panel flach": every group always shown, each a row – the label left (120px), its capsules right (they wrap);
+            two columns; 12px between groups, 8px between capsules. */}
+        <div data-filter-panel className="grid grid-cols-2 gap-x-16">
+          <div className="flex min-w-0 flex-col gap-3">
+            {showVibes && groupRow(tf("category"), <PanelCapsules multiple label={tf("category")} options={vibeOptions.map((o) => ({ value: o.value, label: withIcon(o.icon, o.label) }))} value={draft.vibes} onChange={(vibes) => update({ vibes: vibes as Vibe[] })} />, draft.vibes.length)}
+            {groupRow(tf("length"), <PanelCapsules multiple label={tf("length")} options={LENGTH_KEYS.map((key) => ({ value: key, label: tf(`lengthOptions.${key}`) }))} value={draft.lengths} onChange={(lengths) => update({ lengths })} />, draft.lengths.length)}
+            {groupRow(tf("who"), <PanelCapsules label={tf("who")} options={WHO_KEYS.map((key) => ({ value: key, label: tf(`whoOptions.${key}`) }))} value={one(draft.who)} onChange={(v) => update({ who: v[0] ?? null })} />)}
+            {groupRow(tf("stay"), <PanelCapsules label={tf("stay")} options={ACCOMMODATION_KEYS.map((key) => ({ value: key, label: tf(`accommodationOptions.${key}`) }))} value={one(draft.accommodation)} onChange={(v) => update({ accommodation: v[0] ?? null })} />)}
+            {languageOptions.length > 0 && groupRow(t("language"), <PanelCapsules multiple label={t("language")} options={languageOptions.map((o) => ({ value: o.value, label: o.label }))} value={draft.languages} onChange={(languages) => update({ languages })} />, draft.languages.length)}
           </div>
-          {moreOpen && moreRows}
+          <div className="flex min-w-0 flex-col gap-3">
+            {budgetBounds ? (
+              <PriceFilter head={<span className="text-nav font-semibold text-ink">{tf("price")}</span>} aside={<CurrencyPicker />} bounds={budgetBounds} prices={[...prices]} value={draft.budget} onChange={(budget) => update({ budget })} currency={currency} />
+            ) : (
+              groupRow(tf("price"), <p className="text-small text-muted">{tf("noBudget")}</p>)
+            )}
+            {groupRow(tf("crewSize"), <PanelCapsules multiple label={tf("crewSize")} options={CREW_SIZE_KEYS.map((key) => ({ value: key, label: key.replace("-", "–") }))} value={draft.crewSizes} onChange={(crewSizes) => update({ crewSizes })} />, draft.crewSizes.length)}
+            {groupRow(tf("age"), <PanelCapsules label={tf("age")} options={AGE_KEYS.map((key) => ({ value: key, label: tf(`ageOptions.${key}`) }))} value={one(draft.age)} onChange={(v) => update({ age: v[0] ?? null })} />)}
+            {groupRow(tf("spots"), <PanelCapsules label={tf("spots")} options={SPOTS_MINS.map((n) => ({ value: n, label: tf("spotsOptions.atLeast", { count: n }) }))} value={one(draft.spots)} onChange={(v) => update({ spots: v[0] ?? null })} />)}
+            {hostPremium && groupRow(tf("hostExperience"), <PanelCapsules label={tf("hostExperience")} options={HOST_EXPERIENCE_KEYS.map((key) => ({ value: key, label: tf(`hostExperienceOptions.${key}`) }))} value={one(draft.hostExperience)} onChange={(v) => update({ hostExperience: v[0] ?? null })} />)}
+            {depthOn && groupRow(tf("depth"), <PanelCapsules label={tf("depth")} options={DEPTH_KEYS.map((key) => ({ value: key, label: tf(`depthOptions.${key}`) }))} value={one(draft.depth)} onChange={(v) => update({ depth: v[0] ?? null })} />)}
+            {groupRow(
+              tf("hosts"),
+              <div className="flex">
+                <PanelCapsule on={draft.verifiedOnly} aria-pressed={draft.verifiedOnly} onClick={() => update({ verifiedOnly: !draft.verifiedOnly })}>
+                  {withIcon(FILTER_ICONS.verified, tf("verifiedChip"))}
+                </PanelCapsule>
+              </div>,
+            )}
+          </div>
         </div>
       </HeaderPanel>
       {/* Phones: the same content as a bottom sheet. */}

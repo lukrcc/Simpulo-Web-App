@@ -150,7 +150,10 @@ export function HeaderPanel({
   footer,
   children,
   className,
+  scroll = false,
 }: {
+  /** Filters: the panel ends above the tab bar (--tabbar-safe); only the content scrolls, the head and the foot stay */
+  scroll?: boolean;
   open: boolean;
   onClose: () => void;
   label: string;
@@ -188,11 +191,21 @@ export function HeaderPanel({
         open ? "visible opacity-100 transition-opacity" : "pointer-events-none invisible opacity-0 transition-[opacity,visibility]",
       )}
     >
-      <div className={cn("mx-auto w-full max-w-[1200px] px-(--page-margin) py-8", className)}>
-        {head}
-        {children}
-        {footer}
-      </div>
+      {scroll ? (
+        <div className={cn("mx-auto flex max-h-[calc(100dvh-var(--header-total)-var(--tabbar-safe))] w-full max-w-[1200px] flex-col px-(--page-margin) py-6", className)}>
+          <div className="shrink-0">{head}</div>
+          <div data-panel-scroll className="scroll-pane min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            {children}
+          </div>
+          <div className="shrink-0">{footer}</div>
+        </div>
+      ) : (
+        <div className={cn("mx-auto w-full max-w-[1200px] px-(--page-margin) py-8", className)}>
+          {head}
+          {children}
+          {footer}
+        </div>
+      )}
     </div>,
     document.body,
   );

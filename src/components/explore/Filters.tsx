@@ -39,7 +39,12 @@ export function PriceFilter({
   value,
   onChange,
   currency,
+  head,
+  aside,
 }: {
+  /** The Filters panel: the label left, the range and the currency (aside) right in one row above a flat histogram and the slider */
+  head?: ReactNode;
+  aside?: ReactNode;
   /** EUR */
   bounds: { min: number; max: number };
   /** Each House's price per person in EUR (the middle of a budget range) */
@@ -65,6 +70,33 @@ export function PriceFilter({
   const bars = Array.from({ length: HISTOGRAM_BARS }, () => 0);
   for (const price of prices) bars[Math.min(HISTOGRAM_BARS - 1, Math.max(0, Math.floor(((price - bounds.min) / span) * HISTOGRAM_BARS)))]++;
   const tallest = Math.max(1, ...bars);
+
+  const range = (
+    <p className="shrink-0 whitespace-nowrap text-body font-semibold text-ink tabular-nums">
+      <EditableAmount key={`min-${current.min}`} label={t("min")} text={money(current.min)} amount={toUser(current.min)} onCommit={(amount) => set(toEur(amount), current.max)} />
+      <span className="text-muted"> – </span>
+      <EditableAmount key={`max-${current.max}`} label={t("max")} text={money(current.max)} amount={toUser(current.max)} onCommit={(amount) => set(current.min, toEur(amount))} />
+    </p>
+  );
+  if (head !== undefined) {
+    return (
+      <div className="flex min-w-0 flex-col gap-1">
+        <div className="flex min-h-10 items-center gap-3">
+          <span className="min-w-0 flex-1">{head}</span>
+          {range}
+          {aside}
+        </div>
+        <div aria-hidden data-histogram className="mx-3 flex h-10 items-end gap-px">
+          {bars.map((count, i) => {
+            const at = bounds.min + ((i + 0.5) / HISTOGRAM_BARS) * span;
+            const inRange = at >= current.min && at <= current.max;
+            return <span key={i} data-in={inRange || undefined} className={cn("flex-1 rounded-t-[2px] transition-colors duration-150", inRange ? "bg-ink/55" : "bg-ink/14")} style={{ height: `${count === 0 ? 0 : Math.max(8, (count / tallest) * 100)}%` }} />;
+          })}
+        </div>
+        <RangeSlider min={bounds.min} max={bounds.max} step={step} value={[current.min, current.max]} onChange={([min, max]) => set(min, max)} labels={[t("priceMin"), t("priceMax")]} formatValue={money} />
+      </div>
+    );
+  }
 
   return (
     // The histogram (40px) over the slider, the range as text on the right – each number can be clicked and typed.

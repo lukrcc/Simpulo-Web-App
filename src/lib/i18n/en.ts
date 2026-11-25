@@ -1116,6 +1116,7 @@ const en = {
         "25-35": "25–35",
         "35+": "35+"
       },
+      "stay": "Stay",
       "accommodation": "Accommodation",
       "accommodationOptions": {
         "booked": "Booked",
