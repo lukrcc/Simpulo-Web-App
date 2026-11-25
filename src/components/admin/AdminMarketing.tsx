@@ -2,6 +2,8 @@
 import { numberPool, TopicCards, TopicHeader } from "./AdminTopics";
 import { AdminCapsuleView } from "./AdminCapsuleView";
 import { AdminButton } from "./AdminButton";
+import { FounderFormat, FoundingOffer, MomentsProgram, NeedCalc, PrelaunchPlan, StageTargets, needRows, stageNumbers, useFoundingSeats, usePlanState } from "./MarketingPlan";
+import { PLAN_LABELS, VIDEOS_PER_WEEK } from "@/config/admin/marketing-plan";
 
 // Admin › Launch › Marketing: the launch strategy as a cockpit – Countdown · Pipeline · Partner · Content. The strategy (phases, targets,
 // tasks) from config/marketing.ts, contacts, partners, posts and tasks from the admin data (lib/admin/store.ts; Firestore later – admins
@@ -251,14 +253,41 @@ export function AdminMarketing() {
               capsule={tab}
               tiles={tiles}
               fallback={
+                // The pre-launch plan (CLAUDE.md "Admin › Marketing – Pre-Launch-Plan", config/admin/marketing-plan.ts) on top of each topic's view:
+                // Countdown the plan, Pipeline the stages, Bedarf the calculation, Partner the founding offer, Content the formats.
                 tab === "countdown" ? (
-                  <Countdown />
+                  <>
+                    {!url.focus && <PrelaunchPlan />}
+                    <div className={cn(!url.focus && "mt-(--adm-section)")}>
+                      <Countdown />
+                    </div>
+                  </>
                 ) : tab === "pipeline" ? (
-                  <Pipeline contacts={contacts} filter={{ niche, motivation, kind }} onOpen={setContactId} />
+                  <>
+                    {url.focus === "forFifty" ? <NeedCalc /> : <StageTargets />}
+                    <div className="mt-(--adm-section)">
+                      <Pipeline contacts={contacts} filter={{ niche, motivation, kind }} onOpen={setContactId} />
+                    </div>
+                  </>
                 ) : tab === "partners" ? (
-                  openPartner ? <PartnerDetail key={openPartner.id} partner={openPartner} onBack={() => setPartnerId(null)} onDeleted={() => setPartnerId(null)} /> : <PartnerCards partners={partners} filters={shownFilters} onOpen={setPartnerId} />
+                  openPartner ? (
+                    <PartnerDetail key={openPartner.id} partner={openPartner} onBack={() => setPartnerId(null)} onDeleted={() => setPartnerId(null)} />
+                  ) : (
+                    <>
+                      {url.focus !== "due" && <FoundingOffer />}
+                      <PartnerCards partners={partners} filters={shownFilters} onOpen={setPartnerId} />
+                    </>
+                  )
                 ) : (
-                  <Content clips={data.marketingClips} />
+                  <>
+                    <FounderFormat />
+                    <div className="mt-(--adm-section)">
+                      <MomentsProgram />
+                    </div>
+                    <div className="mt-(--adm-section)">
+                      <Content clips={data.marketingClips} />
+                    </div>
+                  </>
                 )
               }
             />
@@ -488,7 +517,23 @@ function MarketingOverview({ onOpen, render }: { onOpen: (tab: Exclude<Tab, "ove
   ];
   // The page's numbers (CLAUDE.md "Karten-Inhalte als Konfiguration"): which of them a card shows is config/admin/cards/marketing.ts.
   const ts = useTranslations("admin.topicCards.sub");
+  // The plan's numbers (config/admin/marketing-plan.ts): the cards' main numbers and sub-numbers.
+  const planState = usePlanState();
+  const stages = stageNumbers(contacts, inputs.today);
+  const need = needRows(stages.contacted, stages.houses);
+  const seats = useFoundingSeats();
+  const videos = shortsInWeek(posts, mondayOf(inputs.today));
   const pool = numberPool(tiles, {
+    planDays: { label: PLAN_LABELS.daysToLaunch, value: planState.state === "launched" ? PLAN_LABELS.launched : num(planState.daysToLaunch) },
+    planPhase: { label: PLAN_LABELS.phase, value: planState.state === "before" ? `${PLAN_LABELS.beforePlan} · ${planState.current?.title ?? ""}` : (planState.current?.title ?? PLAN_LABELS.launched) },
+    planOpen: { label: PLAN_LABELS.openTasks, value: num(planState.openTasks) },
+    stageContacts: { label: PLAN_LABELS.contacts, value: num(stages.contacted) },
+    // The same reply rate as the Pipeline's numbers (marketingFunnel), so card and view agree.
+    stageReplyRate: { label: PLAN_LABELS.replyRate, value: share(all.replyRate) },
+    neededContacts: { label: PLAN_LABELS.neededContacts, info: PLAN_LABELS.needInfo, value: num((need.actual ?? need.assumed).contacts) },
+    needRate: { label: need.actual ? PLAN_LABELS.needNow : PLAN_LABELS.needAssumed, value: share((need.actual ?? need.assumed).rate) },
+    founding: { label: PLAN_LABELS.foundingSeats, info: PLAN_LABELS.foundingInfo, value: `${num(seats.taken)} / ${num(seats.limit)}` },
+    videosWeek: { label: PLAN_LABELS.videosWeek, info: PLAN_LABELS.videosInfo, value: `${num(videos)} / ${num(VIDEOS_PER_WEEK)}` },
     phase: { label: ts("phase"), value: `${phase.no} · ${phase.label}` },
     startOrWeek: c.state === "before" ? { label: ts("startIn"), value: num(c.daysToStart) } : { label: ts("week"), value: `${num(c.weekNo)} / ${num(c.weeks)}` },
     entries: { label: ts("entries"), value: num(data.waitlist.length) },
