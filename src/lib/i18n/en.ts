@@ -804,6 +804,7 @@ const en = {
     "proOnly": "The programme is for hosts who lead their House (with a host fee).",
     "planTitle": "Programme",
     "planPreview": `The full programme with times and places shows ${PROGRAM_FULL_DAYS_BEFORE} days before the House.`,
+    "planAdd": "Plan the programme",
     "planEmpty": "{host} hasn't shared a programme yet.",
     "whatsPlanned": "What's planned",
     "whatsPlannedMore": `The full programme comes ${PROGRAM_FULL_DAYS_BEFORE} days before the House.`,
@@ -1051,6 +1052,8 @@ const en = {
       "whereWhen": "Where · When",
       "whereWhenRow": "Where & when",
       "moreRow": "More",
+      "moreFilters": "More filters",
+      "hosts": "Hosts",
       "moreCount": "+ {count} more",
       "searchPlaceholder": "Search",
       "searchIn": "Search {label}",
@@ -1537,6 +1540,8 @@ const en = {
       },
       "preset": "Preset",
       "votes": "{count, plural, one {# vote} other {# votes}}",
+      "defaultLine": "Default: {option}",
+      "openRule": "Open until {date}. If you don't vote, the default counts.",
       "closes": "Open until {date}",
       "closed": "Agreed",
       "confirmed": "Confirmed by {host}",
@@ -1596,6 +1601,7 @@ const en = {
         "bring": "What to bring",
         "programme": "Daily programme",
         "notShared": "Not shared yet – {host} adds it before you arrive.",
+        "addCheckIn": "Add check-in info",
         "noRules": "No House rules yet."
       },
       "tasks": {
@@ -1631,11 +1637,42 @@ const en = {
       }
     },
     "area": {
+        "pageParts": {
+          "title": "Your House page · {percent} % complete",
+          "edit": "Edit",
+          "add": "Add",
+          "parts": { "space": "About the space", "description": "Description", "placePhoto": "Photos of the place", "languages": "Languages", "who": "Who", "age": "Crew age", "rules": "House rules" }
+        },
       "yourStay": "Your stay",
       "livedInLabel": "Lived in",
       "doItAgain": "Do it again",
       "tabsLabel": "Your House",
-      "tabs": { "chat": "Chat", "crew": "Crew", "plan": "Plan", "moments": "Moments", "me": "Me", "manage": "Manage" },
+      "tabs": { "chat": "Chat", "crew": "Crew", "plan": "Plan", "moments": "Moments", "me": "Me", "manage": "Manage", "money": "Money", "todo": "To do", "overview": "Overview" },
+      "cards": {
+        "chatEmpty": "Starts with the first guest",
+        "unread": "{count, plural, one {# unread message} other {# unread messages}}",
+        "allRead": "All caught up",
+        "lastMessage": "Last",
+        "over": "The House is over",
+        "arrival": "Your arrival",
+        "notSet": "Not set",
+        "votesOpen": "Votes open",
+        "crewLine": "{in} of {total} · {left, plural, =0 {full} one {# spot left} other {# spots left}}",
+        "requests": "Requests",
+        "invitesOpen": "Invites open",
+        "arrivalsSet": "Arrival dates set",
+        "ofCount": "{done} of {total}",
+        "paidOf": "{paid} of {total} paid",
+        "noPayments": "No payments yet",
+        "payout": "Payout",
+        "status": "Status",
+        "paid": "Paid",
+        "due": "Due",
+        "notYet": "Not yet",
+        "photos": "{count, plural, one {# photo} other {# photos}}",
+        "noPhotos": "No photos yet",
+        "words": "Words for the crew"
+      },
       "phase": {
         "starts": "{days, plural, =0 {Starts today} one {Starts tomorrow} other {Starts in # days}}",
         "running": "Day {day} of {total}",
@@ -1651,6 +1688,7 @@ const en = {
         "quiet": "No messages yet – say hi to your crew."
       },
       "crew": {
+          "openSpot": "Open spot",
         "host": "Host",
         "you": "You",
         "paid": "Paid",
@@ -1662,6 +1700,8 @@ const en = {
         "onlyHost": "Just the host so far – the first spots are still open."
       },
       "plan": {
+        "afterLine": "The House is behind you – your album and the crew's words are in Moments.",
+        "toMoments": "Go to Moments",
         "dates": "Dates",
         "nights": "{count, plural, one {# night} other {# nights}}",
         "gettingThere": "Getting there",
@@ -1677,6 +1717,8 @@ const en = {
         "place": "The place"
       },
       "me": {
+          "helpLine": "Need help with this House?",
+          "contactUs": "Contact us",
         "booking": "Your booking",
         "dates": "Dates",
         "share": "Your share",
@@ -2472,7 +2514,7 @@ const en = {
       "crew": "Crew and price",
       "cover": "Cover and title",
       "extras": "Make it stand out",
-      "ready": "Ready to open?",
+      "ready": "Check & open",
       "details": "Add details",
       "title": "Give it a title",
       "photos": "Add photos",
@@ -2487,7 +2529,12 @@ const en = {
       "crewGroup": "House group link",
       "invite": "Invite your people",
       "inviteAgain": "Invite your crew",
-      "kind": "Where will you live?",
+      "kind": "What kind of place?",
+      "placeSave": "Your place",
+      "whereOnly": "Where?",
+      "when": "When?",
+      "people": "How many people, including you?",
+      "price": "Price",
       "depth": "How deep should this House go?"
     },
     "resume": {
@@ -2523,7 +2570,9 @@ const en = {
     },
     "ready": {
       "theme": "Theme",
-      "where": "Where and when",
+      "where": "Where",
+      "when": "When",
+      "cover": "Title",
       "crew": "Crew",
       "budget": "Budget",
       "price": "Price",
@@ -2559,6 +2608,16 @@ const en = {
     },
     "flow": {
       "placeSetTitle": "I have a place",
+      "fewerPeople": "One person less",
+      "morePeople": "One person more",
+      "peopleRange": "Including you · {min}–{max} people",
+      "perPersonLive": "≈ {price} per person",
+      "perPersonNote": "What a guest pays: their share and the {percent} % service fee.",
+      "addHostFee": "Add a host fee",
+      "parts": { "idea": "The idea", "place": "The place", "crew": "Crew & price" },
+      "stepLine": "{part} · Step {current} of {total} · {left}",
+      "minLeft": "{count, plural, one {about # min left} other {about # min left}}",
+      "underMinute": "under a minute left",
       "placeSetText": "You found it, your crew splits it. Guests see an exact price.",
       "placeTogetherTitle": "Let's find it together",
       "placeTogetherText": "Pick a city and budget, choose the place with your crew.",
@@ -2652,6 +2711,8 @@ const en = {
       }
     },
     "space": {
+      "stepDown": "One less – {label}",
+      "stepUp": "One more – {label}",
       "intro": "Optional – it helps your crew picture the place. Skip anything you don't know.",
       "roomsTitle": "Rooms",
       "bedrooms": "Bedrooms",
@@ -2738,6 +2799,7 @@ const en = {
     "kind": {
       "popular": "Popular for {topic}",
       "crew": "crew {min}–{max}",
+      "moreTitle": "More places",
       "more": "More places",
       "less": "Fewer places",
       "whichOne": "Which one?",
@@ -2771,6 +2833,8 @@ const en = {
     "title": "Your houses",
     "view": {
       "crew": "Crew",
+      "crewList": "Crew list",
+      "invites": "Invites",
       "requests": "Requests",
       "chat": "Chat",
       "payment": "Payment",
@@ -3341,6 +3405,8 @@ const en = {
       "withCount": "{label}, {count} new"
     },
     "overview": {
+      "stepOf": "Step {current} of {total}",
+      "ofCount": "{done} of {total}",
       "allSet": "All set.",
       "arrival": "{count, plural, one {Arrival tomorrow} other {Arrival in # days}}",
       "finish": "Finish your House to open it",
@@ -4328,6 +4394,13 @@ const en = {
       "bothLivedTwo": "You both lived with {a} and {b}",
       "bothLivedMore": "You both lived with {name} and {count, plural, one {# other} other {# others}}",
       "peopleTotal": "{count, plural, one {# person} other {# people}} in their network",
+      "statHouses": "Houses",
+      "statLivedWith": "Lived with",
+      "statCountries": "Countries",
+      "statFriends": "Friends",
+      "statToConfirm": "{count} to confirm",
+      "statMore": "+{count}",
+      "statInvite": "Invite friends →",
       "confirmButton": "{count, plural, one {# housemate} other {# housemates}} to confirm",
       "message": "Message",
       "addLink": "+ Add link",
@@ -4371,6 +4444,7 @@ const en = {
     "ui": {
       "sidebarTitle": "Settings",
       "profileSub": "Profile & photos",
+      "accountCardSub": "Profile, sign-in & security",
       "back": "Settings",
       "saved": "Saved",
       "nav": {
@@ -4381,7 +4455,8 @@ const en = {
         "general": "General",
         "chats": "Chats",
         "appearance": "Appearance",
-        "language": "Language"
+        "language": "Language",
+        "help": "Help"
       },
       "account": {
         "groupSignIn": "Sign-in",

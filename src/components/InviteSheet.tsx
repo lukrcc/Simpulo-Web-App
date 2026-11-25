@@ -1,11 +1,12 @@
 "use client";
 
-import { Check, ChevronRight, Link2, QrCode, Share } from "lucide-react";
+import { Check, ChevronRight, Image as ImageIcon, Link2, QrCode, Share } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState, type ReactNode } from "react";
 import { useMonthName } from "@/components/explore/SearchFields";
 import { SimpuloQR } from "@/components/SimpuloQR";
 import { Button } from "@/components/ui/ActionButton";
+import { PanelCapsule } from "@/components/ui/PanelCapsule";
 import { Avatar } from "@/components/ui/Avatar";
 import { Img } from "@/components/ui/Img";
 import { Sheet } from "@/components/ui/Sheet";
@@ -68,27 +69,6 @@ export function InviteSheet({ stay, houses, open, onClose, preselect = [], title
   );
 }
 
-/** Open a House › "Fill your House": the sheet's content on its own page, with its button. */
-export function InvitePage({ stay, preselect = [], onDone, head }: { stay: Stay; preselect?: string[]; onDone: () => void; head?: ReactNode }) {
-  const t = useTranslations("invite");
-  const [selected, setSelected] = useState<string[]>(preselect);
-  const send = useSendInvites(stay, onDone);
-  return (
-    <div className="flex flex-col gap-8">
-      {head}
-      <InvitePanel stay={stay} selected={selected} onSelect={setSelected} />
-      <div className="flex items-center justify-between gap-4">
-        <Button variant="tertiary" onClick={onDone} className="-ml-4">
-          {t("skip")}
-        </Button>
-        <Button variant={selected.length > 0 ? "primary" : "secondary"} onClick={() => send(selected)} disabled={selected.length === 0}>
-          {selected.length > 0 ? t("inviteCount", { count: selected.length }) : t("invite")}
-        </Button>
-      </div>
-    </div>
-  );
-}
-
 /** Sends to everyone picked; one toast says how it went (sent, the daily limit, said no to invites). */
 function useSendInvites(stay: Stay | null, done: () => void) {
   const t = useTranslations("invite");
@@ -135,7 +115,7 @@ function HousePhoto({ stay, photo }: { stay: Stay; photo?: string }) {
 }
 
 /** The content: the House, "Share link", the people. Picking stops at the open spots; the daily limit for people with no tie is shown. */
-function InvitePanel({ stay, selected, onSelect }: { stay: Stay; selected: string[]; onSelect: (ids: string[]) => void }) {
+function InvitePanel({ stay, selected, onSelect, bare = false }: { stay: Stay; selected: string[]; onSelect: (ids: string[]) => void; /** Only the people (the House's head and the link stand elsewhere – Open a House's last page) */ bare?: boolean }) {
   const t = useTranslations("invite");
   const store = useStore();
   const today = useTodayIso();
@@ -163,15 +143,17 @@ function InvitePanel({ stay, selected, onSelect }: { stay: Stay; selected: strin
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex items-center gap-4">
-        <HousePhoto stay={stay} photo={housePhotos(stay, findUser(store, stay.hostId))[0]} />
-        <div className="min-w-0">
-          <p className="truncate text-h3 text-ink">{stay.title}</p>
-          <p className="text-small text-muted">{t("spotsOpen", { count: spots })}</p>
+      {!bare && (
+        <div className="flex items-center gap-4">
+          <HousePhoto stay={stay} photo={housePhotos(stay, findUser(store, stay.hostId))[0]} />
+          <div className="min-w-0">
+            <p className="truncate text-h3 text-ink">{stay.title}</p>
+            <p className="text-small text-muted">{t("spotsOpen", { count: spots })}</p>
+          </div>
         </div>
-      </div>
+      )}
 
-      <ShareLink stay={stay} />
+      {!bare && <ShareLink stay={stay} />}
 
       {people.length > 0 && (
         <Section title={t("yourPeople")} hint={t("yourPeopleText")}>
@@ -233,47 +215,7 @@ function PersonRow({ user, note, on, disabled, onToggle }: { user: User; note: s
  */
 function ShareLink({ stay }: { stay: Stay }) {
   const t = useTranslations("invite");
-  const tCommon = useTranslations("common");
-  const store = useStore();
-  const showToast = useToast();
-  const [invite, setInvite] = useState<HouseInvite | null>(null);
-  // Spots for friends (store friendSpotsFor): the host always, a member once paid, up to the House's limit – 0: the link holds no spot.
-  const maxSpots = friendSpotsFor(store, stay, store.currentUserId);
-  const [spots, setSpots] = useState(1);
-  const canShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
-  const desktop = typeof window !== "undefined" && window.matchMedia("(pointer: fine)").matches && !isTouchDevice();
-  const urlOf = (made: HouseInvite) => friendInviteLink(stay.slug, made.token, store.currentUserId);
-  const ensure = () => {
-    if (invite) return urlOf(invite);
-    // No spot to hold (not paid yet, or the host set 0): the House's own link, with who shared it and where (?ref, ?src).
-    if (maxSpots === 0) return shareUrl(`/house/${stay.slug}`, { refUserId: store.currentUserId, channel: "invite" });
-    const made = store.createHouseInvite(stay.id, { spots: Math.min(spots, maxSpots) });
-    if (!made) {
-      showToast(t("linkFailed"));
-      return null;
-    }
-    setInvite(made);
-    return urlOf(made);
-  };
-  const copy = async () => {
-    const url = ensure();
-    if (!url) return;
-    try {
-      await navigator.clipboard.writeText(url);
-      showToast(t("copied"));
-    } catch {
-      showToast(tCommon("linkCopyFailed"));
-    }
-  };
-  const share = async () => {
-    const url = ensure();
-    if (!url) return;
-    try {
-      await navigator.share({ title: stay.title, text: t("message", { title: shortNameOf(stay) }), url });
-    } catch {
-      // Cancelled – nothing to show.
-    }
-  };
+  const { invite, maxSpots, spots, setSpots, canShare, desktop, urlOf, ensure, copy, share } = useFriendLink(stay);
   const held = invite?.spots ?? 1;
   return (
     <section>
@@ -326,6 +268,139 @@ function ShareLink({ stay }: { stay: Stay }) {
         </div>
       )}
     </section>
+  );
+}
+
+/** The friend link of a House: made on first use, holding the chosen spots (the host always, a member once paid); copy and share. */
+function useFriendLink(stay: Stay) {
+  const t = useTranslations("invite");
+  const tCommon = useTranslations("common");
+  const store = useStore();
+  const showToast = useToast();
+  const [invite, setInvite] = useState<HouseInvite | null>(null);
+  // Spots for friends (store friendSpotsFor): the host always, a member once paid, up to the House's limit – 0: the link holds no spot.
+  const maxSpots = friendSpotsFor(store, stay, store.currentUserId);
+  const [spots, setSpots] = useState(1);
+  const canShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
+  const desktop = typeof window !== "undefined" && window.matchMedia("(pointer: fine)").matches && !isTouchDevice();
+  const urlOf = (made: HouseInvite) => friendInviteLink(stay.slug, made.token, store.currentUserId);
+  const ensure = () => {
+    if (invite) return urlOf(invite);
+    // No spot to hold (not paid yet, or the host set 0): the House's own link, with who shared it and where (?ref, ?src).
+    if (maxSpots === 0) return shareUrl(`/house/${stay.slug}`, { refUserId: store.currentUserId, channel: "invite" });
+    const made = store.createHouseInvite(stay.id, { spots: Math.min(spots, maxSpots) });
+    if (!made) {
+      showToast(t("linkFailed"));
+      return null;
+    }
+    setInvite(made);
+    return urlOf(made);
+  };
+  const copy = async () => {
+    const url = ensure();
+    if (!url) return;
+    try {
+      await navigator.clipboard.writeText(url);
+      showToast(t("copied"));
+    } catch {
+      showToast(tCommon("linkCopyFailed"));
+    }
+  };
+  const share = async () => {
+    const url = ensure();
+    if (!url) return;
+    try {
+      await navigator.share({ title: stay.title, text: t("message", { title: shortNameOf(stay) }), url });
+    } catch {
+      // Cancelled – nothing to show.
+    }
+  };
+  return { invite, maxSpots, spots, setSpots, canShare, desktop, urlOf, ensure, copy, share };
+}
+
+/**
+ * Open a House's last page (CLAUDE.md "Open a House Teil 2"): "Fill your House" and "Your House is open." in one. Under the head one row to
+ * share – Share (primary; without the system's share it copies) · Copy link · QR code · Story image as capsules –, then "Spots for friends"
+ * (capsules) and the people (Your people, Saved, who's in for it) with a round check on the right; "Invite" only once someone is picked.
+ * Under it the page's text links. Without an open spot: only the sharing.
+ */
+export function OpenedInvite({ stay, preselect = [], head, onStory, storyBusy = false, extra, links }: { stay: Stay; preselect?: string[]; head: ReactNode; onStory: () => void; storyBusy?: boolean; /** More capsules in the share row (the flow's invite link) */ extra?: ReactNode; links: ReactNode }) {
+  const t = useTranslations("invite");
+  const tOpened = useTranslations("create.opened");
+  const { invite, maxSpots, spots, setSpots, canShare, urlOf, ensure, copy, share } = useFriendLink(stay);
+  const can = useCanInvite(stay.id);
+  const [selected, setSelected] = useState<string[]>(preselect);
+  const [qr, setQr] = useState(false);
+  const send = useSendInvites(stay, () => setSelected([]));
+  const held = invite?.spots ?? 1;
+  return (
+    <div className="flex flex-col gap-10">
+      {head}
+      <section className="space-y-4">
+        <div role="group" aria-label={t("shareTitle")} className="flex flex-wrap items-center gap-2">
+          <Button size="md" onClick={canShare ? share : copy}>
+            <Share aria-hidden />
+            {t("share")}
+          </Button>
+          <PanelCapsule onClick={copy}>
+            <Link2 aria-hidden className="size-4" />
+            {t("copy")}
+          </PanelCapsule>
+          <PanelCapsule
+            on={qr}
+            aria-pressed={qr}
+            onClick={() => {
+              if (!qr) ensure();
+              setQr(!qr);
+            }}
+          >
+            <QrCode aria-hidden className="size-4" />
+            {t("qr")}
+          </PanelCapsule>
+          <PanelCapsule onClick={onStory} disabled={storyBusy}>
+            <ImageIcon aria-hidden className="size-4" />
+            {tOpened("story")}
+          </PanelCapsule>
+          {extra}
+        </div>
+        {qr && invite && (
+          <div className="flex items-center gap-4">
+            <div className="rounded-[20px] bg-stage-text p-3">
+              <SimpuloQR url={urlOf(invite)} size={136} />
+            </div>
+            <p className="max-w-[24ch] text-small text-muted">{t("scanToJoin")}</p>
+          </div>
+        )}
+      </section>
+      {can && maxSpots > 0 && (
+        <section>
+          <h2 className="mb-3 text-eyebrow uppercase text-ink/55">{t("spotsForFriends")}</h2>
+          {invite ? (
+            <p className="text-small text-muted">{t("linkReady", { count: held })}</p>
+          ) : (
+            <div role="radiogroup" aria-label={t("spotsForFriends")} className="flex flex-wrap gap-2">
+              {Array.from({ length: maxSpots }, (_, i) => i + 1).map((n) => (
+                <PanelCapsule key={n} role="radio" aria-checked={spots === n} on={spots === n} onClick={() => setSpots(n)}>
+                  {t("spotCount", { count: n })}
+                </PanelCapsule>
+              ))}
+            </div>
+          )}
+          <p className="mt-2 text-small text-muted">{t("spotsForFriendsText", { count: invite ? held : Math.min(spots, maxSpots) })}</p>
+        </section>
+      )}
+      {can && (
+        <>
+          <InvitePanel stay={stay} selected={selected} onSelect={setSelected} bare />
+          <div className="flex justify-end">
+            <Button onClick={() => send(selected)} disabled={selected.length === 0}>
+              {selected.length > 0 ? t("inviteCount", { count: selected.length }) : t("invite")}
+            </Button>
+          </div>
+        </>
+      )}
+      <div className="-ml-4 flex flex-wrap items-center gap-2">{links}</div>
+    </div>
   );
 }
 

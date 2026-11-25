@@ -12,7 +12,7 @@ import { similarHouses } from "@/lib/requests";
 import { HostHelpChecklist } from "./HostHelpChecklist";
 import { HostChecklist } from "@/components/onboarding/HostOnboarding";
 import { ProgramEditor, ProgramFeedbackSummary, ProgramView } from "./ProgramParts";
-import { RotateCcw, Share } from "lucide-react";
+import { CalendarDays, ChevronLeft, Check, Images, ListChecks, MessageCircle, Plus, RotateCcw, Share, Users, Wallet, type LucideIcon } from "lucide-react";
 import { useHouseShareSheet } from "@/components/share/HouseShare";
 import { InviteSheet } from "@/components/InviteSheet";
 import { useCanInvite } from "@/lib/invites";
@@ -23,8 +23,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { CrewCount, CrewRow } from "@/components/CrewRow";
 import { HeroBand, HeroPhotos } from "@/components/HeroBand";
-import { ContextHelp } from "@/components/help/HelpFeedback";
-import { HelpButton, helpAvailable } from "@/components/help/HelpSheet";
+import { HelpSheet, helpAvailable } from "@/components/help/HelpSheet";
 import { MyShare } from "@/components/payments/MyShare";
 import { PaymentsSection } from "@/components/payments/PaymentsCard";
 import { Receipt } from "@/components/payments/Receipt";
@@ -34,9 +33,12 @@ import { HostKit } from "@/components/share/HostKit";
 import { Button } from "@/components/ui/ActionButton";
 import { Avatar } from "@/components/ui/Avatar";
 import { BackButton } from "@/components/ui/BackButton";
-import { CapsuleGroup } from "@/components/ui/CapsuleGroup";
+import { guestPrice } from "@/lib/pricing";
+import { useViewerPrice } from "@/components/ui/PriceLine";
+import { openGetHelp } from "@/lib/support/feedback";
+import { PanelCapsule } from "@/components/ui/PanelCapsule";
+import type { ArcPhase } from "@/config/arc";
 import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
-import { EmptyState } from "@/components/ui/EmptyState";
 import { Img } from "@/components/ui/Img";
 import { iconButtonStyles } from "@/components/ui/IconButton";
 import { useToast } from "@/components/ui/Toast";
@@ -45,19 +47,24 @@ import { HOUSE_VIBE_SCALES, hasVibe } from "@/config/houseVibe";
 import { useFormat } from "@/i18n/format";
 import { hostOverlapOf } from "@/lib/overlap";
 import { profileHref } from "@/lib/privacy";
-import { crewThreadId, findUser, getCrew, getCrewThread, getMyPayment, paymentStatus, useStore } from "@/lib/store";
+import { crewInOf, crewThreadId, findUser, getCrew, getCrewThread, getMyPayment, getPayments, paymentProgress, paymentStatus, useStore } from "@/lib/store";
 import type { Stay, User } from "@/lib/types";
-import { cn, housePhotos, typicalDayOf } from "@/lib/utils";
+import { cn, housePhotos, openSpots, typicalDayOf } from "@/lib/utils";
 import { yourPeople } from "@/lib/yourPeople";
-import { afterAt, chosenAt, intentionOf, thirtyAt, useArc, useArcNow } from "@/lib/arc";
+import { afterAt, arcDateLabel, arrivalOf, chosenAt, intentionOf, thirtyAt, useArc, useArcNow } from "@/lib/arc";
 import { CrewMenu, CloseStayConfirm } from "./CrewMenu";
 import { CrewVotes } from "./CrewVotes";
 import { HostInvitesSection } from "./HouseInvites";
 import { ChatBody, CrewRows, openRequestsOf, RequestsTab, WaitlistRows } from "./HouseManageParts";
 import { GuestProgress, HostProgress } from "./HouseProgress";
 import { ArcBar, ArcMute, ArcStepPanel, useArcEmails } from "./ArcParts";
-import { GettingThere, HostTasks, IntentionForm, IntentionView, Practical, sayHiDraft } from "./ArcBefore";
-import { AgreementPanel, ArrivedPanel, FirstNightPanel, QuestionCardsEntry } from "./ArcArrival";
+import { GettingThere, HostTasks, IntentionForm, IntentionView, Practical, sayHiDraft, useHostTaskList } from "./ArcBefore";
+import { Sheet } from "@/components/ui/Sheet";
+import { IconTile } from "@/components/settings/SettingsList";
+import { paymentSplit } from "@/lib/fees";
+import { albumOf } from "@/lib/memories";
+import { openVote } from "@/lib/crewVotes";
+import { AgreementPanel, ArrivedPanel, FirstNightPanel } from "./ArcArrival";
 import { AgreedMoments, HalftimeAverage, HalftimeForm, PeakPanel } from "./ArcMiddle";
 import { AlbumReady, AlbumSection } from "./Album";
 import { DoItAgainPanel, ThirtyDaysForm } from "./ArcAfterwards";
@@ -67,9 +74,9 @@ import { PaySheet } from "./PaySheet";
 
 // CLAUDE.md "Klare Ziele für alle House-Karten": Chat · Plan · Crew · Moments, the host also Manage; no "Me" – its content ("Your stay": your
 // payment, getting there, leaving) is a section of Plan. Before and during the House Chat comes first; after it Moments.
-type Tab = "chat" | "plan" | "crew" | "moments" | "manage";
-const TABS_BEFORE: readonly Tab[] = ["chat", "plan", "crew", "moments"];
-const TABS_AFTER: readonly Tab[] = ["moments", "chat", "plan", "crew"];
+/** The House area (CLAUDE.md "House-Bereich mit Übersicht"): the overview with its cards, and one page per area (?tab=…). */
+type View = "overview" | "chat" | "plan" | "crew" | "money" | "moments" | "todo";
+const VIEWS: readonly View[] = ["overview", "chat", "plan", "crew", "money", "moments", "todo"];
 const DAY_MS = 86_400_000;
 const dayOf = (iso: string) => Date.parse(`${iso.slice(0, 10)}T00:00:00Z`);
 
@@ -113,21 +120,22 @@ export function HouseArea({ stay, role, ended }: { stay: Stay; role: "member" | 
 
   // The tab: ?tab= (the browser's back walks through them); without one, where you'd look first.
   const over = phase.key === "ended";
-  const memberTabs = over ? TABS_AFTER : TABS_BEFORE;
-  const tabs: readonly Tab[] = isHost ? [...memberTabs, "manage"] : memberTabs;
   const focus = params.get("focus");
-  const fromFocus: Tab | null = focus === "pay" ? "plan" : focus === "chat" ? "chat" : isHost && (focus === "requests" || focus === "booking" || focus === "invite") ? "manage" : null;
-  // Old links to "Me" (?tab=me) open Plan, where "Your stay" is now.
+  const fromFocus: View | null = focus === "pay" ? "money" : focus === "chat" ? "chat" : isHost && (focus === "requests" || focus === "invite") ? "crew" : isHost && focus === "booking" ? "money" : null;
+  // Old links: "Me" opens Plan; "Manage" (and /h/[id]/manage) the overview.
   const askedRaw = params.get("tab");
-  const asked = (askedRaw === "me" ? "plan" : askedRaw) as Tab | null;
-  const fallback: Tab = ended ? "plan" : isHost ? "manage" : over ? "moments" : inChat ? "chat" : "plan";
-  const tab: Tab = asked && tabs.includes(asked) ? asked : (fromFocus ?? fallback);
-  const setTab = (next: Tab) => {
+  const asked = (askedRaw === "me" ? "plan" : askedRaw === "manage" ? "overview" : askedRaw) as View | null;
+  const fallback: View = ended ? "plan" : "overview";
+  const tab: View = asked && VIEWS.includes(asked) && (asked !== "todo" || isHost) ? asked : (fromFocus ?? fallback);
+  const setTab = (next: View) => {
     const q = new URLSearchParams(params.toString());
-    q.set("tab", next);
+    if (next === "overview") q.delete("tab");
+    else q.set("tab", next);
     q.delete("focus");
     q.delete("arc");
-    router.push(`${pathname}?${q}`, { scroll: false });
+    const query = q.toString();
+    router.push(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    window.scrollTo({ top: 0 });
   };
   // ?focus=pay opens the pay sheet once.
   const [paying, setPaying] = useState(false);
@@ -152,14 +160,35 @@ export function HouseArea({ stay, role, ended }: { stay: Stay; role: "member" | 
     }
   }, [focus, isHost, canBring]);
   const tShare = useTranslations("growth.share");
+  // Plan: the Arc phase shown – the current one by default (a tap on another phase shows its blocks).
+  const arcNow = useArc(stay);
+  const [pickedPhase, setPlanPhase] = useState<ArcPhase | null>(null);
+  const planPhase: ArcPhase = pickedPhase ?? arcNow?.phase ?? "before";
+  // "···" › Need help with this House?: the case form in its window (3 days before to a day after), Get help otherwise.
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [helpNow] = useState(() => Date.now());
+  const openHelp = () => (helpAvailable(stay, helpNow) ? setHelpOpen(true) : openGetHelp({ houseId: stay.id }));
+  /** The host's empty states in Plan lead to the task (To do) or the programme (Plan). */
+  const openManage = (anchor: string) => {
+    setTab(anchor === "manage-program" ? "plan" : "todo");
+    window.setTimeout(() => document.getElementById(anchor)?.scrollIntoView({ behavior: "smooth", block: "start" }), 120);
+  };
+  const tMenu = useTranslations("houses.crewMenu");
+  const [kitOpen, setKitOpen] = useState(false);
   const phaseText = phase.key === "starts" ? t("phase.starts", { days: phase.days }) : phase.key === "running" ? t("phase.running", { day: phase.day, total: phase.total }) : t("phase.ended");
 
   return (
-    <>
+    // .house-area: the shared UI rule (CLAUDE.md "House-Bereich – gemeinsame UI-Regel"): capsules, white surfaces, filled fields.
+    <div className="house-area">
       {share.sheet}
       {!isHost && canBring && <InviteSheet stay={stay} open={inviting} onClose={() => setInviting(false)} />}
-      {/* The stage: the HeroBand pattern (CLAUDE.md "Vollbild-Band") – the photos left, the House on the light band right. */}
-      <PageFrame fullStrip={false} media={<HeroPhotos photos={housePhotos(stay, host)} />} mediaFit="house" height="split:h-[clamp(320px,40vh,420px)]" aria-labelledby="house-area-title">
+      {isHost && (
+        <Sheet open={kitOpen} onClose={() => setKitOpen(false)} title={tShare("button")}>
+          <HostKit stays={[stay]} />
+        </Sheet>
+      )}
+      {/* The stage: the HeroBand pattern (CLAUDE.md "Vollbild-Band") – the photos left, the House on the light band right. Only on the overview. */}
+      {tab === "overview" && <PageFrame fullStrip={false} media={<HeroPhotos photos={housePhotos(stay, host)} />} mediaFit="house" height="split:h-[clamp(320px,40vh,420px)]" aria-labelledby="house-area-title">
         <div className="flex h-full min-w-0 flex-col gap-5">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
@@ -176,13 +205,20 @@ export function HouseArea({ stay, role, ended }: { stay: Stay; role: "member" | 
             </div>
             <div className="flex shrink-0 items-center gap-2">
               {/* Share: the one share sheet (components/share/HouseShare.tsx) – the link carries your ref and the channel. */}
-              <button type="button" onClick={share.open} aria-label={tShare("button")} className={iconButtonStyles("sm")}>
+              {/* The host: the host kit (story, bio link, community post) in a sheet; guests the one share sheet. */}
+              <button type="button" onClick={isHost ? () => setKitOpen(true) : share.open} aria-label={tShare("button")} className={iconButtonStyles("sm")}>
                 <Share aria-hidden />
               </button>
-              <Button variant="secondary" size="sm" href={isHost ? `/house/${stay.slug}?preview=guest` : `/house/${stay.slug}`}>
+              <Link href={isHost ? `/house/${stay.slug}?preview=guest` : `/house/${stay.slug}`} className="panel-cap">
                 {t("viewPage")}
-              </Button>
-              {isHost ? <CrewMenu stay={stay} afterLeaveHref="/your-houses" minimal extraItems={[{ label: t("tabs.manage"), onSelect: () => setTab("manage") }]} buttonClassName={iconButtonStyles("sm")} /> : <SafetyMenu target={{ kind: "stay", id: stay.id }} buttonClassName={iconButtonStyles("sm")} />}
+              </Link>
+              {/* "···": help with this House and "Mute Simpulo tips" (a switch on top – the menu stays open) beside the usual entries. */}
+              {isHost ? (
+                <CrewMenu stay={stay} afterLeaveHref="/your-houses" minimal top={<ArcMute compact />} extraItems={[{ label: tMenu("edit"), href: `/your-houses/${stay.id}/edit` }, { label: t("me.helpLine"), onSelect: openHelp }]} buttonClassName={iconButtonStyles("sm")} />
+              ) : (
+                <SafetyMenu target={{ kind: "stay", id: stay.id }} top={<ArcMute compact />} extraItems={[{ label: t("me.helpLine"), onSelect: openHelp }]} buttonClassName={iconButtonStyles("sm")} />
+              )}
+              {helpAvailable(stay, helpNow) && <HelpSheet stay={stay} open={helpOpen} onClose={() => setHelpOpen(false)} />}
             </div>
           </div>
           <div className="mt-auto flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
@@ -191,14 +227,14 @@ export function HouseArea({ stay, role, ended }: { stay: Stay; role: "member" | 
               {phaseText}
             </p>
             <div className="flex flex-col items-end gap-2">
-              <CrewRow stay={stay} crew={crew} size="md" max={7} />
+              <CrewRow stay={stay} crew={crew} size="md" max={7} filled />
               <CrewCount stay={stay} />
             </div>
           </div>
         </div>
-      </PageFrame>
+      </PageFrame>}
       {/* Lived in (the House is over): the dark strip with "Do it again" – Open a House from this one, the crew of then invited. */}
-      {over && !ended && (
+      {tab === "overview" && over && !ended && (
         <FrameStrip
           figures={<StripFig value={f.stayDates({ startDate: stay.startDate, endDate: stay.startDate, datesOpen: true })} label={t("livedInLabel")} />}
           buttons={
@@ -210,42 +246,116 @@ export function HouseArea({ stay, role, ended }: { stay: Stay; role: "member" | 
       )}
 
       <div className="page-container explore-width">
-        {/* The tabs as capsules (product style); on phones the row scrolls sideways and sticks under the header. */}
-        <div data-house-tabs className="sticky top-(--header-total) z-20 -mx-(--page-margin) bg-(--bg) px-(--page-margin) py-4">
-          <CapsuleGroup
-            label={t("tabsLabel")}
-            value={tab}
-            onChange={setTab}
-            className="w-fit max-w-full"
-            options={tabs.map((value) => ({ value, content: t(`tabs.${value}`) }))}
-          />
-        </div>
-        <div className="pb-(--space-section) pt-4">
+        {/* A detail page: "‹ {House}" back to the overview, the area's big title; the head isn't repeated. */}
+        {tab !== "overview" && (
+          <div className="pt-8">
+            <button type="button" onClick={() => setTab("overview")} className="-ml-1.5 inline-flex min-h-11 items-center gap-0.5 text-body text-ink">
+              <ChevronLeft aria-hidden className="size-5" />
+              <span className="max-w-[40ch] truncate">{stay.title}</span>
+            </button>
+            <h2 className="mt-1 text-h1 text-ink">{t(`tabs.${tab}`)}</h2>
+          </div>
+        )}
+        <div className="pt-8">
           {arcStep && (
             <div className="mb-8 max-w-[760px]">
               <ArcStepPanel key={arcStep} stay={stay} stepId={arcStep} />
             </div>
           )}
-          {tab === "chat" && <ChatBody stay={stay} empty={isHost ? t("chat.emptyHost") : t("chat.emptyMember")} />}
-          {tab === "crew" && <CrewTab stay={stay} crew={crew} inChat={inChat} />}
-          {tab === "plan" && (
-            // "Your stay" (your payment, getting there, leaving – what "Me" was) first, then the plan of the House.
+          {tab === "overview" && <AreaOverview stay={stay} crew={crew} isHost={isHost} over={over} nowMs={nowMs} onOpen={setTab} />}
+          {/* No guest yet: the empty state in the middle (and the host's "Invite friends"); otherwise the crew's chat. */}
+          {tab === "chat" && (crew.length <= 1 ? <ChatEmpty stay={stay} isHost={isHost} /> : <ChatBody stay={stay} empty={isHost ? t("chat.emptyHost") : t("chat.emptyMember")} />)}
+          {tab === "crew" && (
             <div className="flex flex-col gap-12">
-              <section id="your-stay" aria-labelledby="your-stay-title" className="scroll-mt-40">
-                <h2 id="your-stay-title" className="mb-4 text-subhead text-ink">
-                  {t("yourStay")}
-                </h2>
-                <MeTab stay={stay} isHost={isHost} ended={ended} over={over} onPay={() => setPaying(true)} chat={inChat ? `/messages/${crewThreadId(stay.id)}` : null} />
-              </section>
-              {!ended && <PlanTab stay={stay} isHost={isHost} />}
+              <CrewTab stay={stay} crew={crew} inChat={inChat} />
+              {isHost && <HostCrewParts stay={stay} />}
             </div>
           )}
-          {tab === "moments" && <MomentsTab stay={stay} />}
-          {tab === "manage" && isHost && <ManageTab stay={stay} />}
+          {tab === "money" && (isHost ? <HostMoneyParts stay={stay} /> : <div className="max-w-[760px]"><MeTab part="booking" stay={stay} isHost={isHost} over={over} onPay={() => setPaying(true)} chat={null} /></div>)}
+          {tab === "todo" && isHost && <HostTodoParts stay={stay} />}
+          {tab === "plan" && (
+            // CLAUDE.md "Plan-Reiter": the Arc → Your booking → Getting there → Your intention → (the House's plan) → help → Mute Simpulo tips.
+            // No "Your stay" heading. #your-stay stays as the anchor of "Your stay" links.
+            // CLAUDE.md "Plan nach Arc-Phasen": the Arc on top, its phases tappable (default the current one); under it only that phase's
+            // blocks. Help and "Mute Simpulo tips" live in the head's "···".
+            <div id="your-stay" className="flex max-w-[760px] scroll-mt-40 flex-col gap-10">
+              {ended ? (
+                <MeTab part="booking" stay={stay} isHost={isHost} ended={ended} over={over} onPay={() => setPaying(true)} chat={null} />
+              ) : (
+                <>
+                  <ArcBar stay={stay} selected={planPhase} onSelect={setPlanPhase} />
+                  {planPhase === "before" && (
+                    <>
+                      <MeTab part="step" stay={stay} isHost={isHost} over={over} onPay={() => setPaying(true)} chat={inChat ? `/messages/${crewThreadId(stay.id)}` : null} />
+                      <MeTab part="intention" stay={stay} isHost={isHost} over={over} onPay={() => setPaying(true)} chat={null} />
+                      {/* A week before: how everyone gets there – nothing is booked. */}
+                      <Part id="plan-getting-there" title={t("plan.gettingThere")}>
+                        <GettingThere stay={stay} />
+                      </Part>
+                    </>
+                  )}
+                  <PlanTab stay={stay} isHost={isHost} phase={planPhase} onManage={openManage} />
+                  {isHost && <HostPlanParts stay={stay} phase={planPhase} />}
+                  {planPhase === "before" && <MeTab part="cancel" stay={stay} isHost={isHost} over={over} onPay={() => setPaying(true)} chat={null} />}
+                  {planPhase === "together" && <MeTab part="halftime" stay={stay} isHost={isHost} over={over} onPay={() => setPaying(true)} chat={null} />}
+                  {planPhase === "after" && (
+                    <>
+                      <div className="flex flex-wrap items-center justify-between gap-4">
+                        <p className="text-body text-ink">{t("plan.afterLine")}</p>
+                        <PanelCapsule onClick={() => setTab("moments")}>{t("plan.toMoments")}</PanelCapsule>
+                      </div>
+                      <MeTab part="after" stay={stay} isHost={isHost} over={over} onPay={() => setPaying(true)} chat={null} />
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+          {tab === "moments" && (
+            <div className="flex flex-col gap-12">
+              <MomentsTab stay={stay} />
+              {isHost && <HostMomentsParts stay={stay} />}
+            </div>
+          )}
         </div>
       </div>
       <PaySheet stay={stay} open={paying} onClose={() => setPaying(false)} />
-    </>
+    </div>
+  );
+}
+
+/**
+ * "Your House page · N % complete": the parts that were taken out of Open a House – About the space, description, photos of the place,
+ * languages, who, crew age, house rules – each a row with its state and a link into editing (the layout of Manage follows separately).
+ */
+function HousePageParts({ stay }: { stay: Stay }) {
+  const t = useTranslations("house.area.pageParts");
+  const parts: Array<{ key: "space" | "description" | "placePhoto" | "languages" | "who" | "age" | "rules"; done: boolean; detail: "space" | "extras" }> = [
+    { key: "space", done: Object.keys(stay.space ?? {}).length > 0, detail: "space" },
+    { key: "description", done: Boolean(stay.whyText?.trim() || stay.description?.trim()), detail: "extras" },
+    { key: "placePhoto", done: Boolean(stay.accommodationPhoto), detail: "extras" },
+    { key: "languages", done: (stay.languages ?? []).length > 0, detail: "extras" },
+    { key: "who", done: stay.who === "women", detail: "extras" },
+    { key: "age", done: Boolean(stay.ageRange), detail: "extras" },
+    { key: "rules", done: (stay.houseRules ?? []).length > 0, detail: "extras" },
+  ];
+  const percent = Math.round((parts.filter((p) => p.done).length / parts.length) * 100);
+  return (
+    <Part id="manage-page" title={t("title", { percent })}>
+      <ul className="divide-y divide-ink/6">
+        {parts.map((part) => (
+          <li key={part.key}>
+            <Link href={`/your-houses/${stay.id}/edit?detail=${part.detail}`} className="flex min-h-11 items-center gap-3 py-2 text-body text-ink hover:underline">
+              <span aria-hidden className={cn("flex size-5 shrink-0 items-center justify-center rounded-full", part.done ? "bg-ink text-inverse" : "border-2 border-ink/20")}>
+                {part.done && <Check className="size-3" strokeWidth={3} />}
+              </span>
+              <span className="min-w-0 flex-1">{t(`parts.${part.key}`)}</span>
+              <span className="text-small text-muted">{part.done ? t("edit") : t("add")} →</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </Part>
   );
 }
 
@@ -277,7 +387,8 @@ function CrewTab({ stay, crew, inChat }: { stay: Stay; crew: User[]; inChat: boo
   const lived = (id: string) => Boolean(me) && store.livedWith.some((l) => (l.userId === me && l.otherUserId === id) || (l.userId === id && l.otherUserId === me));
   const ordered = [...crew.filter((u) => u.id === stay.hostId), ...crew.filter((u) => u.id !== stay.hostId)];
   const locked = stay.accommodationStatus === "locked";
-  if (ordered.length <= 1) return <EmptyState title={t("onlyHost")} />;
+  // Only the host in: the host's row and one row per open spot (a filled grey circle with "+"); the host gets "Invite friends" under it.
+  if (ordered.length <= 1) return <CrewOpen stay={stay} host={ordered[0]} />;
   return (
     <ul className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(min(320px,100%),1fr))]">
       {ordered.map((member) => {
@@ -326,6 +437,67 @@ function CrewTab({ stay, crew, inChat }: { stay: Stay; crew: User[]; inChat: boo
   );
 }
 
+/** The Chat tab before the first guest: a symbol, "The crew chat starts when the first guest joins." and, for the host, "Invite friends". */
+function ChatEmpty({ stay, isHost }: { stay: Stay; isHost: boolean }) {
+  const t = useTranslations("house.area.chat");
+  const tInvite = useTranslations("invite");
+  const [inviting, setInviting] = useState(false);
+  return (
+    <div className="flex flex-col items-center gap-4 py-16 text-center">
+      <span aria-hidden className="flex size-14 items-center justify-center rounded-full bg-(--chip-bg) text-muted">
+        <MessageCircle className="size-6" strokeWidth={1.75} />
+      </span>
+      <p className="max-w-[36ch] text-body-lg text-ink">{t("emptyHost")}</p>
+      {isHost && openSpots(stay) > 0 && (
+        <>
+          <PanelCapsule onClick={() => setInviting(true)}>{tInvite("inviteFriends")}</PanelCapsule>
+          <InviteSheet stay={stay} open={inviting} onClose={() => setInviting(false)} />
+        </>
+      )}
+    </div>
+  );
+}
+
+/** The Crew tab while only the host is in: the host (photo, name, country, "Host"), "Open spot" per free place, the host's "Invite friends". */
+function CrewOpen({ stay, host }: { stay: Stay; host?: User }) {
+  const t = useTranslations("house.area.crew");
+  const tInvite = useTranslations("invite");
+  const store = useStore();
+  const [inviting, setInviting] = useState(false);
+  const isHost = store.currentUserId === stay.hostId;
+  const free = openSpots(stay);
+  return (
+    <div className="flex max-w-[640px] flex-col gap-6">
+      <ul className="flex flex-col gap-1">
+        {host && (
+          <li className="flex items-center gap-3 py-2">
+            <Avatar user={host} size="md" linked />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-body font-semibold text-ink">{host.name.split(" ")[0]}</p>
+              <p className="truncate text-small text-muted">{host.country}</p>
+            </div>
+            <span className="text-small text-muted">{t("host")}</span>
+          </li>
+        )}
+        {Array.from({ length: free }, (_, i) => (
+          <li key={i} className="flex items-center gap-3 py-2">
+            <span aria-hidden className="flex size-10 shrink-0 items-center justify-center rounded-full bg-(--chip-bg) text-muted">
+              <Plus className="size-4" strokeWidth={2} />
+            </span>
+            <p className="text-body text-muted">{t("openSpot")}</p>
+          </li>
+        ))}
+      </ul>
+      {isHost && free > 0 && (
+        <div>
+          <PanelCapsule onClick={() => setInviting(true)}>{tInvite("inviteFriends")}</PanelCapsule>
+          <InviteSheet stay={stay} open={inviting} onClose={() => setInviting(false)} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Plan ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -342,7 +514,7 @@ function ArcSlot({ slot, stay }: { slot: ArcSlotKey; stay: Stay }) {
 }
 
 /** Dates · getting there (the exact place once you've paid) · the rhythm of a day · votes. */
-function PlanTab({ stay, isHost }: { stay: Stay; isHost: boolean }) {
+function PlanTab({ stay, isHost, phase, onManage }: { stay: Stay; isHost: boolean; /** Only this Arc phase's blocks */ phase: ArcPhase; /** The host's empty states: to Manage (its anchor) */ onManage: (anchor: string) => void }) {
   const t = useTranslations("house.area.plan");
   const tProgram = useTranslations("program");
   const tBefore = useTranslations("house.before");
@@ -351,33 +523,27 @@ function PlanTab({ stay, isHost }: { stay: Stay; isHost: boolean }) {
   const tAgreement = useTranslations("house.agreement");
   const tMiddle = useTranslations("house.middle");
   const tGoodbye = useTranslations("house.goodbye");
-  const f = useFormat();
-  const nights = Math.max(0, Math.round((dayOf(stay.endDate) - dayOf(stay.startDate)) / DAY_MS));
   const stops = typicalDayOf(stay);
   return (
-    <div className="flex max-w-[760px] flex-col gap-10">
-      {/* The Arc: where the House stands (Before · Arrival · Together · Goodbye · After) and the next step. */}
-      <ArcBar stay={stay} />
-      <ArcSlot slot="before" stay={stay} />
-      <Part title={t("dates")}>
-        <p className="text-body-lg text-ink">
-          {f.stayDatesLong(stay)} · {t("nights", { count: nights })}
-        </p>
-      </Part>
-      {/* A week before: how everyone gets there – nothing is booked. */}
-      <Part id="plan-getting-there" title={t("gettingThere")}>
-        <GettingThere stay={stay} />
-      </Part>
+    <>
+      {/* The Arc (top of the tab), the dates (Your booking) and Getting there stand above – CLAUDE.md "Plan-Reiter". */}
+      {phase === "before" && (
+        <>
       {/* Two days before: the exact address, check-in, House rules, what to bring (and the Pro host's programme). */}
       <Part id="plan-practical" title={tBefore("practical.title")}>
-        <Practical stay={stay} isHost={isHost} />
+        <Practical stay={stay} isHost={isHost} onHostAdd={() => onManage("manage-tasks")} />
       </Part>
       {/* A Pro host's programme: in full from two days before, a preview until then. */}
-      {stay.hostFeePerPerson ? (
+      {/* The host edits the programme right below (HostPlanParts) – the crew's preview only for guests. */}
+      {stay.hostFeePerPerson && !isHost ? (
         <Part id="plan-program" title={tProgram("planTitle")}>
-          <ProgramView stay={stay} isHost={isHost} />
+          <ProgramView stay={stay} isHost={isHost} onHostAdd={() => onManage("manage-program")} />
         </Part>
       ) : null}
+        </>
+      )}
+      {phase === "arrival" && (
+        <>
       {/* Day 1: who's here · the first night's cards · Day 1–2: the House agreement (kept here, the crew sees it). */}
       <Part id="plan-arrived" title={tArrival("title")}>
         <ArrivedPanel stay={stay} />
@@ -388,14 +554,18 @@ function PlanTab({ stay, isHost }: { stay: Stay; isHost: boolean }) {
       <Part id="plan-agreement" title={tAgreement("title")}>
         <AgreementPanel stay={stay} isHost={isHost} />
       </Part>
-      <ArcSlot slot="arrive" stay={stay} />
+        </>
+      )}
+      {phase === "together" && (
+        <>
       <Part id="plan-rhythm" title={t("rhythm")}>
         {/* What the crew agreed on (the moment of the day), then the House's usual day. */}
         <div className="mb-5">
           <AgreedMoments stay={stay} />
         </div>
+        {/* Empty: guests read "The host hasn't shared a rhythm yet"; the host has no place to set one here – no line for them. */}
         {stops.length === 0 ? (
-          <p className="text-body text-muted">{t("rhythmEmpty")}</p>
+          isHost ? null : <p className="text-body text-muted">{t("rhythmEmpty")}</p>
         ) : (
           <dl className="grid grid-cols-[80px_minmax(0,1fr)] items-baseline gap-x-4 gap-y-3 md:grid-cols-[128px_minmax(0,1fr)]">
             {stops.map((stop) => (
@@ -407,19 +577,20 @@ function PlanTab({ stay, isHost }: { stay: Stay; isHost: boolean }) {
           </dl>
         )}
       </Part>
-      <ArcSlot slot="middle" stay={stay} />
       {/* The high point (second half): the Pro host's own – or the crew's vote on a proposal. */}
       <Part id="plan-peak" title={tMiddle("peakTitle")}>
         <PeakPanel stay={stay} isHost={isHost} />
       </Part>
       <Part title={t("votes")}>{stay.accommodationVote || stay.datesVote ? <CrewVotes stay={stay} /> : <p className="text-body text-muted">{t("votesEmpty")}</p>}</Part>
+        </>
+      )}
       {/* The last evening: the closing circle (three questions out loud) and, optional, a few words for the crew. */}
-      <Part id="plan-closing" title={tGoodbye("closingTitle")}>
-        <ClosingPanel stay={stay} isHost={isHost} />
-      </Part>
-      <ArcSlot slot="closing" stay={stay} />
-      <ArcSlot slot="after" stay={stay} />
-    </div>
+      {phase === "goodbye" && (
+        <Part id="plan-closing" title={tGoodbye("closingTitle")}>
+          <ClosingPanel stay={stay} isHost={isHost} />
+        </Part>
+      )}
+    </>
   );
 }
 
@@ -427,31 +598,15 @@ function PlanTab({ stay, isHost }: { stay: Stay; isHost: boolean }) {
 
 /** Photos from the time together: none stored yet – what you add stays on this device for now; under them the place's own photos. */
 function MomentsTab({ stay }: { stay: Stay }) {
-  const t = useTranslations("house.area.moments");
   const tGoodbye = useTranslations("house.goodbye");
-  const store = useStore();
-  const photos = housePhotos(stay, findUser(store, stay.hostId));
   return (
     <div className="flex flex-col gap-10">
       {/* The album: photos and clips from the crew – only the crew sees it (Album.tsx). */}
       <AlbumSection stay={stay} />
-      {/* The first night's question cards – any evening. */}
-      <QuestionCardsEntry />
       {/* The crew's words from the last evening – only the crew sees them. */}
       <Part id="moments-words" title={tGoodbye("wordsMoments")}>
         <CrewWordsList stay={stay} />
       </Part>
-      {photos.length > 0 && (
-        <Part title={t("place")}>
-          <ul className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            {photos.map((src) => (
-              <li key={src} className="relative aspect-4/5 overflow-hidden rounded-2xl bg-ink/6">
-                <Img src={src} alt="" fill sizes="(min-width: 744px) 25vw, 50vw" className="object-cover" />
-              </li>
-            ))}
-          </ul>
-        </Part>
-      )}
     </div>
   );
 }
@@ -459,7 +614,7 @@ function MomentsTab({ stay }: { stay: Stay }) {
 // ── Me ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 /** Your booking (dates, your share), where your payment stands, the receipt, cancelling with its rules, help, leaving – or what happened. */
-function MeTab({ stay, isHost, ended, over, onPay, chat }: { stay: Stay; isHost: boolean; ended?: "removed" | "paymentLapsed" | "moderation"; /** The House is over: "Lived in" and the ways on instead of the step */ over: boolean; onPay: () => void; chat: string | null }) {
+function MeTab({ part, stay, isHost, ended, over, onPay, chat }: { /** Which of your stay's parts, in the Plan tab's order: the step and Your booking · Your intention · the rest (halftime … the day after, cancelling) */ part: "step" | "booking" | "intention" | "halftime" | "cancel" | "after"; stay: Stay; isHost: boolean; ended?: "removed" | "paymentLapsed" | "moderation"; /** The House is over: "Lived in" and the ways on instead of the step */ over: boolean; onPay: () => void; chat: string | null }) {
   const t = useTranslations("house.area.me");
   const tHelp = useTranslations("help");
   const tWithdraw = useTranslations("withdraw");
@@ -534,15 +689,15 @@ function MeTab({ stay, isHost, ended, over, onPay, chat }: { stay: Stay; isHost:
             </ul>
           </section>
         )}
-        <ContextHelp houseId={stay.id} action={tHelp("houseHelp")} />
       </div>
     );
   }
+  const share = guestPrice(stay);
 
   return (
-    <div className="flex max-w-[760px] flex-col gap-10">
+    <>
       {/* Where you stand right now – the same step card as before (waiting, pay, booked, arriving), with its one action. */}
-      {over ? (
+      {part === "step" && (over ? (
         <div className="card-soft flex flex-wrap items-center justify-between gap-4 rounded-[20px] p-6">
           <p className="text-h3 text-ink">{tView("livedIn", { date: format.dateTime(new Date(`${stay.startDate.slice(0, 7)}-01T00:00:00Z`), { month: "long", year: "numeric", timeZone: "UTC" }) })}</p>
           <div className="flex flex-wrap gap-2">
@@ -565,68 +720,77 @@ function MeTab({ stay, isHost, ended, over, onPay, chat }: { stay: Stay; isHost:
           chat={chat}
           extra={refunded && refundReason ? <RefundNotice payment={refunded} currency={stay.currency} reason={refundReason} /> : undefined}
         />
+      ))}
+      {part === "booking" && (
+        <Part title={t("booking")}>
+          {/* Dates · Payment · Your share (per person, the viewer's currency, "est." while it may move – the Open a House price); no share
+              yet: no column. */}
+          <dl className="grid gap-x-8 gap-y-5 sm:grid-cols-3">
+            <div>
+              <dt className="text-small text-muted">{t("dates")}</dt>
+              <dd className="mt-0.5 text-body font-semibold text-ink">
+                {f.stayDatesLong(stay)} · {f.nights(nights)}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-small text-muted">{t("payment")}</dt>
+              <dd className="mt-0.5 text-body font-semibold text-ink">{payment?.status === "paid" ? t("paid") : owes ? t("due") : t("notYet")}</dd>
+            </div>
+            {share && (
+              <div>
+                <dt className="text-small text-muted">{t("share")}</dt>
+                <dd className="mt-0.5 text-body font-semibold tabular-nums text-ink">
+                  <ShareAmount stay={stay} />
+                </dd>
+              </div>
+            )}
+          </dl>
+          {isHost && <p className="mt-3 text-small text-muted">{t("hostShare")}</p>}
+          {payment?.status === "paid" && (
+            <div className="mt-6">
+              <Receipt stay={stay} payment={payment} />
+            </div>
+          )}
+        </Part>
       )}
-      {!over && (
+      {part === "intention" && !over && (
         <Part id="me-intention" title={tBefore("intention.title")}>
           <IntentionForm stay={stay} />
         </Part>
       )}
       {/* Halftime – private (guests): from the middle of the House. */}
-      {!isHost && halfDue && !afterDue && (
+      {part === "halftime" && !isHost && halfDue && !afterDue && (
         <Part id="me-halftime" title={tMiddle("halftimeTitle")}>
           <HalftimeForm stay={stay} />
         </Part>
       )}
-      {(arc?.mutual.length ?? 0) > 0 && arc!.now >= chosenAt(stay) && (
+      {part === "after" && (arc?.mutual.length ?? 0) > 0 && arc!.now >= chosenAt(stay) && (
         <Part id="me-chosen" title={tGoodbye("chosenHeading")}>
           <ChosenPanel stay={stay} />
         </Part>
       )}
-      {thirtyDue && (
+      {part === "after" && thirtyDue && (
         <Part id="me-thirty" title={tAfterwards("thirtyTitle")}>
           <ThirtyDaysForm stay={stay} />
         </Part>
       )}
-      {againDue && (
+      {part === "after" && againDue && (
         <Part id="me-again" title={tAfterwards("againTitle")}>
           <DoItAgainPanel stay={stay} />
         </Part>
       )}
       {/* From "Your album is ready" on, Me links to the album for good. */}
-      {albumReady && (
+      {part === "after" && albumReady && (
         <Part id="me-album" title={tAlbum("readyTitle")}>
           <AlbumReady stay={stay} />
         </Part>
       )}
-      {afterDue && (
+      {part === "after" && afterDue && (
         <Part id="me-after" title={tGoodbye("afterTitle")}>
           <AfterForm stay={stay} isHost={isHost} />
         </Part>
       )}
-      <Part title={t("booking")}>
-        <dl className="grid gap-x-8 gap-y-5 sm:grid-cols-3">
-          <div>
-            <dt className="text-small text-muted">{t("dates")}</dt>
-            <dd className="mt-0.5 text-body font-semibold text-ink">
-              {f.stayDatesLong(stay)} · {f.nights(nights)}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-small text-muted">{t("payment")}</dt>
-            <dd className="mt-0.5 text-body font-semibold text-ink">{payment?.status === "paid" ? t("paid") : owes ? t("due") : t("notYet")}</dd>
-          </div>
-        </dl>
-        {isHost && <p className="mt-3 text-small text-muted">{t("hostShare")}</p>}
-      </Part>
-      <Part title={t("share")} aside={owes ? <Button size="sm" onClick={onPay}>{t("pay")}</Button> : undefined}>
-        {locked ? <MyShare stay={stay} variant="panel" /> : <p className="text-body text-muted">{t("shareOpen")}</p>}
-        {payment?.status === "paid" && (
-          <div className="mt-6">
-            <Receipt stay={stay} payment={payment} />
-          </div>
-        )}
-      </Part>
-      {!isHost && !over && (
+      {part === "cancel" && !isHost && !over && (
         <Part title={t("cancel")}>
           <div className="flex flex-wrap items-center gap-3">
             <Link href="/cancellation" className="text-body font-semibold text-ink underline-offset-4 hover:underline">
@@ -645,8 +809,6 @@ function MeTab({ stay, isHost, ended, over, onPay, chat }: { stay: Stay; isHost:
           </div>
         </Part>
       )}
-      <Part title={t("help")}>{helpAvailable(stay, now) ? <HelpButton stay={stay} /> : <ContextHelp houseId={stay.id} action={tHelp("houseHelp")} />}</Part>
-      <ArcMute />
 
       <ConfirmSheet
         open={leaving}
@@ -673,44 +835,29 @@ function MeTab({ stay, isHost, ended, over, onPay, chat }: { stay: Stay; isHost:
           showToast(tWithdraw("toast"));
         }}
       />
-    </div>
+    </>
   );
 }
 
-// ── Manage (host) ──────────────────────────────────────────────────────────────────────────────────────────────────────────────
+/** Your share per person – the card's price (lib/pricing guestPrice): the viewer's currency, the fee included, "est." while it may move. */
+function ShareAmount({ stay }: { stay: Stay }) {
+  const tCommon = useTranslations("common");
+  const price = useViewerPrice(stay);
+  return (
+    <>
+      {price.label}
+      {price.estimated && <span className="ml-1 text-small font-normal text-muted">{tCommon("estimated")}</span>}
+    </>
+  );
+}
 
-/**
- * The host's management, as a tab (it was /h/[id]/manage): the current step with its one action, the requests (and the waitlist), the crew
- * with its "…", the payments, sharing, and the House's settings – taking requests, edit, cancel. ?focus= scrolls to its part.
- */
-function ManageTab({ stay }: { stay: Stay }) {
-  const t = useTranslations("houses.view");
-  const tMenu = useTranslations("houses.crewMenu");
-  const tOverlap = useTranslations("overlap");
-  const tDetail = useTranslations("houses.detail");
-  const tArea = useTranslations("house.area");
+// ── Host parts (what Manage was, CLAUDE.md "House-Bereich mit Übersicht") ───────────────────────────────────────────────────────
+
+/** To do: onboarding's checklist, Simpulo's tips, the host's tasks and the House page's optional parts. */
+function HostTodoParts({ stay }: { stay: Stay }) {
   const tTasks = useTranslations("house.before.tasks");
-  const tGoodbyeM = useTranslations("house.goodbye");
-  const tProgram = useTranslations("program");
-  const afterOpen = useArcNow(stay) >= afterAt(stay);
+  const tOverlap = useTranslations("overlap");
   const store = useStore();
-  const showToast = useToast();
-  const params = useSearchParams();
-  const [locking, setLocking] = useState(false);
-  const [closing, setClosing] = useState(false);
-  const { requests, waitlistRequests } = openRequestsOf(store, stay);
-  const chat = getCrewThread(store, stay.id) ? `/messages/${crewThreadId(stay.id)}` : null;
-  const open = stay.status === "published" || stay.status === "booked";
-  const full = stay.spotsFilled >= stay.spotsTotal;
-  const draft = stay.status === "draft";
-  const scrollTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-  const focus = params.get("focus");
-  useEffect(() => {
-    if (focus === "requests") scrollTo("manage-requests");
-    else if (focus === "booking") scrollTo("manage-payments");
-    else if (focus === "invite") scrollTo("manage-share");
-  }, [focus]);
-
   return (
     <div className="flex max-w-[860px] flex-col gap-12">
       {hostOverlapOf(store, stay) && <p className="text-small text-muted">{tOverlap("hostTwo")}</p>}
@@ -718,84 +865,251 @@ function ManageTab({ stay }: { stay: Stay }) {
       <HostChecklist />
       {/* Simpulo's tips from Admin › Houses › Host helfen – ticked off here. */}
       <HostHelpChecklist stay={stay} />
-      <HostProgress stay={stay} requests={requests} chat={chat} onSheet={(sheet) => scrollTo(sheet === "requests" ? "manage-requests" : "manage-payments")} onLock={() => setLocking(true)} />
       <Part id="manage-tasks" title={tTasks("title")}>
         <HostTasks stay={stay} />
       </Part>
-      {/* A Pro host: the programme (day plan, templates, own arc moments) and the crew's progress – halftime as the anonymous average, never
-          anyone's own number (from 3 answers). */}
-      {stay.hostFeePerPerson ? (
-        <>
-          <Part id="manage-program" title={tProgram("title")}>
-            <ProgramEditor stay={stay} />
-          </Part>
-          <Part id="manage-halftime" title={tProgram("crewProgress")}>
-            <HalftimeAverage stay={stay} />
-          </Part>
-        </>
-      ) : null}
-      {/* After the House: the crew's rating (averages, without names) and their sentences for the host. */}
-      {afterOpen && (
-        <Part id="manage-after" title={tGoodbyeM("hostTitle")}>
-          <HostAfterSummary stay={stay} />
+      {/* What moved out of Open a House: the House page's optional parts, for now as a list. */}
+      <HousePageParts stay={stay} />
+    </div>
+  );
+}
+
+/** Crew (host): the requests (and the waitlist), the crew with its "…", the invites and spots for friends. */
+function HostCrewParts({ stay }: { stay: Stay }) {
+  const t = useTranslations("houses.view");
+  const store = useStore();
+  const { requests, waitlistRequests } = openRequestsOf(store, stay);
+  const open = stay.status === "published" || stay.status === "booked";
+  return (
+    <div className="flex max-w-[860px] flex-col gap-12">
+      <Part id="manage-requests" title={t("requests")}>
+        <RequestsTab stay={stay} requests={requests} waitlistRequests={waitlistRequests} />
+      </Part>
+      <Part id="manage-crew" title={t("crewList")}>
+        <CrewRows stay={stay} manage />
+        <WaitlistRows stay={stay} />
+      </Part>
+      {open && (
+        <Part id="manage-share" title={t("invites")}>
+          <HostInvitesSection stay={stay} />
         </Part>
       )}
-      {afterOpen && stay.hostFeePerPerson ? (
+    </div>
+  );
+}
+
+/** Money (host): the payments and the payout; choosing the place once the crew is complete. */
+function HostMoneyParts({ stay }: { stay: Stay }) {
+  const t = useTranslations("houses.view");
+  const [locking, setLocking] = useState(false);
+  const open = stay.status === "published" || stay.status === "booked";
+  const full = stay.spotsFilled >= stay.spotsTotal;
+  return (
+    <div className="flex max-w-[860px] flex-col gap-12">
+      <Part id="manage-payments" title={t("payments")}>
+        <PaymentsSection stay={stay} onLock={open && full ? () => setLocking(true) : undefined} />
+      </Part>
+      {locking && <LockSheet stay={stay} onClose={() => setLocking(false)} />}
+    </div>
+  );
+}
+
+/** Plan (host, a Pro House): the programme editor and the crew's progress (halftime, anonymous) – with the phase they belong to. */
+function HostPlanParts({ stay, phase }: { stay: Stay; phase: ArcPhase }) {
+  const tProgram = useTranslations("program");
+  if (!stay.hostFeePerPerson) return null;
+  return (
+    <>
+      {phase === "before" && (
+        <Part id="manage-program" title={tProgram("title")}>
+          <ProgramEditor stay={stay} />
+        </Part>
+      )}
+      {phase === "together" && (
+        <Part id="manage-halftime" title={tProgram("crewProgress")}>
+          <HalftimeAverage stay={stay} />
+        </Part>
+      )}
+    </>
+  );
+}
+
+/** Moments (host, after the House): the crew's ratings (averages, no names) and their sentences; a Pro host's programme feedback. */
+function HostMomentsParts({ stay }: { stay: Stay }) {
+  const tGoodbye = useTranslations("house.goodbye");
+  const tProgram = useTranslations("program");
+  const afterOpen = useArcNow(stay) >= afterAt(stay);
+  if (!afterOpen) return null;
+  return (
+    <>
+      <Part id="manage-after" title={tGoodbye("hostTitle")}>
+        <HostAfterSummary stay={stay} />
+      </Part>
+      {stay.hostFeePerPerson ? (
         <Part id="manage-program-feedback" title={tProgram("feedbackTitle")}>
           <ProgramFeedbackSummary stay={stay} />
         </Part>
       ) : null}
-      <Part id="manage-requests" title={t("requests")}>
-        <RequestsTab stay={stay} requests={requests} waitlistRequests={waitlistRequests} />
-      </Part>
-      <Part id="manage-crew" title={t("crew")}>
-        <CrewRows stay={stay} manage />
-        <WaitlistRows stay={stay} />
-      </Part>
-      <Part id="manage-payments" title={t("payments")}>
-        <PaymentsSection stay={stay} onLock={open && full ? () => setLocking(true) : undefined} />
-      </Part>
-      {!draft && (
-        <Part id="manage-share" title={t("share")}>
-          {open && <HostInvitesSection stay={stay} />}
-          {/* The host kit: story, bio link, community post – filled in, Copy and Download (?src=hostkit). */}
-          <HostKit stays={[stay]} />
-        </Part>
+    </>
+  );
+}
+
+// ── Overview ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * The one card of the overview (CLAUDE.md "House-Bereich mit Übersicht"): white (dark: raised), radius 24, no edge, no shadow; top left a
+ * neutral icon square and the title, top right a small accent dot only when something changed or waits; a large statement, under it at most
+ * two rows label / value. The whole card opens its page; hover a touch darker.
+ */
+function AreaCard({ icon: Icon, title, dot = false, statement, sub, rows = [], onOpen, className }: { icon: LucideIcon; title: string; dot?: boolean; statement: ReactNode; sub?: ReactNode; rows?: Array<{ label: string; value: ReactNode } | null | false>; onOpen: () => void; className?: string }) {
+  const shown = rows.filter((r): r is { label: string; value: ReactNode } => Boolean(r)).slice(0, 2);
+  return (
+    <button type="button" onClick={onOpen} data-area-card className={cn("area-card press flex min-h-56 flex-col rounded-3xl p-7 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)", className)}>
+      <span className="flex items-center gap-3">
+        <IconTile>
+          <Icon aria-hidden strokeWidth={1.75} />
+        </IconTile>
+        <span className="flex-1 text-body font-semibold text-ink">{title}</span>
+        {dot && <span aria-hidden className="size-2.5 rounded-full bg-(--brand-action)" />}
+      </span>
+      <span className="mt-6 block text-h3 text-ink">{statement}</span>
+      {sub && <span className="mt-1 block truncate text-small text-muted">{sub}</span>}
+      {shown.length > 0 && (
+        <dl className="mt-auto flex flex-col gap-1.5 pt-6">
+          {shown.map((row) => (
+            <div key={row.label} className="flex items-baseline justify-between gap-4 text-small">
+              <dt className="shrink-0 text-muted">{row.label}</dt>
+              <dd className="min-w-0 truncate text-right text-ink">{row.value}</dd>
+            </div>
+          ))}
+        </dl>
       )}
-      <Part title={tArea("settings")}>
-        <div className="flex flex-wrap gap-2">
-          {open && (
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => {
-                store.setAcceptingRequests(stay.id, !stay.acceptingRequests);
-                showToast(stay.acceptingRequests ? tMenu("stopRequests") : tMenu("takeRequests"));
-              }}
-            >
-              {stay.acceptingRequests ? tMenu("stopRequests") : tMenu("takeRequests")}
-            </Button>
-          )}
-          <Button variant="secondary" size="sm" href={`/your-houses/${stay.id}/edit`}>
-            {tMenu("edit")}
-          </Button>
-          {stay.status !== "closed" && (
-            <Button variant="danger" size="sm" onClick={() => setClosing(true)}>
-              {tMenu("close")}
-            </Button>
-          )}
-        </div>
-      </Part>
-      {locking && <LockSheet stay={stay} onClose={() => setLocking(false)} />}
-      <CloseStayConfirm
-        open={closing}
-        onClose={() => setClosing(false)}
-        onConfirm={() => {
-          setClosing(false);
-          store.closeStay(stay.id);
-          showToast(tDetail("closedToast"));
-        }}
-      />
+    </button>
+  );
+}
+
+/** The overview: the host's To do (only with open tasks), then Chat · Plan · Crew and Money · Moments – from the data there is. */
+function AreaOverview({ stay, crew, isHost, over, nowMs, onOpen }: { stay: Stay; crew: User[]; isHost: boolean; over: boolean; nowMs: number; onOpen: (view: View) => void }) {
+  const t = useTranslations("house.area.cards");
+  const tTabs = useTranslations("house.area.tabs");
+  const tArc = useTranslations("house.arc");
+  const tTasks = useTranslations("house.before.tasks");
+  const tCommon = useTranslations("common");
+  const f = useFormat();
+  const store = useStore();
+  const me = store.currentUserId;
+  const arc = useArc(stay);
+  const tasks = useHostTaskList(stay);
+  const price = useViewerPrice(stay);
+  // Chat: the messages from others after my last read mark.
+  const thread = getCrewThread(store, stay.id);
+  const readAt = thread && me ? [thread.lastReadAt?.[me], store.lastReadAt[thread.id]].filter((m): m is string => Boolean(m)).sort().at(-1) : undefined;
+  const unread = thread && me ? thread.messages.filter((m) => m.senderId !== me && m.senderId !== "system" && (!readAt || m.createdAt > readAt)).length : 0;
+  const last = thread?.messages.findLast((m) => m.senderId !== "system" && m.text);
+  const lastName = last ? (findUser(store, last.senderId)?.name.split(" ")[0] ?? "") : "";
+  const noGuest = crew.length <= 1;
+  // Plan
+  const myArrival = me ? arrivalOf(store, findUser(store, me)!, stay) : null;
+  const votesOpen = [openVote(stay, "accommodation"), openVote(stay, "dates")].filter(Boolean).length;
+  // Crew
+  const { requests, waitlistRequests } = openRequestsOf(store, stay);
+  const pending = requests.length + waitlistRequests.length;
+  const invitesOpen = store.joinRequests.filter((r) => r.stayId === stay.id && r.status === "invited").length;
+  const arrivalsSet = crew.filter((u) => arrivalOf(store, u, stay)).length;
+  // Money
+  const progress = paymentProgress(store, stay.id);
+  const payout = getPayments(store, stay.id).reduce((sum, p) => sum + paymentSplit(p.share, p.hostFee).hostReceives, 0);
+  const myPayment = getMyPayment(store, stay.id);
+  const owes = !isHost && myPayment?.status === "pending" && Boolean(stay.paymentDueAt);
+  // Moments
+  const photos = albumOf(store, stay, nowMs).length;
+  const words = Object.keys(stay.crewWords ?? {}).length;
+  return (
+    <div className="flex flex-col gap-4">
+      {isHost && tasks.active && (
+        <button type="button" onClick={() => onOpen("todo")} data-area-card className="area-card press flex flex-wrap items-center justify-between gap-4 rounded-3xl p-7 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)">
+          <span className="flex min-w-0 items-center gap-3">
+            <IconTile>
+              <ListChecks aria-hidden strokeWidth={1.75} />
+            </IconTile>
+            <span className="min-w-0">
+              <span className="block text-body font-semibold text-ink">{tTabs("todo")}</span>
+              <span className="block truncate text-body text-ink">
+                {tTasks(`items.${tasks.active.task.id}.title` as "items.checkIn.title")}
+                {tasks.active.due !== null && <span className="text-muted"> · {tTasks("due", { date: arcDateLabel(stay, tasks.active.due) })}</span>}
+              </span>
+            </span>
+          </span>
+          <span className="flex items-center gap-3 text-small text-muted">
+            {tTasks("progress", { done: tasks.doneCount, total: tasks.tasks.length })}
+            <span aria-hidden className="size-2.5 rounded-full bg-(--brand-action)" />
+          </span>
+        </button>
+      )}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 split:grid-cols-3">
+        <AreaCard
+          icon={MessageCircle}
+          title={tTabs("chat")}
+          dot={unread > 0}
+          statement={noGuest || !thread ? t("chatEmpty") : unread > 0 ? t("unread", { count: unread }) : t("allRead")}
+          rows={[!noGuest && last ? { label: t("lastMessage"), value: `${lastName}: ${last.text}` } : null]}
+          onOpen={() => onOpen("chat")}
+        />
+        <AreaCard
+          icon={CalendarDays}
+          title={tTabs("plan")}
+          statement={arc ? tArc(`phases.${arc.phase}`) : over ? t("over") : "–"}
+          sub={arc?.next ? tArc("next", { title: tArc(`steps.${arc.next.step.id}.title` as "steps.welcome.title", { title: stay.title }), date: arcDateLabel(stay, arc.next.at) }) : undefined}
+          rows={[
+            { label: t("arrival"), value: myArrival?.date ? `${f.day(myArrival.date)}${myArrival.time ? ` · ${myArrival.time}` : ""}` : t("notSet") },
+            { label: t("votesOpen"), value: String(votesOpen) },
+          ]}
+          onOpen={() => onOpen("plan")}
+        />
+        <AreaCard
+          icon={Users}
+          title={tTabs("crew")}
+          dot={isHost && pending > 0}
+          statement={t("crewLine", { in: crewInOf(store, stay), total: stay.spotsTotal, left: openSpots(stay) })}
+          rows={
+            isHost
+              ? [
+                  { label: t("requests"), value: String(pending) },
+                  { label: t("invitesOpen"), value: String(invitesOpen) },
+                ]
+              : [{ label: t("arrivalsSet"), value: t("ofCount", { done: arrivalsSet, total: crew.length }) }]
+          }
+          onOpen={() => onOpen("crew")}
+        />
+        <AreaCard
+          icon={Wallet}
+          title={tTabs("money")}
+          dot={owes}
+          statement={
+            isHost ? (
+              progress.count > 0 ? t("paidOf", { paid: progress.paidCount, total: progress.count }) : t("noPayments")
+            ) : (
+              <>
+                {price.label}
+                {price.estimated && <span className="ml-1.5 text-body text-muted">{tCommon("estimated")}</span>}
+              </>
+            )
+          }
+          rows={
+            isHost
+              ? [progress.count > 0 && { label: t("payout"), value: `${f.price(payout, stay.currency)} ${tCommon("estimated")}` }]
+              : [{ label: t("status"), value: myPayment?.status === "paid" ? t("paid") : owes ? t("due") : t("notYet") }]
+          }
+          onOpen={() => onOpen("money")}
+        />
+        <AreaCard
+          icon={Images}
+          title={tTabs("moments")}
+          statement={photos > 0 ? t("photos", { count: photos }) : t("noPhotos")}
+          rows={[{ label: t("words"), value: String(words) }]}
+          onOpen={() => onOpen("moments")}
+        />
+      </div>
     </div>
   );
 }

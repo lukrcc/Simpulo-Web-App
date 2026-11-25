@@ -80,6 +80,7 @@ export const TEST_ROUTES: readonly TestRoute[] = [
   { route: "/saved", key: "saved", label: "Saved" },
   { route: "/invite", key: "invite-friends", label: "Invite friends" },
   { route: "/settings", key: "settings", label: "Settings", core: true },
+  { route: "/settings/[...path]", key: "settings-bereich", label: "Settings › Bereich", example: "/settings/account" },
   { route: "/settings/profile", key: "edit-profile", label: "Edit profile" },
   { route: "/settings/payouts", key: "settings-payouts", label: "Settings › Payouts" },
   { route: "/settings/delete-account", key: "konto-loeschen", label: "Konto löschen" },

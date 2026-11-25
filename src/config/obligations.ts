@@ -30,9 +30,9 @@ export const DUTIES: readonly Duty[] = [
   { id: "reasons", href: "/notices", live: true },
   // Live only with an address in config/company.ts.
   { id: "contactPoint", href: "/impressum#contact-point", live: Boolean(COMPANY.contactPoint) },
-  { id: "businessHosts", href: "/settings#payments", live: true },
+  { id: "businessHosts", href: "/settings/payments", live: true },
   // Behind its switch (config/policies.ts HOST_TAX_INFO).
-  { id: "taxInfo", href: "/settings#payments", live: HOST_TAX_INFO.enabled },
+  { id: "taxInfo", href: "/settings/payments", live: HOST_TAX_INFO.enabled },
 ];
 
 export function dutyStatus(duty: Duty): DutyStatus {

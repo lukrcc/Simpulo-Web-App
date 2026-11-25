@@ -34,12 +34,12 @@ export function MasterDetail({ title, list, detail, detailFill = false, fixedLis
   if (fullHeight) {
     return (
       // Header + the columns + the info bar + the light end (--tabbar-safe) = exactly one screen (CLAUDE.md "Messenger – lange Info-Leiste").
-      <div data-app-pane="desktop" style={{ "--msg-bar-h": bar ? `${MESSENGER.infoBarHeight}px` : "0px" } as CSSProperties}>
+      <div data-app-pane="desktop" data-messenger style={{ "--msg-bar-h": bar ? `${MESSENGER.infoBarHeight}px` : "0px" } as CSSProperties}>
       {/* The list: 24px inside on both sides (beyond 1680px its left edge stays on the container's); the chat edge to edge. List and chat on
           the page's ground, a 1px line ink 8 % between them; the list 320px on a tablet, clamp(320px, 24vw, 400px) on the desktop. */}
       <div className="min-h-[calc(100dvh-var(--header-total))] md:grid md:h-[calc(100dvh-var(--header-h)-var(--band-h)-var(--tabbar-safe)-var(--msg-bar-h))] md:min-h-0 md:grid-cols-[320px_minmax(0,1fr)] md:overflow-hidden split:grid-cols-[calc(var(--list-gutter)+clamp(320px,24vw,400px))_minmax(0,1fr)] [--list-gutter:max(24px,calc((100vw-1680px)/2))]">
         {/* One background with the chat (the page's), a fine vertical line between them; the list starts at the top, no gap. */}
-        <div aria-label={title} className="mx-auto w-[min(100%-2*var(--page-margin),1680px)] min-w-0 pt-6 md:mx-0 md:flex md:h-full md:min-h-0 md:w-auto md:flex-col md:border-r md:border-ink/8 md:px-4 md:pb-4 md:pt-0 split:pl-(--list-gutter) split:pr-6">
+        <div aria-label={title} className="mx-auto w-[min(100%-2*var(--page-margin),1680px)] min-w-0 pt-6 md:mx-0 md:flex md:h-full md:min-h-0 md:w-auto md:flex-col md:px-4 md:pb-4 md:pt-0 split:pl-(--list-gutter) split:pr-6">
           {list}
         </div>
         <div className="hidden min-w-0 md:block md:h-full md:min-h-0">

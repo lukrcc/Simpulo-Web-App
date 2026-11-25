@@ -91,7 +91,7 @@ export function ChatInfoBar({ threadId }: { threadId: string | null }) {
     );
   }
   return (
-    <div data-chat-info-bar className="h-(--msg-bar-h) shrink-0 border-t border-ink/8 bg-(--bg) px-(--page-margin)">
+    <div data-chat-info-bar className="h-16 shrink-0 bg-(--chat-bg) px-6">
       {content}
     </div>
   );

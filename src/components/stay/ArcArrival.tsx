@@ -3,6 +3,7 @@
 // The arc's arrival (CLAUDE.md "Bogen › Ankommen"): "I'm here" (the crew sees who has arrived), the first night's question cards (a full-
 // screen deck – asked out loud, nothing saved but the signal that it started) and the House agreement (three votes, one option preset each,
 // the result after 24 hours, the host confirms). Used in the House chat's Simpulo cards and in the Plan, Moments and Manage tabs.
+import { PanelCapsule } from "@/components/ui/PanelCapsule";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
@@ -205,9 +206,7 @@ export function QuestionCardsEntry() {
         <p className="text-body font-semibold text-ink">{t("again")}</p>
         <p className="text-small text-muted">{t("againHint")}</p>
       </div>
-      <Button size="sm" variant="secondary" onClick={() => setOpen(true)}>
-        {t("open")}
-      </Button>
+      <PanelCapsule onClick={() => setOpen(true)}>{t("open")}</PanelCapsule>
       <QuestionDeck open={open} onClose={() => setOpen(false)} />
     </div>
   );
@@ -239,26 +238,37 @@ export function AgreementPanel({ stay, isHost, compact = false }: { stay: Stay; 
               {!compact && <span className="text-small text-muted"> · {q.options.map((o) => `${t(`options.${q.id}.${o}` as "options.quiet.23")} ${q.counts[o] ?? 0}`).join(" · ")}</span>}
             </p>
           ) : (
-            <div className="flex flex-wrap items-center gap-2">
-              <CapsuleGroup
-                size="sm"
-                label={t(`questions.${q.id}` as "questions.quiet")}
-                value={q.mine ?? q.preset}
-                onChange={(option) => {
-                  store.voteAgreement(stay.id, q.id, option);
-                  store.setArcStep(stay.id, "agreement", "done");
-                  track("arc_action_done", { house: stay.id, step: "agreement" });
-                }}
-                className="w-fit max-w-full"
-                options={q.options.map((o) => ({ value: o, content: `${t(`options.${q.id}.${o}` as "options.quiet.23")}${o === q.preset ? ` · ${t("preset")}` : ""}` }))}
-              />
-              {!compact && <span className="text-small text-muted">{q.options.map((o) => `${t(`options.${q.id}.${o}` as "options.quiet.23")} ${q.counts[o] ?? 0}`).join(" · ")}</span>}
-            </div>
+            <>
+              {/* Each option with its votes, small: "23:00 · 1"; chosen graphite with white words (CLAUDE.md "Plan nach Arc-Phasen"). */}
+              <div role="radiogroup" aria-label={t(`questions.${q.id}` as "questions.quiet")} className="flex flex-wrap items-center gap-2">
+                {q.options.map((o) => {
+                  const on = (q.mine ?? q.preset) === o;
+                  return (
+                    <PanelCapsule
+                      key={o}
+                      role="radio"
+                      aria-checked={on}
+                      on={on}
+                      onClick={() => {
+                        store.voteAgreement(stay.id, q.id, o);
+                        store.setArcStep(stay.id, "agreement", "done");
+                        track("arc_action_done", { house: stay.id, step: "agreement" });
+                      }}
+                    >
+                      {t(`options.${q.id}.${o}` as "options.quiet.23")}
+                      <span className="text-small font-normal opacity-70">· {q.counts[o] ?? 0}</span>
+                    </PanelCapsule>
+                  );
+                })}
+              </div>
+              <p className="text-small text-muted">{t("defaultLine", { option: t(`options.${q.id}.${q.preset}` as "options.quiet.23") })}</p>
+            </>
           )}
         </div>
       ))}
       <p className="text-small text-muted">
-        {a.confirmedAt ? t("confirmed", { host }) : locked ? t("visibility") : `${t("closes", { date: arcDateLabel(stay, a.closesAt) })} · ${t("visibility")}`}
+        {/* The closing time once: here. */}
+        {a.confirmedAt ? t("confirmed", { host }) : locked ? t("visibility") : t("openRule", { date: arcDateLabel(stay, a.closesAt) })}
       </p>
       {isHost && !a.confirmedAt && !compact && (
         <div>
@@ -272,7 +282,6 @@ export function AgreementPanel({ stay, isHost, compact = false }: { stay: Stay; 
           >
             {tTasks("agreementConfirm")}
           </Button>
-          {!a.closed && <p className="mt-2 text-small text-muted">{tTasks("agreementOpen", { date: arcDateLabel(stay, a.closesAt) })}</p>}
         </div>
       )}
     </div>

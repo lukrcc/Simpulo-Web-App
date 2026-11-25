@@ -8,7 +8,7 @@ import { useTranslations } from "next-intl";
 import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/ActionButton";
 import { Avatar } from "@/components/ui/Avatar";
-import { CapsuleGroup } from "@/components/ui/CapsuleGroup";
+import { PanelCapsule } from "@/components/ui/PanelCapsule";
 import { Input, Textarea } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
 import { ADDRESS_DAYS_BEFORE, HOST_TASKS } from "@/config/arc";
@@ -177,7 +177,14 @@ export function GettingThere({ stay }: { stay: Stay }) {
             </div>
             <div className="flex flex-col gap-1">
               <span className="text-small text-muted">{t("mode")}</span>
-              <CapsuleGroup size="sm" label={t("mode")} value={draft.mode} onChange={(mode) => setDraft((d) => ({ ...d, mode }))} className="w-fit max-w-full" options={MODES.map((m) => ({ value: m, content: t(`modes.${m}`) }))} />
+              {/* The panels' capsules: chosen graphite with white words, no edge (CLAUDE.md "Plan-Reiter"). */}
+              <div role="radiogroup" aria-label={t("mode")} className="flex flex-wrap gap-2">
+                {MODES.map((m) => (
+                  <PanelCapsule key={m} role="radio" aria-checked={draft.mode === m} on={draft.mode === m} onClick={() => setDraft((d) => ({ ...d, mode: m }))}>
+                    {t(`modes.${m}`)}
+                  </PanelCapsule>
+                ))}
+              </div>
             </div>
             <label className="flex flex-col gap-1">
               <span className="text-small text-muted">{t("place")}</span>
@@ -257,7 +264,7 @@ export function GettingThere({ stay }: { stay: Stay }) {
 // ── Practical ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 /** The exact address (paid, from 2 days before; the host always), check-in, House rules, what to bring – and the Pro host's programme. */
-export function Practical({ stay, isHost }: { stay: Stay; isHost: boolean }) {
+export function Practical({ stay, isHost, onHostAdd }: { stay: Stay; isHost: boolean; /** The host's empty check-in / what to bring: "Add check-in info" → the task in Manage */ onHostAdd?: () => void }) {
   const t = useTranslations("house.before.practical");
   const store = useStore();
   const now = useArcNow(stay);
@@ -267,7 +274,8 @@ export function Practical({ stay, isHost }: { stay: Stay; isHost: boolean }) {
   const showAddress = isHost || (paid && daysBeforeReached(stay, ADDRESS_DAYS_BEFORE, now));
   const pro = Boolean(stay.hostFeePerPerson);
   const p = stay.practical;
-  const later = <p className="text-body text-muted">{t("notShared", { host: hostName })}</p>;
+  // Guests read "Not shared yet – {host} adds it …"; the host gets the way to add it (the check-in task in Manage).
+  const later = isHost && onHostAdd ? <PanelCapsule onClick={onHostAdd}>{t("addCheckIn")}</PanelCapsule> : <p className="text-body text-muted">{t("notShared", { host: hostName })}</p>;
   return (
     <dl className="grid gap-x-8 gap-y-6 sm:grid-cols-2">
       <Field label={t("address")}>
@@ -310,6 +318,24 @@ export function Practical({ stay, isHost }: { stay: Stay; isHost: boolean }) {
  * Manage › Host tasks: a Share host's three (check-in, first night, closing round), a Pro host also the programme; one active at a time – the
  * first not done –, each with its due date (House time); the progress on top. The check-in task is filled in right here.
  */
+/** The host's tasks (check-in, welcome, the agreement, a Pro host's programme): each with its due time and whether it's done; the active one. */
+export function useHostTaskList(stay: Stay) {
+  const store = useStore();
+  const me = store.users.find((u) => u.id === store.currentUserId);
+  const audience = arcAudienceOf(stay, stay.hostId);
+  const schedule = arcSchedule(stay, audience, null);
+  const tasks = HOST_TASKS.filter((task) => !task.pro || audience === "hostPro").map((task) => {
+    const due = schedule.find((d) => d.step.id === task.step)?.at ?? null;
+    const done = task.field
+      ? Boolean(stay.practical?.[task.field]?.trim())
+      : task.id === "agreement"
+        ? Boolean(stay.agreement?.confirmedAt)
+        : arcStateOf(me, stay.id, "hostWelcome") !== "open";
+    return { task, due, done };
+  });
+  return { tasks, active: tasks.find((x) => !x.done) ?? null, doneCount: tasks.filter((x) => x.done).length };
+}
+
 export function HostTasks({ stay }: { stay: Stay }) {
   const t = useTranslations("house.before.tasks");
   const store = useStore();

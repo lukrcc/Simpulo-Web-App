@@ -1,4 +1,5 @@
 import { STANDALONE_SCRIPT } from "@/lib/install";
+import { pageTone } from "@/config/theme";
 import { THEME_COLOR, THEME_SCRIPT } from "@/lib/themeScript";
 import { ThemeSync } from "@/components/layout/ThemeSync";
 import type { Metadata, Viewport } from "next";
@@ -72,7 +73,7 @@ export const viewport: Viewport = {
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const locale = await getLocale();
   return (
-    <html lang={locale} data-app-mode={APP_MODE} suppressHydrationWarning className={`${inter.variable} ${interTight.variable} h-full antialiased`}>
+    <html lang={locale} data-app-mode={APP_MODE} data-page-tone={pageTone} suppressHydrationWarning className={`${inter.variable} ${interTight.variable} h-full antialiased`}>
       {/* Before anything paints: light or dark (data-theme on <html>) from the cookie, else the system – no flash (lib/themeScript.ts). A plain
           inline script in <head>, parser-blocking: next/script's beforeInteractive is deferred in the App Router (it runs after the body is
           parsed – measured: a flash). The root layout is only ever hydrated, never rendered on the client, so React leaves the script alone.

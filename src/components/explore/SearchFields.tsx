@@ -1,5 +1,6 @@
 "use client";
 
+import { PanelCapsule } from "@/components/ui/PanelCapsule";
 import { BarSheet } from "@/components/ui/BarSheet";
 import { darkMenuClass, darkMenuScroll } from "@/components/ui/DarkMenu";
 import { CalendarDays, MapPin, Search, X } from "lucide-react";
@@ -128,10 +129,10 @@ export function SearchField({
   const close = () => setOpen(false);
   const where = (
     <div>
-      <p className="mb-2 px-1 text-nav font-semibold text-ink">{t("where")}</p>
+      <p className={trigger === "text" ? "panel-heading" : "mb-2 px-1 text-nav font-semibold text-ink"}>{t("where")}</p>
       <PlaceCombobox id={`${id}-place`} label={t("where")} placeholder={t("wherePlaceholder")} limit={trigger === "text" ? 4 : undefined} onPick={(p) => onChange({ place: p.id })} />
       {place && (
-        <button type="button" onClick={() => onChange({ place: null })} className="mt-1 w-full rounded-2xl px-3 py-2 text-left text-body text-muted hover:bg-ink/5 hover:text-ink">
+        <button type="button" onClick={() => onChange({ place: null })} className={cn("mt-1 w-full px-3 py-2 text-left text-body text-muted hover:bg-ink/5 hover:text-ink", trigger === "text" ? "rounded-full" : "rounded-2xl")}>
           {t("anywhere")}
         </button>
       )}
@@ -139,7 +140,7 @@ export function SearchField({
   );
   const when = (
     <div data-when>
-      <p className={cn("mb-2 px-1 text-nav font-semibold text-ink", trigger === "pill" && "mt-4")}>{t("when")}</p>
+      <p className={trigger === "text" ? "panel-heading" : cn("mb-2 px-1 text-nav font-semibold text-ink", trigger === "pill" && "mt-4")}>{t("when")}</p>
       <MonthOptions
         roomy={trigger === "text"}
         value={month}
@@ -266,25 +267,33 @@ export function MonthOptions({ value, onPick, roomy = false }: { value: string |
   const [months] = useState(() => upcomingMonths(new Date()));
   return (
     <div role="radiogroup" aria-label={t("when")} data-month-options={roomy ? "grouped" : undefined} className="space-y-1.5">
+      {roomy ? (
+        // The header's panel (CLAUDE.md "Panels einheitlich"): "Any month" an ordinary capsule the size of a month, the first one, chosen by
+        // default; then the months grouped by year – a small grey year over its row of three; all the one panel capsule.
+        <>
+          <div className="grid grid-cols-3 gap-2">
+            <PanelCapsule role="radio" aria-checked={value === null} on={value === null} onClick={() => onPick(null)} className="w-full px-2">
+              {t("anyMonth")}
+            </PanelCapsule>
+          </div>
+          {[...new Set(months.map((m) => m.slice(0, 4)))].map((year) => [year, months.filter((m) => m.startsWith(year))] as const).map(([year, list]) => (
+            <div key={year} className="pt-1.5">
+              <p className="mb-1.5 px-1 text-small text-muted">{year}</p>
+              <div className="grid grid-cols-3 gap-2">
+                {list.map((month) => (
+                  <PanelCapsule key={month} role="radio" aria-checked={value === month} on={value === month} aria-label={monthName(month, true)} onClick={() => onPick(month)} className="w-full px-2">
+                    {shortMonth(format, month, false)}
+                  </PanelCapsule>
+                ))}
+              </div>
+            </div>
+          ))}
+        </>
+      ) : (
+        <>
       <Chip role="radio" aria-checked={value === null} active={value === null} onClick={() => onPick(null)} className="w-full justify-center">
         {t("anyMonth")}
       </Chip>
-      {roomy ? (
-        // The header's sheet (CLAUDE.md "ruhiger Feinschliff"): the months grouped by year – a small grey year over its months, the grid of three
-        // starting anew for each year; the capsules only the month's name.
-        [...new Set(months.map((m) => m.slice(0, 4)))].map((year) => [year, months.filter((m) => m.startsWith(year))] as const).map(([year, list]) => (
-          <div key={year}>
-            <p className="mb-1 px-1 text-small text-muted">{year}</p>
-            <div className="grid grid-cols-3 gap-2">
-              {list.map((month) => (
-                <Chip key={month} role="radio" aria-checked={value === month} active={value === month} aria-label={monthName(month, true)} onClick={() => onPick(month)} className="w-full justify-center px-1!">
-                  {shortMonth(format, month, false)}
-                </Chip>
-              ))}
-            </div>
-          </div>
-        ))
-      ) : (
       <div className="grid grid-cols-3 gap-1.5">
         {months.map((month, i) => (
           <Chip key={month} role="radio" aria-checked={value === month} active={value === month} aria-label={monthName(month, true)} onClick={() => onPick(month)} className="w-full justify-center px-1!">
@@ -292,6 +301,7 @@ export function MonthOptions({ value, onPick, roomy = false }: { value: string |
           </Chip>
         ))}
       </div>
+        </>
       )}
     </div>
   );

@@ -9,6 +9,7 @@ import { Img } from "@/components/ui/Img";
 import { useNotchClip } from "@/components/ui/notch";
 import { PersonPhoto } from "@/components/ui/PersonPhoto";
 import { useFormat } from "@/i18n/format";
+import { useViewerPrice } from "@/components/ui/PriceLine";
 import type { Stay, User } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -23,16 +24,18 @@ function Reveal({ ready, width, className, children }: { ready: boolean; width: 
 
 /**
  * Open a House's preview, building itself up. It starts as a soft surface with only the host's tab and a placeholder bar per line; each
- * answer takes its line's place, the cover fades in over the surface. Prices are in the House's own currency, not the viewer's.
+ * answer takes its line's place, the cover fades in over the surface. Prices like the finished card: the viewer's currency, the fee included.
  */
-export function BuildingCard({ stay, host, theme, showPrice, showCrew, showTitle, showMeta, showDates, placeLabel = null, kindLabel = null }: { stay: Stay; host?: User; theme: string | null; showPrice: boolean; showCrew: boolean; showTitle: boolean; showMeta: boolean; showDates: boolean; /** "Place booked" / "Picking together" under the price */ placeLabel?: string | null; /** The kind of place ("Villa"), a small line under the place */ kindLabel?: string | null }) {
+export function BuildingCard({ stay, host, theme, showPrice, showCrew, showTitle, showMeta, showDates, placeLabel = null, kindLabel = null, fallbackImage }: { stay: Stay; host?: User; theme: string | null; showPrice: boolean; showCrew: boolean; showTitle: boolean; showMeta: boolean; showDates: boolean; /** "Place booked" / "Picking together" under the price */ placeLabel?: string | null; /** The kind of place ("Villa"), a small line under the place */ kindLabel?: string | null; /** Until there's a cover: the picture of what's chosen (the kind of place, else the theme) */ fallbackImage?: string }) {
   const t = useTranslations("explore");
   const tFlow = useTranslations("create.flow");
   const format = useFormat();
+  const tCommon = useTranslations("common");
+  const price = useViewerPrice(stay);
   const revealRef = useRef<HTMLElement>(null);
   const clipRef = useRef<HTMLDivElement>(null);
   useNotchClip(revealRef, clipRef);
-  const cover = stay.photos?.[0];
+  const cover = stay.photos?.[0] || fallbackImage;
   return (
     <article ref={revealRef} data-notch="pending" className="notch-frame relative isolate aspect-4/5">
       <div ref={clipRef} data-notch-clip className={cn("relative h-full w-full overflow-hidden rounded-3xl bg-(--card-blank)", host && "rounded-tl-none")}>
@@ -55,9 +58,11 @@ export function BuildingCard({ stay, host, theme, showPrice, showCrew, showTitle
           </Reveal>
           {kindLabel && <p className="reveal-in truncate text-small opacity-75">{kindLabel}</p>}
           <Reveal ready={showPrice} width="34%" className="mt-1">
-            {/* Exact with a place of your own, a range while it's picked together. */}
+            {/* The same price as the finished card (CLAUDE.md "Preis auf Karten – eine Zahl"): one total per person with the fee, in the
+                viewer's currency; a variable price (picked with the crew) "est." and rounded (lib/pricing guestPrice). */}
             <p className="truncate text-body font-semibold">
-              {format.priceLabel(stay)}
+              {price.label}
+              {price.estimated && <span className="ml-1 text-small font-medium opacity-70">{tCommon("estimated")}</span>}
               {placeLabel && <span className="font-normal opacity-75"> · {placeLabel}</span>}
             </p>
           </Reveal>

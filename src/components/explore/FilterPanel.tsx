@@ -16,7 +16,7 @@ import { MenuLayer } from "@/components/ui/MenuLayer";
 export function FilterRow({ label, count = 0, aside, children, className, stacked = false }: { label: ReactNode; count?: number; aside?: ReactNode; children: ReactNode; className?: string; /** The bar's All filters: the label above the capsules (aside at its right), no lines */ stacked?: boolean }) {
   if (stacked)
     return (
-      <div className={cn("flex min-w-0 flex-col gap-2.5", className)}>
+      <div className={cn("flex min-w-0 flex-col gap-3", className)}>
         <div className="flex min-h-5 items-center gap-2">
           <span className="flex items-center gap-2 text-nav font-semibold text-ink">
             {label}

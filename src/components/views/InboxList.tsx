@@ -1,6 +1,5 @@
 "use client";
 
-import { ChatInfoBar } from "@/components/chat/ChatInfoBar";
 import { useReloadOnReturn } from "@/lib/useReloadOnReturn";
 import { ChevronRight, LifeBuoy, MessageCircle, Search } from "lucide-react";
 import Link from "next/link";
@@ -190,8 +189,6 @@ function InboxContent() {
       }
       // Mounted from 744px only: on phones it would mark the chat as read without anyone seeing it.
       detail={isDesktop && activeId ? <ThreadPanel threadId={activeId} /> : null}
-      // From 744px: the info bar across list and chat (the House or person of the open chat, the crew, settings, "…").
-      bar={isDesktop ? <ChatInfoBar threadId={activeId} /> : undefined}
     />
   );
 }
@@ -264,7 +261,7 @@ function ThreadRowLink({ row, active, isDesktop }: { row: ThreadRow; active: boo
           {/* Unread: the preview semibold, and a small neutral dot. */}
           <span className={cn("block truncate text-small", unread ? "font-semibold text-ink" : "text-muted")}>{preview}</span>
         </span>
-        {unread && <span className="size-2 shrink-0 rounded-full bg-ink/45" role="img" aria-label={t("unread")} />}
+        {unread && <span className="size-2 shrink-0 rounded-full bg-(--brand-action)" role="img" aria-label={t("unread")} />}
       </span>
     </Link>
   );

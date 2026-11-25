@@ -210,7 +210,8 @@ export function Composer({ threadId, placeholder, replyTo, onCancelReply, onSend
         }}
         // A flat line (CLAUDE.md "Messenger – flaches Eingabefeld"): no capsule, no edge, no fill – the fine line to the messages is the
         // frame's (ThreadFrame); 52px, it grows to five lines.
-        className="flex min-h-13 items-end gap-1 py-[5px]"
+        // CLAUDE.md "Messages: Kopf oben, Schreibleiste unten": a capsule field – filled, no edge, a fine graphite ring on focus.
+        className="composer-field flex min-h-13 items-end gap-1 rounded-[26px] bg-(--composer-fill) px-1.5 py-[5px] transition-shadow focus-within:shadow-[0_0_0_1.5px_var(--text)]"
       >
         <input ref={fileRef} type="file" accept="image/*,application/pdf" multiple hidden onChange={onFiles} />
         <button
@@ -240,7 +241,7 @@ export function Composer({ threadId, placeholder, replyTo, onCancelReply, onSend
           disabled={!canSend}
           aria-label={t("send")}
           className={cn(
-            "ml-1 flex size-10 shrink-0 items-center justify-center rounded-full bg-(--brand-action) text-on-signal transition-[background-color,color,transform] hover:bg-(--brand-action-fill) active:scale-95",
+            "ml-1 flex size-10 shrink-0 items-center justify-center rounded-full bg-ink text-inverse transition-[background-color,color,transform] hover:opacity-90 active:scale-95",
             "disabled:pointer-events-none disabled:bg-ink/8 disabled:text-ink/35",
           )}
         >

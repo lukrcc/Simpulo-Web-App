@@ -18,18 +18,6 @@ export const ADMIN_DE = {
   inboxNew: INBOX_DE,
   /** The admin's own look (side list, next to System) */
   theme: { label: "Darstellung", system: "System", light: "Hell", dark: "Dunkel" },
-  /** The admin search in the header (⌘K, AdminCommandSearch) */
-  search: {
-    trigger: "Suchen …",
-    shortcut: "⌘K",
-    label: "Admin durchsuchen",
-    placeholder: "Hosts, Houses, Aufgaben, Nutzer …",
-    groups: { tasks: "Aufgaben", houses: "Houses", hosts: "Hosts", users: "Nutzer" },
-    empty: "Nichts gefunden",
-    start: "Tippe einen Namen, ein House, einen Ort oder eine Aufgabe.",
-    hint: "↑ ↓ wählen · Enter öffnen · Esc schließen",
-    close: "Suche schließen",
-  },
   /** Admin › Market Cap (/admin/market-cap, button in the overview) */
   marketCap: {
     title: "Market Cap",
@@ -121,6 +109,7 @@ export const ADMIN_DE = {
     statusLabel: "Status",
     status: { open: "Offen", done: "Erledigt" },
     search: "Suchen",
+    clearFilter: "Filter „{name}“ aufheben",
     pick: "Wähle links ein Element.",
     noneDone: "Noch nichts erledigt.",
     history: "Verlauf",
@@ -732,12 +721,13 @@ export const ADMIN_DE = {
   },
   marketing: {
     title: "Marketing",
-    tabs: { countdown: "Countdown", pipeline: "Pipeline", partners: "Partner", content: "Content" },
+    tabs: { countdown: "Countdown", pipeline: "Pipeline", partners: "Partner", content: "Content", levers: "Hebel" },
     tabInfo: {
       countdown: "Launch-Strategie: Phasen, Ziele, diese Woche.",
       pipeline: "Kontakte von angeschrieben bis House eröffnet.",
       partners: "Zusammenarbeiten mit Creatorn, Communities und Orten.",
       content: "Shorts im Kalender, Wochenziel und Sprints.",
+      levers: "Die fünf stärksten Hebel vor dem Launch, nach Wirkung.",
     },
     countdown: {
       launch: "Launch",

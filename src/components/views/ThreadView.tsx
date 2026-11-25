@@ -1,5 +1,6 @@
 "use client";
 
+import { ChatInfoBar } from "@/components/chat/ChatInfoBar";
 import { SearchX } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -231,8 +232,8 @@ function ThreadFrame({ embedded, head, tabs, composer, children }: { embedded: b
       {children}
       {composer && (
         // The input line at the bottom: the chat's ground, a fine line above it, 20px under it; centred in at most 920px like the messages.
-        <div ref={composerRef} className="absolute inset-x-0 bottom-0 z-20 border-t border-ink/8 bg-(--chat-bg) px-4 pb-[max(12px,var(--safe-bottom))] pt-1">
-          <div className="mx-auto max-w-[920px]">{composer}</div>
+        <div ref={composerRef} className="absolute inset-x-0 bottom-0 z-20 bg-(--chat-bg) px-4 pb-[max(12px,var(--safe-bottom))] pt-1">
+          <div className={embedded ? "w-full" : "mx-auto max-w-[920px]"}>{composer}</div>
         </div>
       )}
     </div>
@@ -297,7 +298,8 @@ function ThreadContent({ thread, stay, embedded, inline }: { thread: Thread; sta
       // From 744px the House or person, the crew, settings and "…" are the info bar under list and chat (ChatInfoBar); phones keep the head.
       head={
         <>
-          {!embedded && (thread.type === "house" ? <CrewHeader stay={stay} embedded={embedded} threadId={thread.id} /> : <DirectHeader stay={stay} other={other} embedded={embedded} threadId={thread.id} />)}
+          {/* From 744px the chat column's head: the House or person, the crew, settings and "…" (ChatInfoBar); phones their own head. */}
+          {embedded ? <ChatInfoBar threadId={thread.id} /> : thread.type === "house" ? <CrewHeader stay={stay} embedded={embedded} threadId={thread.id} /> : <DirectHeader stay={stay} other={other} embedded={embedded} threadId={thread.id} />}
           {thread.type === "house" && <CrewVotes stay={stay} pinned />}
         </>
       }

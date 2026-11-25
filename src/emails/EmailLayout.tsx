@@ -62,7 +62,7 @@ export function EmailLayout({ preview, headline, children, action, origin, unsub
                 <tr>
                   <td style={{ padding: "24px 8px 0", fontSize: 13, lineHeight: 1.5, color: C.muted }}>
                     {!unsubscribeHref && <p style={{ margin: "0 0 8px" }}>{tEn("emails.always")}</p>}
-                    <a href={`${origin}/settings#notifications`} style={{ color: C.muted }}>
+                    <a href={`${origin}/settings/notifications`} style={{ color: C.muted }}>
                       {tEn("emails.settings")}
                     </a>
                     {" · "}

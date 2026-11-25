@@ -548,6 +548,10 @@
   :root .themes-menu.glass-bar.glass-bar {
     border-width: 0 0 1px;
   }
+  /* Light mode: the header in the page's own tone – no edge to the page (CLAUDE.md "Ein einheitlicher Seitenhintergrund"). */
+  :root:not([data-theme="dark"]) header.glass-bar.glass-bar {
+    border-bottom-color: transparent;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .tab-bar .bar-label,
@@ -2177,6 +2181,101 @@ body:has([data-last-tone="dark"]) footer.footer-dark {
   }
 }
 
+/* The numbers strip (components/StatsStrip.tsx): lines between the blocks over the full height, the two beside a hovered block fade out; a
+   linked block lightens over its full height, its arrow fades in (150ms), pressing it 0.98 (reduced motion: colour only). */
+.stats-block::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  width: 1px;
+  background-color: color-mix(in oklab, var(--text) 12%, transparent);
+  transition: opacity 150ms ease-out;
+}
+.stats-block:first-child::before {
+  display: none;
+}
+.stats-link {
+  cursor: pointer;
+  transition: background-color 150ms ease-out, transform 150ms ease-out;
+}
+.stats-link:hover,
+.stats-link:focus-visible {
+  background-color: color-mix(in oklab, var(--text) 7%, transparent);
+}
+.stats-link:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+.stats-link:hover::before,
+.stats-link:hover + .stats-block::before,
+.stats-link:focus-visible::before,
+.stats-link:focus-visible + .stats-block::before {
+  opacity: 0;
+}
+.stats-link:active {
+  transform: scale(0.98);
+}
+.stats-arrow {
+  opacity: 0;
+  transition: opacity 150ms ease-out;
+}
+.stats-link:hover .stats-arrow,
+.stats-link:focus-visible .stats-arrow {
+  opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .stats-link {
+    transition: background-color 150ms ease-out;
+  }
+  .stats-link:active {
+    transform: none;
+  }
+}
+
+/* The header panels' ONE capsule (ui/PanelCapsule.tsx, CLAUDE.md "Panels Themes, Search, Filters einheitlich"): 40px, 0 16px, 15px medium, a
+   neutral fill (--chip-bg), hover a little darker (--chip-bg-hover), chosen graphite with white words (--menu-pick-*; dark mode light with dark
+   words). The panels' section headings: one style (.panel-heading). No lines inside the panels – groups are spaced. */
+.panel-cap {
+  /* Text centred, numbers in even widths (CLAUDE.md "Zahlen in Kapseln"). */
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  display: inline-flex;
+  height: 40px;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  white-space: nowrap;
+  border-radius: 9999px;
+  padding: 0 16px;
+  font-size: var(--text-body);
+  line-height: 1;
+  font-weight: 500;
+  color: var(--text);
+  background-color: var(--chip-bg);
+  transition: background-color 150ms ease-out, color 150ms ease-out;
+}
+.panel-cap:hover {
+  background-color: var(--chip-bg-hover);
+}
+.panel-cap[data-on] {
+  background-color: var(--menu-pick-bg, var(--text));
+  color: var(--menu-pick-text, var(--text-inverse));
+  font-weight: 600;
+}
+.panel-cap:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+.panel-heading {
+  margin-bottom: 12px;
+  font-size: var(--text-nav);
+  line-height: 1.3;
+  font-weight: 600;
+  color: var(--text);
+}
+
 /* ── The header's panels, one material (CLAUDE.md "Kopfleisten-Panels einheitlich", from 1100px): Where/When, Themes, Filters and the menus
    opened from them (.bar-sheet, .themes-menu, .bar-menu). Hell: white 82 % over blur 24px with saturation, a fine edge black 6 %, a soft
    shadow, dark words (#1D1D1F, grey #636366). Dunkel: dark glass rgb(30 30 32 / .82), light words. The taupe of the old panels is gone.
@@ -2432,4 +2531,141 @@ html[data-footer="none"] main:not(:has([data-app-pane])) > .page-container:last-
 html[data-footer="none"] main:not(:has([data-app-pane])) > .page-container:last-child > :last-child {
   padding-bottom: 0;
   margin-bottom: 0;
+}
+
+/* ── Open a House on the shared UI rule (CLAUDE.md "Open a House – gemeinsame UI-Regel"): the page's tone, the panels' capsule
+   (.panel-cap: a neutral fill, chosen graphite with white words – here --text / --text-inverse, so dark mode turns it round), option cards
+   white without an edge (raised graphite in dark), fields as capsule fields (as high as a capsule, filled, no edge; focus a fine graphite
+   ring; invalid a fine red one), checkboxes rounded squares, checked graphite. The head in the page's tone. ── */
+:root {
+  /* The page's ground as the root has it – for things inside a dark-ground scope (the focus head) that still sit on the page. */
+  --page-ground: var(--bg);
+}
+:is(.create-flow, .house-area) {
+  --menu-pick-bg: var(--text);
+  --menu-pick-text: var(--text-inverse);
+  --chip-bg: color-mix(in srgb, var(--text) 6%, transparent);
+  --chip-bg-hover: color-mix(in srgb, var(--text) 10%, transparent);
+  --create-option: #ffffff;
+  --create-option-hover: #fbfbfa;
+  --create-field: #ffffff;
+  --raised-plain: #ffffff;
+}
+:root[data-theme="dark"] :is(.create-flow, .house-area) {
+  --create-option: #2b2724;
+  --create-option-hover: #332e2b;
+  --create-field: #2b2724;
+  --raised-plain: #2b2724;
+}
+.create-flow :is(input, textarea, select, button)[class*="focus:ring-accent/15"] {
+  height: 40px;
+  border-color: transparent;
+  border-radius: 9999px;
+  background-color: var(--create-field);
+  box-shadow: none;
+}
+.create-flow textarea[class*="focus:ring-accent/15"] {
+  height: auto;
+  border-radius: 16px;
+}
+.create-flow :is(input, textarea, select, button)[class*="focus:ring-accent/15"]:focus,
+.create-flow :is(input, textarea, select, button)[class*="focus:ring-accent/15"]:focus-visible,
+.create-flow button[class*="focus:ring-accent/15"][aria-expanded="true"] {
+  border-color: transparent;
+  box-shadow: 0 0 0 1.5px var(--text);
+  outline: none;
+}
+.create-flow :is(input, textarea, select, button)[class*="focus:ring-accent/15"]:is([aria-invalid="true"], [data-invalid]) {
+  border-color: transparent;
+  box-shadow: 0 0 0 1.5px var(--danger);
+}
+.create-flow input[type="checkbox"] {
+  border-radius: 6px;
+}
+.create-flow input[type="checkbox"]:checked {
+  background-color: var(--text);
+  box-shadow: none;
+}
+.create-flow input[type="checkbox"]:checked ~ svg {
+  color: var(--text-inverse);
+}
+/* From 1100px (below, the head stays the fixed graphite surface – CLAUDE.md "Glas nur auf Desktop"). */
+@media (min-width: 68.75rem) {
+  :root:has(.create-flow) [data-focus-header] {
+    background: var(--page-ground);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    box-shadow: none;
+  }
+}
+
+
+/* ── The House area on the shared UI rule (CLAUDE.md "House-Bereich – gemeinsame UI-Regel"): its surfaces ("3 spots left", Host tasks,
+   the step's card, the arc's panels, the crew's cards) pure white without an edge or a shadow (raised graphite in dark); fields filled
+   without an edge like in Open a House – on those white surfaces a soft grey fill (--chip-bg), so they still show; focus a fine graphite
+   ring. The host's blue crew card keeps its colour. ── */
+.house-area :is(.card-soft:not(.card-host), [data-arc-step]) {
+  background-color: var(--raised-plain);
+  border-color: transparent;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.house-area :is(input, textarea, select, button)[class*="focus:ring-accent/15"] {
+  border-color: transparent;
+  background-color: var(--chip-bg);
+  box-shadow: none;
+}
+.house-area :is(input, select, button)[class*="focus:ring-accent/15"] {
+  height: 40px;
+  border-radius: 9999px;
+}
+.house-area textarea[class*="focus:ring-accent/15"] {
+  border-radius: 16px;
+}
+.house-area :is(input, textarea, select, button)[class*="focus:ring-accent/15"]:is(:focus, :focus-visible) {
+  border-color: transparent;
+  box-shadow: 0 0 0 1.5px var(--text);
+  outline: none;
+}
+.house-area :is(input, textarea, select, button)[class*="focus:ring-accent/15"]:is([aria-invalid="true"], [data-invalid]) {
+  box-shadow: 0 0 0 1.5px var(--danger);
+}
+
+/* Open a House › Price: the one large amount (and the currency beside it) – 56px, the figure large. */
+.create-flow [data-amount-big] :is(input, button)[class*="focus:ring-accent/15"] {
+  height: 56px;
+  font-size: var(--text-h3);
+}
+
+/* The House area's overview cards (CLAUDE.md "House-Bereich mit Übersicht"): white (dark: raised), no edge, no shadow; hover a touch darker. */
+.area-card {
+  background-color: var(--raised-plain, var(--surface));
+  transition: background-color 150ms ease-out;
+}
+.area-card:hover {
+  background-color: color-mix(in srgb, var(--raised-plain, var(--surface)) 96%, var(--text));
+}
+
+/* Messages (CLAUDE.md "Messages: Kopf oben, Schreibleiste unten"): the composer a filled capsule field (both modes); in light mode the list on
+   the page's tone, the chat column pure white, the others' bubbles a grey one step darker than the page, the chosen chat graphite with white
+   words. No lines between list, head, messages and composer – only the surfaces. */
+[data-chat-theme] {
+  --composer-fill: color-mix(in srgb, var(--text) 6%, transparent);
+}
+:root:not([data-theme="dark"]) [data-messenger] [data-chat-theme] {
+  --chat-bg: #ffffff;
+  --bubble-other: color-mix(in srgb, var(--surface-page) 94%, #000000);
+  --bubble-other-line: transparent;
+}
+:root:not([data-theme="dark"]) [data-messenger] .chat-row {
+  margin-inline: 8px;
+  border-radius: 16px;
+}
+:root:not([data-theme="dark"]) [data-messenger] .chat-row[aria-current="page"] {
+  background-color: #221e1b;
+  border-radius: 16px;
+  --text: #ffffff;
+  --text-muted: rgb(255 255 255 / 0.7);
+  color: #ffffff;
 }

@@ -31,7 +31,7 @@ export function DeleteAccount() {
     <RequireLogin title={t("title")}>
       <Container className="pb-16 pt-6 md:pt-10">
         <div className="mx-auto max-w-[640px]">
-          <BackLink href="/settings#privacy" className="-ml-1 inline-flex min-h-11 items-center gap-0.5 text-body text-ink">
+          <BackLink href="/settings/privacy" className="-ml-1 inline-flex min-h-11 items-center gap-0.5 text-body text-ink">
             <ChevronLeft aria-hidden className="size-5" />
             {t("back")}
           </BackLink>
@@ -66,7 +66,7 @@ function Body({ t, tData, tDanger }: { t: ReturnType<typeof useTranslations<"set
 
       {/* Your data first: a copy to keep (Settings › Privacy & safety › Your data). */}
       <p className="mt-6 text-body text-muted">
-        {t.rich("downloadFirst", { link: (c) => <Link href="/settings#privacy" className="font-semibold text-ink underline underline-offset-4">{c}</Link> })}
+        {t.rich("downloadFirst", { link: (c) => <Link href="/settings/privacy" className="font-semibold text-ink underline underline-offset-4">{c}</Link> })}
       </p>
 
       {/* The gentler way first: pausing hides everything and deletes nothing. */}
@@ -82,7 +82,7 @@ function Body({ t, tData, tDanger }: { t: ReturnType<typeof useTranslations<"set
               if (!me) return;
               store.updateCurrentUser({ privacy: { ...me.privacy, paused: true, pausedAt: new Date().toISOString() } });
               showToast(tData("paused"));
-              router.push("/settings#privacy");
+              router.push("/settings/privacy");
             }}
           >
             <Pause aria-hidden />

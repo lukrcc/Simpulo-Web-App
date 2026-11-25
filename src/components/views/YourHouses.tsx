@@ -50,7 +50,7 @@ import { hostStatsFor } from "@/lib/hostStats";
 import { areaHref, focusOfTask, hostManageHref, manageHref, stepHref } from "@/lib/houseTasks";
 import { Avatar } from "@/components/ui/Avatar";
 import { useCardTask, useNeedsYou } from "@/lib/needsYou";
-import { StripRow } from "@/components/StripFig";
+import { StatsStrip } from "@/components/StatsStrip";
 import { useGridColumns } from "@/lib/useGridColumns";
 import { didntWorkOut } from "@/lib/requests";
 import { crewInOf, crewThreadId, findUser, getCrew, getCrewThread, getCurrentUser, getMyPayment, isCrewMember, settingsOf, useStore } from "@/lib/store";
@@ -234,7 +234,7 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
         return { key: "payouts", kind: "payouts", title: tDash("todo.payouts"), sub: tDash("setUpText"), what: tDash("need.payouts", { count: 0, amount: "" }), short: tDash("payoutsSetupSub"), icon: <Wallet aria-hidden />, onClick: () => setPayoutSheet(true) };
       case "verify":
         // "Verify your ID" on its own only for guests who don't host – and only as an option.
-        return { key: "verify", kind: "verify", title: tDash("todo.verify"), sub: tDash("setupWhere"), what: tDash("need.verify", { count: 0, amount: "" }), short: tDash("optional"), icon: <ShieldCheck aria-hidden />, href: "/settings#payments" };
+        return { key: "verify", kind: "verify", title: tDash("todo.verify"), sub: tDash("setupWhere"), what: tDash("need.verify", { count: 0, amount: "" }), short: tDash("optional"), icon: <ShieldCheck aria-hidden />, href: "/settings/payments" };
       case "profile":
         return { key: "profile", kind: "profile", title: tDash("todo.profile"), sub: tDash("profileText"), what: tDash("need.profile", { count: 0, amount: "" }), short: tDash("setupWhere"), icon: <UserRound aria-hidden />, href: "/settings/profile" };
       default: {
@@ -901,22 +901,8 @@ function StageStrip({ today, host, earnings, hosting, going, waiting, livedIn, p
         peopleBlock,
       ];
   return (
-    <div data-surface="dark" className="ember ember-strip band-inset band-inset-full flex items-stretch py-3 md:h-(--frame-strip-h) md:py-0">
-      <StripRow className="flex-1 items-stretch md:-mx-6 md:grid md:grid-cols-4">
-        {blocks.map((block) => (
-          <Link
-            key={block.key}
-            href={block.href}
-            // The whole block is the link (hover lighter); between the blocks a fine line that keeps clear of the strip's edges (24px).
-            className="relative flex min-w-44 shrink-0 cursor-pointer flex-col justify-center px-6 transition-colors duration-150 before:absolute before:inset-y-6 before:left-0 before:w-px before:bg-ink/12 first:before:hidden hover:bg-ink/6 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-(--focus-ring) md:min-w-0"
-          >
-            <span className="truncate text-small uppercase text-ink/60">{block.label}</span>
-            <span className="mt-1 truncate text-h1 tabular-nums text-ink">{block.value}</span>
-            <span className="mt-0.5 truncate text-nav font-normal text-ink/70">{block.line}</span>
-          </Link>
-        ))}
-      </StripRow>
-    </div>
+    // The one numbers strip (components/StatsStrip.tsx), shared with the profile.
+    <StatsStrip blocks={blocks} />
   );
 }
 

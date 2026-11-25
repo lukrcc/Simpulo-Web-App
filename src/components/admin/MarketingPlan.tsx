@@ -8,7 +8,7 @@ import { useState } from "react";
 import { AdminButton } from "@/components/admin/AdminButton";
 import { AdminSection } from "@/components/admin/AdminShell";
 import { FOUNDING_HOST } from "@/config/policies";
-import { FOUNDER_FORMAT, FOUNDING_OFFER, MOMENTS_PROGRAM, NEED, PLAN_LABELS as L, PLAN_LAUNCH, PLAN_PHASES, STAGES, STAGE_STEPS, WEEKLY_GOAL, stageOf, type PlanPhase } from "@/config/admin/marketing-plan";
+import { FOUNDER_FORMAT, FOUNDING_OFFER, LEVER_LABELS, leverStageLegend, marketingLevers, MOMENTS_PROGRAM, NEED, PLAN_LABELS as L, PLAN_LAUNCH, PLAN_PHASES, STAGES, STAGE_STEPS, WEEKLY_GOAL, stageOf, type PlanPhase } from "@/config/admin/marketing-plan";
 import { useAdminActions } from "@/lib/admin/actions";
 import { mondayOf } from "@/lib/admin/metrics";
 import { useAdminData } from "@/lib/admin/store";
@@ -348,6 +348,36 @@ export function MomentsProgram() {
           </ul>
         </div>
       </div>
+    </AdminSection>
+  );
+}
+
+// ─── Hebel ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+/** ?topic=hebel: all five levers as a ranking – the rank large, title, audience, the reason grey; under it the stages' legend. Only spacing
+ *  and fine lines, no boxes. */
+export function LeversView() {
+  return (
+    <AdminSection title={LEVER_LABELS.title}>
+      <ol className="flex max-w-[760px] flex-col">
+        {marketingLevers
+          .toSorted((a, b) => a.rank - b.rank)
+          .map((l) => (
+            <li key={l.id} className="flex items-baseline gap-5 border-t border-(--line) py-4 first:border-t-0">
+              <span className="w-8 shrink-0 text-h2 tabular-nums text-(--adm-label)">{l.rank}</span>
+              <div className="min-w-0 flex-1">
+                <p className="flex flex-wrap items-baseline justify-between gap-x-4">
+                  <span className="text-body-lg font-semibold text-ink">{l.title}</span>
+                  <span className="text-small text-(--adm-label)">
+                    {LEVER_LABELS.audience}: {l.audience}
+                  </span>
+                </p>
+                <p className="mt-1 text-body text-(--adm-label)">{l.why}</p>
+              </div>
+            </li>
+          ))}
+      </ol>
+      <p className="mt-4 text-small text-(--adm-label)">{leverStageLegend}</p>
     </AdminSection>
   );
 }

@@ -96,8 +96,8 @@ export function MessageList({ thread, emptyText, onReply, footer }: MessageListP
       atBottomRef.current = true;
       return;
     }
-    if (unreadRef.current && !window.matchMedia(MEDIA.phone).matches) pane.scrollTop = offsetIn(pane, unreadRef.current) - 24 - parseFloat(getComputedStyle(pane).getPropertyValue("--chat-top") || "0");
-    else {
+    // Opens at the newest message, at the bottom (CLAUDE.md "Messages: Kopf oben, Schreibleiste unten"); the divider stays in the list.
+    {
       pane.scrollTop = pane.scrollHeight;
       // The room for the head and the field (--chat-top/--chat-bottom) is measured right after this, and the first scroll event would then
       // find the pane "not at the end": settle at the end over the next two frames (not cancelled – React's dev double effect would lose it).

@@ -8,6 +8,7 @@ import type { PlatformPhase } from "../types";
 
 export { PLATFORM_PHASES, type AdminData, type AppData, type HouseOutcome, type PaymentIssue, type HypothesisResult, type MetricsHistory, type OverviewSnapshot, type LedgerEntry, type LedgerKind, type BankBalance, type HostTaxData, type TaxQuestion, type MarketingContact, type MarketingContactStatus, type MarketingContactWay, type MarketingPartner, type LaunchCustomTask, type ContentPost, type ContentSprint, type CostEntry, type CostCategory, type PartnerKind, type MarketingMotivation, type PartnerLadder, type PartnerAgreementStatus, type PhotoMeta, type PlatformPayouts, type TrafficReport } from "./adapter";
 import type { PhotoMeta } from "./adapter";
+export { getPlaceImage } from "./placeImage";
 
 // Written out, so a production build drops the mock from its bundle: these two are decided while bundling.
 const adapter: DataAdapter =

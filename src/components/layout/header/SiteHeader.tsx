@@ -4,7 +4,7 @@ import { useOpenHouseEntry } from "@/components/platform/useOpenHouseEntry";
 import { CompactSearch } from "./CompactSearch";
 import { HeaderCenterNav } from "./HeaderCenter";
 import { HeaderPanelShell } from "./HeaderPanel";
-import { setAdminHeaderSlot, setHeaderSlot } from "@/lib/headerSlot";
+import { setHeaderSlot } from "@/lib/headerSlot";
 
 import { HousePlus } from "lucide-react";
 import Link from "next/link";
@@ -63,7 +63,7 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
   // the result pages (collections, cities, themes). Everywhere else – profile, Your houses, Messages, the House page, Settings, Open a House – it
   // stays empty.
   const discoveryPage = pathname === "/" || Boolean(pathname && /^\/(explore|collections|co-living|themes)(\/|$)/.test(pathname));
-  // The admin: the same compact bar (--header-bar-h, data-admin → --header-h in globals.css) and its own search (⌘K, AdminCommandSearch portalled into the slot).
+  // The admin: the same compact bar (--header-bar-h, data-admin → --header-h in globals.css) – no search in it (removed).
   const adminPage = pathname === "/admin" || Boolean(pathname?.startsWith("/admin/"));
   // At the very top (scrollY < 8) the glass is a little more opaque: an IntersectionObserver on AppShell's 1px mark – no scroll listener; only
   // the colour changes (200ms), never the height or the place.
@@ -97,7 +97,7 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
         {explorePage ? (
           <div ref={setHeaderSlot} data-explore-slot className="flex min-w-0 flex-1 items-center justify-center max-split:hidden split:justify-self-center [--control-h:36px]" />
         ) : adminPage ? (
-          <div ref={setAdminHeaderSlot} data-admin-slot className="flex min-w-0 flex-1 max-split:hidden" />
+          <div data-admin-slot className="flex min-w-0 flex-1 max-split:hidden" />
         ) : (
           <div data-center-slot className="flex min-w-0 flex-1 items-center justify-center max-split:hidden split:justify-self-center">
             {discoveryPage && <HeaderCenterNav />}

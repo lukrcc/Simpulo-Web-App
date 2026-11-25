@@ -1375,7 +1375,7 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
       const next = { ...state, users: state.users.map((u) => (u.id === me ? { ...u, ...action.patch } : u)) };
       // Paused just now (Settings › Your data): the account hears it (catalogue "accountPaused": in-app + email).
       const paused = action.patch.privacy?.paused === true && !before?.privacy?.paused;
-      return paused ? { ...next, notifications: notifyInApp(next, [me], "accountPaused", {}, `paused-${me}-${action.patch.privacy?.pausedAt ?? ""}`, undefined, undefined, { href: "/settings#privacy" }) } : next;
+      return paused ? { ...next, notifications: notifyInApp(next, [me], "accountPaused", {}, `paused-${me}-${action.patch.privacy?.pausedAt ?? ""}`, undefined, undefined, { href: "/settings/privacy" }) } : next;
     }
 
     case "createStay": {
@@ -2604,7 +2604,7 @@ function applyAction(state: StoreState, action: StoreAction): StoreState {
       // The guest onboarding finished: one tip for what's still missing (catalogue "profileTips") – a face photo first, else the ID check.
       if (action.patch.guest !== "done" || settingsOf(user).onboarding?.guest === "done" || !user) return next;
       const tip = user.photos.length < 2 ? "systemPhoto" : !user.verified ? "systemVerify" : null;
-      return tip ? { ...next, notifications: notifyInApp(next, [me], tip, {}, `tip-${tip}-${me}`, undefined, undefined, { href: tip === "systemPhoto" ? "/settings/profile?section=photos" : "/settings#payments" }) } : next;
+      return tip ? { ...next, notifications: notifyInApp(next, [me], tip, {}, `tip-${tip}-${me}`, undefined, undefined, { href: tip === "systemPhoto" ? "/settings/profile?section=photos" : "/settings/payments" }) } : next;
     }
 
     case "announceTerms": {

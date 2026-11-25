@@ -2,8 +2,8 @@
 import { numberPool, TopicCards, TopicHeader } from "./AdminTopics";
 import { AdminCapsuleView } from "./AdminCapsuleView";
 import { AdminButton } from "./AdminButton";
-import { FounderFormat, FoundingOffer, MomentsProgram, NeedCalc, PrelaunchPlan, StageTargets, needRows, stageNumbers, useFoundingSeats, usePlanState } from "./MarketingPlan";
-import { PLAN_LABELS, VIDEOS_PER_WEEK } from "@/config/admin/marketing-plan";
+import { FounderFormat, FoundingOffer, LeversView, MomentsProgram, NeedCalc, PrelaunchPlan, StageTargets, needRows, stageNumbers, useFoundingSeats, usePlanState } from "./MarketingPlan";
+import { LEVER_LABELS, marketingLevers, PLAN_LABELS, VIDEOS_PER_WEEK } from "@/config/admin/marketing-plan";
 
 // Admin › Launch › Marketing: the launch strategy as a cockpit – Countdown · Pipeline · Partner · Content. The strategy (phases, targets,
 // tasks) from config/marketing.ts, contacts, partners, posts and tasks from the admin data (lib/admin/store.ts; Firestore later – admins
@@ -61,9 +61,9 @@ import { memoriesStats } from "@/lib/memories";
 import { useMemorySrc } from "@/lib/memoryMedia";
 import type { HouseMemory } from "@/lib/types";
 
-type Tab = "overview" | "countdown" | "pipeline" | "partners" | "content";
+type Tab = "overview" | "countdown" | "pipeline" | "partners" | "content" | "levers";
 /** Überblick first and by default (CLAUDE.md "Überblick zuerst"); deep links (?tab=pipeline|partners|content) open their tab. */
-const TABS: readonly Tab[] = ["overview", "countdown", "pipeline", "partners", "content"];
+const TABS: readonly Tab[] = ["overview", "countdown", "pipeline", "partners", "content", "levers"];
 const STATUSES: readonly MarketingContactStatus[] = ["open", "replied", "demo", "house", "later"];
 const WAYS: readonly MarketingContactWay[] = ["email", "dm", "form"];
 const DAY_MS = 86_400_000;
@@ -269,6 +269,8 @@ export function AdminMarketing() {
                       <Pipeline contacts={contacts} filter={{ niche, motivation, kind }} onOpen={setContactId} />
                     </div>
                   </>
+                ) : tab === "levers" ? (
+                  <LeversView />
                 ) : tab === "partners" ? (
                   openPartner ? (
                     <PartnerDetail key={openPartner.id} partner={openPartner} onBack={() => setPartnerId(null)} onDeleted={() => setPartnerId(null)} />
@@ -534,6 +536,14 @@ function MarketingOverview({ onOpen, render }: { onOpen: (tab: Exclude<Tab, "ove
     needRate: { label: need.actual ? PLAN_LABELS.needNow : PLAN_LABELS.needAssumed, value: share((need.actual ?? need.assumed).rate) },
     founding: { label: PLAN_LABELS.foundingSeats, info: PLAN_LABELS.foundingInfo, value: `${num(seats.taken)} / ${num(seats.limit)}` },
     videosWeek: { label: PLAN_LABELS.videosWeek, info: PLAN_LABELS.videosInfo, value: `${num(videos)} / ${num(VIDEOS_PER_WEEK)}` },
+    // Hebel: how many, and the top 3 as a calm list – rank and title left, the audience grey right.
+    levers: { label: LEVER_LABELS.byEffect, info: LEVER_LABELS.info, value: num(marketingLevers.length) },
+    ...Object.fromEntries(
+      marketingLevers
+        .toSorted((a, b) => a.rank - b.rank)
+        .slice(0, 3)
+        .map((l) => [`lever${l.rank}`, { label: `${l.rank}  ${l.title}`, value: <span className="text-(--adm-label)">{l.audience}</span> }]),
+    ),
     phase: { label: ts("phase"), value: `${phase.no} · ${phase.label}` },
     startOrWeek: c.state === "before" ? { label: ts("startIn"), value: num(c.daysToStart) } : { label: ts("week"), value: `${num(c.weekNo)} / ${num(c.weeks)}` },
     entries: { label: ts("entries"), value: num(data.waitlist.length) },

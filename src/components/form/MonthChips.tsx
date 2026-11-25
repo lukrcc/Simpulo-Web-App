@@ -24,6 +24,11 @@ export function newYearOf(months: readonly string[], i: number): string | null {
   return i > 0 && months[i].slice(0, 4) !== months[i - 1].slice(0, 4) ? months[i].slice(0, 4) : null;
 }
 
+/** The year over a row of months (Open a House, like the Search panel's year groups): over the first month, and over the first of each new year. */
+export function yearLabelOf(months: readonly string[], i: number): string | null {
+  return i === 0 ? months[0].slice(0, 4) : newYearOf(months, i);
+}
+
 /** A month's name, with the new year as a small label before it. */
 export function MonthName({ year, children }: { year: string | null; children: string }) {
   return (

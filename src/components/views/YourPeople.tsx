@@ -416,7 +416,7 @@ function NearbyPanel({ matches, on, hasPeople }: { matches: NearbyMatch[]; on: b
       </h2>
       {!on ? (
         <p className="mt-2 text-body text-muted">
-          {t.rich("nearbyOff", { link: (c) => <Link href="/settings#privacy" className="font-semibold text-ink underline underline-offset-4">{c}</Link> })}
+          {t.rich("nearbyOff", { link: (c) => <Link href="/settings/privacy" className="font-semibold text-ink underline underline-offset-4">{c}</Link> })}
         </p>
       ) : matches.length === 0 ? (
         <p className="mt-2 text-body text-muted">{t("nearbyNone")}</p>

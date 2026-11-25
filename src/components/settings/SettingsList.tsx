@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * Settings' grouped lists, in the manner of Apple's System Settings: a small uppercase heading (12px, muted) over a group; the group the
- * one light surface (--card, radius 20px, no shadow – the page and this, two levels, never a panel in a panel); rows 52px with 16px padding, a thin line between them (ink 8 %) that starts where
+ * one raised surface (--settings-group: white in light mode, a raised graphite in dark; radius 16px, no edge, no shadow – the page and this, two levels, never a panel in a panel); rows 52px with 16px padding, a thin line between them (ink 8 %) that starts where
  * the text starts. Each child is one row.
  */
 export function SettingsGroup({ title, footer, children, className }: { title?: string; /** A small note under the group */ footer?: ReactNode; children: ReactNode; className?: string }) {
@@ -15,7 +15,7 @@ export function SettingsGroup({ title, footer, children, className }: { title?: 
   return (
     <section className={className}>
       {title && <h3 className="mb-2 px-4 text-eyebrow uppercase text-muted">{title}</h3>}
-      <ul className="settings-list overflow-hidden rounded-[20px] bg-(--surface)">
+      <ul className="settings-list overflow-hidden rounded-2xl bg-(--settings-group)">
         {rows.map((row, i) => (
           <li key={i}>{row}</li>
         ))}
@@ -30,7 +30,7 @@ export function SettingsPanel({ id, title, description, children, className }: {
   return (
     <section id={id} className={cn("scroll-mt-[calc(var(--header-h)+32px)]", className)}>
       {title && <h3 className="mb-2 px-4 text-eyebrow uppercase text-muted">{title}</h3>}
-      <div className="space-y-5 rounded-[20px] bg-(--surface) p-6">
+      <div className="space-y-5 rounded-2xl bg-(--settings-group) p-6">
         {description && <p className="text-small text-muted">{description}</p>}
         {children}
       </div>

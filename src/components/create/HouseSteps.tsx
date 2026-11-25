@@ -1,7 +1,7 @@
 "use client";
 
 import { useFeatureFlag } from "@/lib/featureFlags";
-import { Check, ChevronRight, Home, ImagePlus, KeyRound, MapPin, Plus, Users, X } from "lucide-react";
+import { Check, ChevronRight, Home, ImagePlus, KeyRound, MapPin, Minus, Plus, Users, X } from "lucide-react";
 import { CATEGORY_IMAGE, CATEGORY_IMAGE_ALT, CHARTERED_CATEGORY, POPULAR_BY_TOPIC, TYPE_IMAGE, accommodationOf, livingCategoriesFor, type AccommodationCategoryId } from "@/config/accommodation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useEffect, useEffectEvent, useId, useLayoutEffect, useRef, useState, type ReactNode, type Ref, type TextareaHTMLAttributes } from "react";
@@ -12,26 +12,30 @@ import { DAYLIGHT, KITCHENS, OUTDOORS, ROOM_KINDS, SETTINGS, SHARED_SPACES, SPAC
 import { PlaceSearch } from "./PlaceSearch";
 import { useMonthName } from "@/components/explore/SearchFields";
 import { FormField, formInput, formTextarea } from "@/components/form/FormLayout";
-import { newYearOf, shortMonth, upcomingMonths } from "@/components/form/MonthChips";
+import { shortMonth, upcomingMonths, yearLabelOf } from "@/components/form/MonthChips";
 import { Button } from "@/components/ui/ActionButton";
 import { Avatar } from "@/components/ui/Avatar";
 import { Checkbox } from "@/components/ui/Checkbox";
-import { Chip, ChipCheck } from "@/components/ui/Chip";
+import { ChipCheck } from "@/components/ui/Chip";
+import { PanelCapsule } from "@/components/ui/PanelCapsule";
 import { Combobox } from "@/components/ui/Combobox";
 import { DateRangePicker } from "@/components/ui/DateRangePicker";
 import { Img } from "@/components/ui/Img";
 import { WAITLIST_MAX_LIMIT } from "@/lib/waitlist";
 import { LanguageInput } from "@/components/ui/LanguageInput";
 import { PhotoUploader } from "@/components/ui/PhotoUploader";
-import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { Switch } from "@/components/ui/Switch";
 import { useFormat } from "@/i18n/format";
 import { guestFee, hostProgrammeEarning, isMinimumFee } from "@/lib/fees";
 import { linkDomain } from "@/lib/links";
-import type { Currency, Place, User, Vibe } from "@/lib/types";
+import type { Currency, Place, Stay, User, Vibe } from "@/lib/types";
 import Link from "next/link";
 import { CURRENCIES, VIBES, cn, nightsBetween } from "@/lib/utils";
 import { InForHint, SearchDemandHint } from "./SearchDemandHint";
+import { Sheet } from "@/components/ui/Sheet";
+import { useViewerPrice } from "@/components/ui/PriceLine";
+import { PEOPLE_MAX, PEOPLE_MIN } from "@/config/open-house-steps";
+import { useStore } from "@/lib/store";
 import {
   budgetScaleOf,
   CUSTOM_VIBE_MAX,
@@ -85,6 +89,22 @@ function ErrorLine({ text }: { text: string | null }) {
   ) : null;
 }
 
+/**
+ * One choice out of a few (Who, Crew age, the waitlist, spots for friends, dates and place modes, host experience): the panels' capsules in a
+ * row, chosen graphite (CLAUDE.md "Open a House Teil 2") – instead of a segmented bar. The chosen one stays chosen; a tap picks another.
+ */
+function CapsuleChoice<T extends string | number | null>({ options, value, onChange, label, className }: { options: ReadonlyArray<{ value: T; label: ReactNode }>; value: T; onChange: (value: T) => void; label: string; className?: string }) {
+  return (
+    <div role="radiogroup" aria-label={label} className={cn("flex flex-wrap gap-2", className)}>
+      {options.map((o) => (
+        <PanelCapsule key={String(o.value)} role="radio" aria-checked={value === o.value} on={value === o.value} onClick={() => onChange(o.value)}>
+          {o.label}
+        </PanelCapsule>
+      ))}
+    </div>
+  );
+}
+
 /** A label over what it labels: small and muted, the answer free on the page. */
 function Group({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -108,13 +128,13 @@ export function VibeStep({ form, patch, errorOf }: StepProps) {
     <div id={fieldId("vibe")} className="space-y-4">
       <div role="group" aria-label={t("vibe")} className="relative flex flex-wrap gap-1.5">
         {VIBES.map((v) => (
-          <Chip key={v.key} variant="text" active={!custom && form.vibe === v.key} onClick={() => patch({ vibe: v.key, customVibe: null })}>
+          <PanelCapsule key={v.key} on={!custom && form.vibe === v.key} aria-pressed={!custom && form.vibe === v.key} onClick={() => patch({ vibe: v.key, customVibe: null })}>
             {format.vibe(v.key)}
-          </Chip>
+          </PanelCapsule>
         ))}
-        <Chip variant="text" active={custom} onClick={() => patch({ customVibe: custom ? null : "" })}>
+        <PanelCapsule on={custom} aria-pressed={custom} onClick={() => patch({ customVibe: custom ? null : "" })}>
           {t("custom")}
-        </Chip>
+        </PanelCapsule>
       </div>
       {custom && (
         <input
@@ -142,8 +162,8 @@ export function SourceStep({ form, patch, errorOf, places, windows }: StepProps 
   const t = useTranslations("create.home");
   const choice = (chosen: boolean) =>
     cn(
-      "press flex min-h-44 flex-col items-start gap-3 overflow-hidden rounded-3xl border text-left transition-colors duration-150",
-      chosen ? "border-transparent bg-ink text-inverse" : "border-ink/12 text-ink hover:bg-ink/5",
+      "press flex min-h-44 flex-col items-start gap-3 overflow-hidden rounded-3xl text-left transition-colors duration-150",
+      chosen ? "bg-ink text-inverse" : "bg-(--create-option) text-ink hover:bg-(--create-option-hover)",
     );
   return (
     <div id={fieldId("source")} className="space-y-3">
@@ -180,7 +200,7 @@ export function SourceStep({ form, patch, errorOf, places, windows }: StepProps 
  * "I live here – save it to Your places" under "I have a place" (a new place only): the rental period, the rent per month and the required
  * statement "I'm allowed to host guests here …" with "What this means" (the Hosting FAQ, #host-at-home). Saved on publish.
  */
-function SavePlace({ form, patch, errorOf, touch, currency }: StepProps & { currency: Currency }) {
+export function PlaceSaveStep({ form, patch, errorOf, touch, currency }: StepProps & { currency: Currency }) {
   const t = useTranslations("create.home");
   const rentError = errorOf("rentPeriod");
   return (
@@ -247,7 +267,7 @@ const RENT_MAX_NIGHTS = 3660;
  * Two large choices: "I have a place" (the host found it, the crew splits it, an exact price) or "Let's find it together" (a city and a
  * budget, the crew picks the place). Chosen = black, like every choice of yours.
  */
-export function PlaceStep({ form, patch, errorOf, touch, currency }: StepProps & { /** The House currency – the rent of a place to save */ currency: Currency }) {
+export function PlaceStep({ form, patch, errorOf }: StepProps) {
   const t = useTranslations("create.flow");
   const options = [
     { value: "set" as const, icon: KeyRound, title: t("placeSetTitle"), text: t("placeSetText") },
@@ -267,8 +287,8 @@ export function PlaceStep({ form, patch, errorOf, touch, currency }: StepProps &
               // "Let's find it together" isn't the host's own place any more.
               onClick={() => patch({ placeMode: value, ...(value === "set" ? { budgetTbd: false } : { placeId: "", savePlace: false, allowedToHost: false }) })}
               className={cn(
-                "press flex min-h-44 flex-col items-start gap-3 rounded-3xl border p-6 text-left transition-colors duration-150",
-                chosen ? "border-transparent bg-ink text-inverse" : "border-ink/12 text-ink hover:bg-ink/5",
+                "press flex min-h-44 flex-col items-start gap-3 rounded-3xl p-6 text-left transition-colors duration-150",
+                chosen ? "bg-ink text-inverse" : "bg-(--create-option) text-ink hover:bg-(--create-option-hover)",
               )}
             >
               <Icon className={cn("size-6", chosen ? "text-inverse" : "text-muted")} aria-hidden />
@@ -279,8 +299,6 @@ export function PlaceStep({ form, patch, errorOf, touch, currency }: StepProps &
         })}
       </div>
       <ErrorLine text={errorOf("placeMode")} />
-      {/* A place found for this House can be saved as the host's own ("Host from your place") – never a saved one again. */}
-      {form.placeMode === "set" && !form.placeId && <SavePlace form={form} patch={patch} errorOf={errorOf} touch={touch} currency={currency} />}
     </div>
   );
 }
@@ -312,8 +330,8 @@ export function DepthStep({ form, patch, locked = false }: StepProps & { locked?
               disabled={locked}
               onClick={() => patch({ depth })}
               className={cn(
-                "press relative flex min-h-36 flex-col items-start gap-2 rounded-3xl border p-5 text-left transition-colors duration-150 disabled:cursor-not-allowed",
-                chosen ? "border-transparent bg-ink text-inverse" : "border-ink/12 text-ink enabled:hover:bg-ink/5",
+                "press relative flex min-h-36 flex-col items-start gap-2 rounded-3xl p-5 text-left transition-colors duration-150 disabled:cursor-not-allowed",
+                chosen ? "bg-ink text-inverse" : "bg-(--create-option) text-ink enabled:hover:bg-(--create-option-hover)",
                 locked && !chosen && "opacity-50",
               )}
             >
@@ -350,6 +368,10 @@ export function KindStep({ form, patch, errorOf }: StepProps) {
     const place = accommodationOf(id);
     return place ? [{ key: `type:${id}`, categoryId: place.category.id, typeId: id, name: capitalize(place.type.label), crew: place.category.crew, image: TYPE_IMAGE[id] ?? CATEGORY_IMAGE[place.category.id as AccommodationCategoryId], popular: true }] : [];
   });
+  // "Popular for {theme}" on ONE tile only: the type opened most often among the theme's popular ones (the data), else the first.
+  const stays = useStore().stays;
+  const usage = (typeId: string) => stays.filter((stay) => stay.accommodationType === typeId).length;
+  const mostPopular = popular.reduce<string | null>((best, tile) => (best === null || usage(tile.typeId) > usage(best) ? tile.typeId : best), null);
   const usedImages = new Set(popular.map((tile) => tile.image));
   const categories = livingCategoriesFor(topic).map((c) => {
     const own = CATEGORY_IMAGE[c.id as AccommodationCategoryId];
@@ -360,81 +382,87 @@ export function KindStep({ form, patch, errorOf }: StepProps) {
   const tiles = [...popular, ...categories];
   const popularPicked = popular.some((tile) => tile.typeId === form.accommodationType);
   const isChosen = (tile: (typeof tiles)[number]) => (tile.popular ? form.accommodationType === tile.typeId : !popularPicked && form.accommodationCategory === tile.categoryId);
-  const [more, setMore] = useState(() => tiles.slice(KIND_TILES_VISIBLE).some(isChosen));
-  const shown = more ? tiles : tiles.slice(0, KIND_TILES_VISIBLE);
+  const [more, setMore] = useState(false);
+  // Six tiles in 3 × 2 on the page; "More places" opens a sheet with the rest. A pick from the sheet takes the sixth place, so it stays seen.
+  const rest = tiles.slice(KIND_TILES_VISIBLE);
+  const pickedFromRest = rest.find(isChosen);
+  const shown = pickedFromRest ? [...tiles.slice(0, KIND_TILES_VISIBLE - 1), pickedFromRest] : tiles.slice(0, KIND_TILES_VISIBLE);
   const category = form.accommodationCategory && form.accommodationCategory !== "unsure" && !popularPicked ? livingCategoriesFor(null).find((c) => c.id === form.accommodationCategory) : undefined;
   const unsure = form.accommodationCategory === "unsure";
-
-  return (
-    <div id={fieldId("accommodationType")} className="space-y-5">
-      <div role="radiogroup" aria-label={t("whichOne")} className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {shown.map((tile) => {
-          const chosen = isChosen(tile);
-          return (
-            <button
-              key={tile.key}
-              type="button"
-              role="radio"
-              aria-checked={chosen}
-              onClick={() => {
-                if (tile.popular) patch(kindPick(tile.categoryId, tile.typeId));
-                // The same category again keeps its type; another one starts without.
-                else if (form.accommodationCategory !== tile.categoryId || popularPicked) patch(kindPick(tile.categoryId, ""));
-              }}
-              className="press group min-w-0 text-left"
-            >
-              <span className={cn("relative block aspect-[4/3] overflow-hidden rounded-2xl bg-surface-2 transition-shadow duration-150", chosen ? "ring-2 ring-ink ring-offset-2 ring-offset-bg" : "group-hover:ring-1 group-hover:ring-ink/20")}>
-                {tile.image ? (
-                  <Img src={tile.image} alt="" width={360} height={270} className="size-full object-cover" />
-                ) : (
-                  <span className="flex size-full items-center justify-center text-muted">
-                    <MapPin className="size-6" aria-hidden />
-                  </span>
-                )}
-                {tile.popular && topic && <span className="absolute left-2 top-2 rounded-full bg-surface/90 px-2.5 py-1 text-small font-semibold text-ink">{t("popular", { topic: format.vibe(topic) })}</span>}
-                {chosen && (
-                  <span className="absolute right-2 top-2 flex size-6 items-center justify-center rounded-full bg-ink text-inverse">
-                    <Check className="size-3.5 motion-safe:animate-check-in" strokeWidth={3} aria-hidden />
-                    <span className="sr-only">{t("chosen")}</span>
-                  </span>
-                )}
-              </span>
-              <span className="mt-2 block truncate text-body font-semibold text-ink">{tile.name}</span>
-              <span className="block text-small text-muted">{t("crew", { min: tile.crew.min, max: tile.crew.max })}</span>
-            </button>
-          );
-        })}
-      </div>
-      {tiles.length > KIND_TILES_VISIBLE && (
-        <Button variant="tertiary" size="sm" onClick={() => setMore((open) => !open)}>
-          {more ? t("less") : t("more")}
-        </Button>
-      )}
-      {category && (
-        <Group label={t("whichOne")}>
-          <div role="radiogroup" aria-label={t("whichOne")} className="flex flex-wrap gap-1.5">
-            {category.types.map((type) => (
-              <Chip key={type.id} role="radio" aria-checked={form.accommodationType === type.id} active={form.accommodationType === type.id} onClick={() => patch({ accommodationType: type.id })}>
-                {capitalize(type.label)}
-              </Chip>
-            ))}
-          </div>
-        </Group>
-      )}
+  const pick = (tile: (typeof tiles)[number]) => {
+    if (tile.popular) patch(kindPick(tile.categoryId, tile.typeId));
+    // The same category again keeps its type; another one starts without.
+    else if (form.accommodationCategory !== tile.categoryId || popularPicked) patch(kindPick(tile.categoryId, ""));
+  };
+  const tileButton = (tile: (typeof tiles)[number], onPicked?: () => void) => {
+    const chosen = isChosen(tile);
+    return (
       <button
+        key={tile.key}
         type="button"
         role="radio"
-        aria-checked={unsure}
-        onClick={() => patch({ accommodationCategory: "unsure", accommodationType: "" })}
-        className={cn("press flex w-full items-center gap-3 rounded-2xl border px-5 py-4 text-left transition-colors duration-150", unsure ? "border-transparent bg-ink text-inverse" : "border-ink/12 text-ink hover:bg-ink/5")}
+        aria-checked={chosen}
+        onClick={() => {
+          pick(tile);
+          onPicked?.();
+        }}
+        className="press group min-w-0 text-left"
       >
-        <Users className={cn("size-5 shrink-0", unsure ? "text-inverse" : "text-muted")} aria-hidden />
-        <span className="text-body">
-          <span className="font-semibold">{t("unsure")}</span>
-          <span className={unsure ? "text-inverse/75" : "text-muted"}> – {t("unsureText")}</span>
+        <span className={cn("relative block aspect-[16/10] overflow-hidden rounded-2xl bg-surface-2 transition-shadow duration-150", chosen && "ring-2 ring-ink ring-offset-2 ring-offset-bg")}>
+          {tile.image ? (
+            <Img src={tile.image} alt="" width={360} height={225} className="size-full object-cover" />
+          ) : (
+            <span className="flex size-full items-center justify-center text-muted">
+              <MapPin className="size-6" aria-hidden />
+            </span>
+          )}
+          {tile.popular && tile.typeId === mostPopular && topic && <span className="absolute left-2 top-2 rounded-full bg-surface/90 px-2.5 py-1 text-small font-semibold text-ink">{t("popular", { topic: format.vibe(topic) })}</span>}
+          {chosen && (
+            <span className="absolute right-2 top-2 flex size-6 items-center justify-center rounded-full bg-ink text-inverse">
+              <Check className="size-3.5 motion-safe:animate-check-in" strokeWidth={3} aria-hidden />
+              <span className="sr-only">{t("chosen")}</span>
+            </span>
+          )}
         </span>
+        <span className="mt-1.5 block truncate text-body font-semibold text-ink">{tile.name}</span>
+        <span className="block text-small text-muted">{t("crew", { min: tile.crew.min, max: tile.crew.max })}</span>
       </button>
+    );
+  };
+
+  return (
+    <div id={fieldId("accommodationType")} className="space-y-4">
+      <div role="radiogroup" aria-label={t("whichOne")} className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {shown.map((tile) => tileButton(tile))}
+      </div>
+      {category && (
+        <div role="radiogroup" aria-label={t("whichOne")} className="flex flex-wrap items-center gap-2">
+          <span className="mr-1 text-small text-muted">{t("whichOne")}</span>
+          {category.types.map((type) => (
+            <PanelCapsule key={type.id} role="radio" aria-checked={form.accommodationType === type.id} on={form.accommodationType === type.id} onClick={() => patch({ accommodationType: type.id })}>
+              {capitalize(type.label)}
+            </PanelCapsule>
+          ))}
+        </div>
+      )}
+      <div className="-ml-4 flex flex-wrap items-center gap-1">
+        {rest.length > 0 && (
+          <Button variant="tertiary" size="sm" onClick={() => setMore(true)}>
+            {t("more")}
+          </Button>
+        )}
+        {/* "Not sure yet": a text link – the crew picks the kind of place together. */}
+        <Button variant="tertiary" size="sm" role="radio" aria-checked={unsure} onClick={() => patch({ accommodationCategory: "unsure", accommodationType: "" })} className={cn(unsure && "underline underline-offset-4")}>
+          {unsure && <Check aria-hidden />}
+          {t("unsure")} – {t("unsureText")}
+        </Button>
+      </div>
       <ErrorLine text={errorOf("accommodationType")} />
+      <Sheet open={more} onClose={() => setMore(false)} title={t("moreTitle")}>
+        <div role="radiogroup" aria-label={t("moreTitle")} className="grid grid-cols-2 gap-3">
+          {rest.map((tile) => tileButton(tile, () => setMore(false)))}
+        </div>
+      </Sheet>
     </div>
   );
 }
@@ -442,7 +470,7 @@ export function KindStep({ form, patch, errorOf }: StepProps) {
 /* ───────────────────────── 4 · Where + when ───────────────────────── */
 
 /** The place search; once there's a place, it stands as a chip (a tap searches again). The months follow. */
-export function WhereStep({ form, patch, errorOf, touch, today, editing, rentalNote }: StepProps & { /** "" before hydration */ today: string; editing: boolean; /** A window of the host's own place: "Your rental: …" */ rentalNote?: string }) {
+export function WhereStep({ form, patch, errorOf, touch, today, editing, rentalNote, part = "both" }: StepProps & { /** "" before hydration */ today: string; editing: boolean; /** A window of the host's own place: "Your rental: …" */ rentalNote?: string; /** A new House asks one at a time: "Where?" then "When?" (editing: both) */ part?: "where" | "when" | "both" }) {
   const t = useTranslations("create.house");
   const tFlow = useTranslations("create.flow");
   const format = useFormatter();
@@ -454,23 +482,23 @@ export function WhereStep({ form, patch, errorOf, touch, today, editing, rentalN
   const placeName = [form.city.trim(), form.region.trim()].filter(Boolean).join(", ");
   return (
     <div className="space-y-6">
-      <div id={fieldId("region")}>
+      {part !== "when" && <div id={fieldId("region")}>
         {form.region.trim() && form.placeId ? (
           // A window of the host's own place: the place is where they live.
-          <Chip active size="lg" aria-label={placeName} className="pointer-events-none">
+          <PanelCapsule on aria-label={placeName} className="pointer-events-none">
             <span className="flex items-center gap-1.5">
               <Home className="size-4" aria-hidden />
               {placeName}
             </span>
-          </Chip>
+          </PanelCapsule>
         ) : form.region.trim() ? (
-          <Chip active size="lg" onClick={() => patch({ region: "", city: "" })} aria-label={tFlow("changePlace", { place: placeName })}>
+          <PanelCapsule on onClick={() => patch({ region: "", city: "" })} aria-label={tFlow("changePlace", { place: placeName })}>
             <span className="flex items-center gap-1.5">
               <MapPin className="size-4" aria-hidden />
               {placeName}
               <X className="size-3.5" aria-hidden />
             </span>
-          </Chip>
+          </PanelCapsule>
         ) : (
           <PlaceSearch
             id={`${id}-place`}
@@ -481,9 +509,9 @@ export function WhereStep({ form, patch, errorOf, touch, today, editing, rentalN
           />
         )}
         {errorOf("region") && <div className="mt-2"><ErrorLine text={errorOf("region")} /></div>}
-      </div>
+      </div>}
 
-      {(form.region.trim() || editing) && (
+      {part !== "where" && (form.region.trim() || editing || part === "when") && (
         <Group label={t("when")}>
           {exact ? (
             <ExactDates form={form} patch={patch} errorOf={errorOf} touch={touch} today={today} />
@@ -497,11 +525,11 @@ export function WhereStep({ form, patch, errorOf, touch, today, editing, rentalN
                 return (
                   <div key={month} className="flex min-w-0 flex-col max-md:w-14">
                     <span aria-hidden className="block h-4 text-eyebrow text-muted">
-                      {newYearOf(months, i)}
+                      {yearLabelOf(months, i)}
                     </span>
-                    <Chip active={picked} size="sm" aria-label={monthLong(month)} onClick={() => patch(nextMonthRun(month, form.month, form.monthEnd, months))} className="mt-1 w-full justify-center px-0!">
+                    <PanelCapsule on={picked} aria-pressed={picked} aria-label={monthLong(month)} onClick={() => patch(nextMonthRun(month, form.month, form.monthEnd, months))} className="mt-1 w-full px-0!">
                       {shortMonth(format, month, false)}
-                    </Chip>
+                    </PanelCapsule>
                   </div>
                 );
               })}
@@ -518,8 +546,8 @@ export function WhereStep({ form, patch, errorOf, touch, today, editing, rentalN
           </div>
         </Group>
       )}
-      <SearchDemandHint city={form.city} region={form.region} startDate={exact ? form.startDate : bounds.start} endDate={exact ? form.endDate : bounds.end} vibe={form.vibe} />
-      <InForHint city={form.city} region={form.region} startDate={exact ? form.startDate : bounds.start} endDate={exact ? form.endDate : bounds.end} vibe={form.vibe} />
+      {part !== "where" && <SearchDemandHint city={form.city} region={form.region} startDate={exact ? form.startDate : bounds.start} endDate={exact ? form.endDate : bounds.end} vibe={form.vibe} />}
+      {part !== "where" && <InForHint city={form.city} region={form.region} startDate={exact ? form.startDate : bounds.start} endDate={exact ? form.endDate : bounds.end} vibe={form.vibe} />}
     </div>
   );
 }
@@ -582,9 +610,8 @@ export function CrewStep({ form, patch, errorOf, touch, currency, locked, minSpo
       {/* The waitlist behind a full House – a detail for later, so only when editing. */}
       {editing && (
         <Group label={t("waitlistMax")}>
-          <SegmentedControl
+          <CapsuleChoice
             label={t("waitlistMax")}
-            className="max-w-80"
             value={form.waitlistMax}
             onChange={(waitlistMax) => patch({ waitlistMax })}
             options={Array.from({ length: WAITLIST_MAX_LIMIT + 1 }, (_, n) => ({ value: n, label: String(n) }))}
@@ -595,9 +622,8 @@ export function CrewStep({ form, patch, errorOf, touch, currency, locked, minSpo
       {/* Spots for friends: how many spots one person's link may hold for 48h (0 = none) – only when editing. */}
       {editing && (
         <Group label={t("friendSpotsMax")}>
-          <SegmentedControl
+          <CapsuleChoice
             label={t("friendSpotsMax")}
-            className="max-w-80"
             value={form.friendSpotsMax}
             onChange={(friendSpotsMax) => patch({ friendSpotsMax })}
             options={Array.from({ length: INVITE_POLICY.maxSpotsPerLink + 1 }, (_, n) => ({ value: n, label: String(n) }))}
@@ -669,11 +695,11 @@ function CrewSize({ form, patch, minSpots, maxSpots }: { form: FormState; patch:
       <Group label={t("people")}>
         <div role="radiogroup" aria-label={t("people")} className="flex flex-wrap items-center gap-1.5">
           {chips.map((n) => (
-            <Chip
+            <PanelCapsule
               key={n}
               role="radio"
               aria-checked={!more && form.spotsTotal === n}
-              active={!more && form.spotsTotal === n}
+              on={!more && form.spotsTotal === n}
               onClick={() => {
                 setMore(false);
                 patch({ spotsTotal: n });
@@ -681,12 +707,12 @@ function CrewSize({ form, patch, minSpots, maxSpots }: { form: FormState; patch:
               className="min-w-11 justify-center"
             >
               {n}
-            </Chip>
+            </PanelCapsule>
           ))}
           {(maxSpots === undefined || maxSpots > SPOTS_CHIPS_MAX) && (
-            <Chip role="radio" aria-checked={more} active={more} onClick={() => setMore(true)}>
+            <PanelCapsule role="radio" aria-checked={more} on={more} onClick={() => setMore(true)}>
               {t("more")}
-            </Chip>
+            </PanelCapsule>
           )}
           {more && (
             <input
@@ -701,6 +727,109 @@ function CrewSize({ form, patch, minSpots, maxSpots }: { form: FormState; patch:
         </div>
       </Group>
       {form.spotsTotal >= SPOTS_BIG && <p className="mt-2 text-small text-muted">{t("bigHouse")}</p>}
+    </div>
+  );
+}
+
+/**
+ * A new House, step 6 "How many people, including you?": one large stepper "− 4 +" (2–30; editing never below who's in; the host's own
+ * place: at most its free rooms + the host). From 20 people a quiet hint.
+ */
+export function PeopleStep({ form, patch, errorOf, minSpots, maxSpots }: StepProps & { minSpots: number; maxSpots?: number }) {
+  const t = useTranslations("create.flow");
+  const min = Math.max(PEOPLE_MIN, minSpots);
+  const max = Math.min(PEOPLE_MAX, maxSpots ?? PEOPLE_MAX);
+  const value = Math.min(max, Math.max(min, form.spotsTotal || min));
+  const btn = "press flex size-14 items-center justify-center rounded-full bg-(--chip-bg) text-ink transition-colors duration-150 hover:bg-(--chip-bg-hover) disabled:cursor-not-allowed disabled:opacity-40";
+  return (
+    <div id={fieldId("spotsTotal")} className="space-y-4">
+      <div role="group" aria-label={t("people")} className="flex items-center gap-6">
+        <button type="button" aria-label={t("fewerPeople")} disabled={value <= min} onClick={() => patch({ spotsTotal: value - 1 })} className={btn}>
+          <Minus className="size-6" aria-hidden />
+        </button>
+        <output aria-live="polite" className="min-w-20 text-center text-display tabular-nums text-ink">
+          {value}
+        </output>
+        <button type="button" aria-label={t("morePeople")} disabled={value >= max} onClick={() => patch({ spotsTotal: value + 1 })} className={btn}>
+          <Plus className="size-6" aria-hidden />
+        </button>
+      </div>
+      <p className="text-small text-muted">{t("peopleRange", { min, max })}</p>
+      {value >= SPOTS_BIG && <p className="text-small text-muted">{t("bigHouse")}</p>}
+      <ErrorLine text={errorOf("spotsTotal")} />
+    </div>
+  );
+}
+
+/**
+ * A new House, step 7 "Price": one large amount (the place's total with "I have a place", the budget per person – from / to – when it's found
+ * together) and the currency as a capsule beside it; live under it "≈ €X per person" – the card's own price (the viewer's currency, the fee
+ * included, "est." when it may move). The host fee only behind "Add a host fee".
+ */
+export function PriceStep({ form, patch, errorOf, touch, currency, rentNote, previewStay, hostFees }: StepProps & { currency: Currency; rentNote?: string; previewStay: Stay; hostFees: boolean }) {
+  const t = useTranslations("create.flow");
+  const tHouse = useTranslations("create.house");
+  const tCommon = useTranslations("common");
+  const price = useViewerPrice(previewStay);
+  const [feeOpen, setFeeOpen] = useState(form.hostExperience === "program" && Number(form.hostFee) > 0);
+  const scale = budgetScaleOf(currency);
+  const together = form.placeMode !== "set";
+  const fillStart = useEffectEvent(() => patch({ budgetMin: String(scale.start[0]), budgetMax: String(scale.start[1]) }));
+  useEffect(() => {
+    if (together && !form.budgetTbd && !form.budgetMin && !form.budgetMax) fillStart();
+  }, [together, form.budgetTbd, form.budgetMin, form.budgetMax]);
+  const currencyPick = (
+    <Combobox
+      aria-label={t("currency")}
+      value={currency}
+      options={CURRENCIES.map((code) => ({ value: code, label: code }))}
+      onPick={(option) => {
+        const next = option.value as Currency;
+        if (next === currency) return;
+        patch(together ? { currency: next, budgetMin: String(budgetScaleOf(next).start[0]), budgetMax: String(budgetScaleOf(next).start[1]) } : { currency: next });
+      }}
+    />
+  );
+  const ready = together ? Number(form.budgetMin) > 0 && Number(form.budgetMax) >= Number(form.budgetMin) : Number(form.totalPrice) > 0;
+  return (
+    <div className="space-y-5" data-price-step>
+      {together ? (
+        <div id={fieldId("budget")} className="space-y-2">
+          <p className="text-small text-muted">{t("budget")}</p>
+          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_128px] items-center gap-3" data-amount-big>
+            <AmountInput value={form.budgetMin} onChange={(v) => patch({ budgetMin: v })} currency={currency} label={tHouse("budgetFrom")} invalid={Boolean(errorOf("budget"))} onBlur={() => touch("budget")} />
+            <AmountInput value={form.budgetMax} onChange={(v) => patch({ budgetMax: v })} currency={currency} label={tHouse("budgetTo")} invalid={Boolean(errorOf("budget"))} onBlur={() => touch("budget")} />
+            {currencyPick}
+          </div>
+          <ErrorLine text={errorOf("budget")} />
+        </div>
+      ) : (
+        <div id={fieldId("totalPrice")} className="space-y-2">
+          <p className="text-small text-muted">{t("totalPrice")}</p>
+          <div className="grid grid-cols-[minmax(0,1fr)_128px] items-center gap-3" data-amount-big>
+            <AmountInput value={form.totalPrice} onChange={(v) => patch({ totalPrice: v })} currency={currency} label={t("totalPrice")} invalid={Boolean(errorOf("totalPrice"))} onBlur={() => touch("totalPrice")} />
+            {currencyPick}
+          </div>
+          {rentNote && <p className="text-small text-muted">{rentNote}</p>}
+          <ErrorLine text={errorOf("totalPrice")} />
+        </div>
+      )}
+      {ready && (
+        <p aria-live="polite" className="text-h3 tabular-nums text-ink">
+          {t("perPersonLive", { price: price.label.replace(/\s*pp$/, "") })}
+          {price.estimated && <span className="ml-1.5 text-body font-normal text-muted">{tCommon("estimated")}</span>}
+          <span className="mt-1 block text-small font-normal text-muted">{t("perPersonNote", { percent: FEE_MODEL.serviceFeePercent })}</span>
+        </p>
+      )}
+      {hostFees &&
+        (feeOpen ? (
+          <HostFeeField form={form} patch={patch} errorOf={errorOf} touch={touch} currency={currency} />
+        ) : (
+          <Button variant="tertiary" size="sm" className="-ml-4" onClick={() => setFeeOpen(true)}>
+            <Plus aria-hidden />
+            {t("addHostFee")}
+          </Button>
+        ))}
     </div>
   );
 }
@@ -836,7 +965,7 @@ export function ExtrasStep({ form, patch }: StepProps) {
       </Group>
       <div className="grid gap-8 sm:grid-cols-2">
         <Group label={t("who")}>
-          <SegmentedControl
+          <CapsuleChoice
             label={t("who")}
             value={form.who === "women" ? "women" : null}
             onChange={(who) => patch({ who: who === "women" ? "women" : "mixed" })}
@@ -847,7 +976,7 @@ export function ExtrasStep({ form, patch }: StepProps) {
           />
         </Group>
         <Group label={t("age")}>
-          <SegmentedControl
+          <CapsuleChoice
             label={t("age")}
             value={form.ageKey || null}
             onChange={(ageKey) => patch({ ageKey: ageKey ?? "" })}
@@ -896,15 +1025,43 @@ function SpaceNumber({ label, value, onChange, min, max, suffix }: { label: stri
   );
 }
 
+/**
+ * A count as a stepper "− 3 +" (bedrooms, bathrooms, seats at the table): no free typing. Empty = not answered ("–"); the first + gives the
+ * minimum, − at the minimum takes the answer back; never past the maximum (config/space.ts SPACE_LIMITS).
+ */
+function SpaceStepper({ label, value, onChange, min, max }: { label: string; value: number | undefined; onChange: (value: number | undefined) => void; min: number; max: number }) {
+  const t = useTranslations("create.space");
+  const id = useId();
+  const btn = "press flex size-10 items-center justify-center rounded-full bg-(--chip-bg) text-ink transition-colors duration-150 hover:bg-(--chip-bg-hover) disabled:cursor-not-allowed disabled:opacity-40";
+  return (
+    <div role="group" aria-labelledby={id} className="flex min-w-0 flex-col gap-2">
+      <span id={id} className="text-small text-muted">
+        {label}
+      </span>
+      <div className="flex items-center gap-2">
+        <button type="button" aria-label={t("stepDown", { label })} disabled={value === undefined} onClick={() => onChange(value === undefined || value <= min ? undefined : value - 1)} className={btn}>
+          <Minus className="size-4" aria-hidden />
+        </button>
+        <output aria-live="polite" className="min-w-10 text-center text-body-lg font-semibold tabular-nums text-ink">
+          {value ?? "–"}
+        </output>
+        <button type="button" aria-label={t("stepUp", { label })} disabled={value !== undefined && value >= max} onClick={() => onChange(value === undefined ? Math.max(min, 1) : Math.min(max, value + 1))} className={btn}>
+          <Plus className="size-4" aria-hidden />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /** One answer from a few; tapping the chosen one again takes it back (nothing is required). */
 function SpaceChoice<T extends string>({ label, options, value, onChange, labelOf }: { label: string; options: readonly T[]; value: T | undefined; onChange: (value: T | undefined) => void; labelOf: (option: T) => string }) {
   return (
     <Group label={label}>
       <div className="flex flex-wrap gap-2">
         {options.map((option) => (
-          <Chip key={option} active={value === option} onClick={() => onChange(value === option ? undefined : option)}>
+          <PanelCapsule key={option} on={value === option} aria-pressed={value === option} onClick={() => onChange(value === option ? undefined : option)}>
             {labelOf(option)}
-          </Chip>
+          </PanelCapsule>
         ))}
       </div>
     </Group>
@@ -929,8 +1086,8 @@ export function SpaceStep({ form, patch }: StepProps) {
       <section className="space-y-5">
         <h2 className="text-h3 text-ink">{t("roomsTitle")}</h2>
         <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(140px,100%),1fr))]">
-          <SpaceNumber label={t("bedrooms")} value={space.bedrooms} onChange={(bedrooms) => set({ bedrooms })} {...SPACE_LIMITS.rooms} />
-          <SpaceNumber label={t("bathrooms")} value={space.bathrooms} onChange={(bathrooms) => set({ bathrooms })} {...SPACE_LIMITS.rooms} />
+          <SpaceStepper label={t("bedrooms")} value={space.bedrooms} onChange={(bedrooms) => set({ bedrooms })} {...SPACE_LIMITS.rooms} />
+          <SpaceStepper label={t("bathrooms")} value={space.bathrooms} onChange={(bathrooms) => set({ bathrooms })} {...SPACE_LIMITS.rooms} />
         </div>
         <SpaceChoice label={t("rooms")} options={ROOM_KINDS} value={space.rooms} onChange={(rooms) => set({ rooms })} labelOf={(o) => t(`roomKinds.${o}`)} />
       </section>
@@ -941,9 +1098,9 @@ export function SpaceStep({ form, patch }: StepProps) {
             {SHARED_SPACES.map((option) => {
               const on = space.shared?.includes(option) ?? false;
               return (
-                <Chip key={option} active={on} onClick={() => set({ shared: on ? (space.shared ?? []).filter((s) => s !== option) : [...(space.shared ?? []), option] })}>
+                <PanelCapsule key={option} on={on} aria-pressed={on} onClick={() => set({ shared: on ? (space.shared ?? []).filter((s) => s !== option) : [...(space.shared ?? []), option] })}>
                   {t(`sharedSpaces.${option}`)}
-                </Chip>
+                </PanelCapsule>
               );
             })}
           </div>
@@ -954,7 +1111,7 @@ export function SpaceStep({ form, patch }: StepProps) {
       <section className="space-y-5">
         <h2 className="text-h3 text-ink">{t("togetherTitle")}</h2>
         <SpaceChoice label={t("table")} options={TABLE_SPOTS} value={space.table} onChange={(table) => set({ table, ...(table === "none" ? { seats: undefined } : {}) })} labelOf={(o) => t(`tables.${o}`)} />
-        {space.table !== "none" && <SpaceNumber label={t("seats")} value={space.seats} onChange={(seats) => set({ seats })} {...SPACE_LIMITS.seats} />}
+        {space.table !== "none" && <SpaceStepper label={t("seats")} value={space.seats} onChange={(seats) => set({ seats })} {...SPACE_LIMITS.seats} />}
         <SpaceChoice label={t("bathThroughShared")} options={yesNo} value={fromBool(space.bathThroughShared)} onChange={(v) => set({ bathThroughShared: toBool(v) })} labelOf={(o) => t(`answers.${o}`)} />
         <SpaceChoice label={t("retreat")} options={yesNo} value={fromBool(space.retreat)} onChange={(v) => set({ retreat: toBool(v) })} labelOf={(o) => t(`answers.${o}`)} />
       </section>
@@ -1013,8 +1170,8 @@ export function CoverStep({ form, patch, errorOf, touch, suggestions }: StepProp
   };
 
   return (
-    <div className="space-y-8">
-      <div id={fieldId("photos")} className="space-y-4">
+    <div className="space-y-5">
+      <div id={fieldId("photos")} className="space-y-3">
         <div className={cn("grid gap-4", suggestions.length > 0 && "sm:grid-cols-2")}>
           <button
             type="button"
@@ -1029,7 +1186,7 @@ export function CoverStep({ form, patch, errorOf, touch, suggestions }: StepProp
               setDragging(false);
               void add(e.dataTransfer.files);
             }}
-            className={cn("flex min-h-64 flex-col items-center justify-center gap-2 rounded-3xl p-6 text-center transition-colors duration-150 max-md:min-h-40", dragging ? "bg-ink/10" : "bg-ink/5 hover:bg-ink/8")}
+            className={cn("flex min-h-48 flex-col items-center justify-center gap-2 rounded-3xl p-6 text-center transition-colors duration-150 max-md:min-h-40", dragging ? "bg-ink/10" : "bg-ink/5 hover:bg-ink/8")}
           >
             <ImagePlus className="size-6 text-muted" aria-hidden />
             {/* Phones: no dragging – the photo library (accept="image/*", several at once). */}
@@ -1056,7 +1213,7 @@ export function CoverStep({ form, patch, errorOf, touch, suggestions }: StepProp
                 {suggestions.map((src, i) => {
                   const chosen = form.photos.includes(src);
                   return (
-                    <button key={src} type="button" aria-pressed={chosen} aria-label={t("suggestion", { number: i + 1 })} onClick={() => pickSuggestion(src)} className="relative block aspect-3/4 overflow-hidden rounded-2xl bg-ink/5">
+                    <button key={src} type="button" aria-pressed={chosen} aria-label={t("suggestion", { number: i + 1 })} onClick={() => pickSuggestion(src)} className="relative block aspect-4/3 overflow-hidden rounded-2xl bg-ink/5">
                       <Img src={src} alt="" fill sizes="120px" className="object-cover" />
                       {chosen && (
                         <span className="absolute right-1.5 top-1.5 flex size-6 items-center justify-center rounded-full bg-(--select-bg)">
@@ -1091,9 +1248,6 @@ export function CoverStep({ form, patch, errorOf, touch, suggestions }: StepProp
       <FormField id={fieldId("title")} label={tHouse("title")} error={errorOf("title")} aside={<span className="text-small tabular-nums text-muted">{tHouse("titleCount", { count: form.title.length, max: TITLE_MAX_NEW })}</span>}>
         <input className={formInput} value={form.title} onChange={(e) => patch({ title: e.target.value })} onBlur={() => touch("title")} placeholder={titles[0] ?? tHouse("titlePlaceholder")} maxLength={TITLE_MAX_NEW} aria-invalid={Boolean(errorOf("title")) || undefined} />
       </FormField>
-      <FormField label={tHouse("cardNote")} optional aside={<span className="text-small tabular-nums text-muted">{tPitch("hostNoteCount", { count: form.hostNote.length, max: HOST_NOTE_MAX })}</span>}>
-        <input className={formInput} value={form.hostNote} maxLength={HOST_NOTE_MAX} onChange={(e) => patch({ hostNote: e.target.value })} placeholder={tPitch("hostNotePlaceholder")} />
-      </FormField>
     </div>
   );
 }
@@ -1104,14 +1258,13 @@ export function CoverStep({ form, patch, errorOf, touch, suggestions }: StepProp
 export function ReadySummary({ rows, onEdit }: { rows: Array<{ key: string; label: string; value: string; step: StepKey }>; onEdit: (step: StepKey) => void }) {
   const t = useTranslations("create.ready");
   return (
-    <dl className="space-y-4">
+    // A calm list: one line per answer – the label muted, the answer, "Edit" back to its step.
+    <dl className="divide-y divide-ink/6">
       {rows.map(({ key, label, value, step }) => (
-        <div key={key} className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <dt className="text-small text-muted">{label}</dt>
-            <dd className="mt-0.5 text-body font-semibold text-ink">{value}</dd>
-          </div>
-          <Button variant="tertiary" onClick={() => onEdit(step)} aria-label={t("editLabel", { label })}>
+        <div key={key} className="flex min-h-11 items-center gap-4 py-0.5">
+          <dt className="w-32 shrink-0 text-small text-muted">{label}</dt>
+          <dd className="min-w-0 flex-1 truncate text-body font-semibold text-ink">{value}</dd>
+          <Button variant="tertiary" size="sm" onClick={() => onEdit(step)} aria-label={t("editLabel", { label })}>
             {t("edit")}
           </Button>
         </div>
@@ -1173,9 +1326,9 @@ export function TitleDetail({ form, patch, errorOf, touch, titleMax }: StepProps
         {titles.length > 0 && (
           <div role="group" aria-label={t("titleSuggestions")} className="flex flex-wrap gap-2">
             {titles.map((title) => (
-              <Chip key={title} active={form.title === title} onClick={() => patch({ title })}>
+              <PanelCapsule key={title} on={form.title === title} aria-pressed={form.title === title} onClick={() => patch({ title })}>
                 {title}
-              </Chip>
+              </PanelCapsule>
             ))}
           </div>
         )}
@@ -1186,9 +1339,9 @@ export function TitleDetail({ form, patch, errorOf, touch, titleMax }: StepProps
         </FormField>
         <div className="flex flex-wrap gap-2">
           {(tPitch.raw("hostNoteExamples") as string[]).map((example) => (
-            <Chip key={example} active={form.hostNote === example} onClick={() => patch({ hostNote: example })}>
+            <PanelCapsule key={example} on={form.hostNote === example} aria-pressed={form.hostNote === example} onClick={() => patch({ hostNote: example })}>
               {example}
-            </Chip>
+            </PanelCapsule>
           ))}
         </div>
       </div>
@@ -1233,7 +1386,7 @@ export function DatesDetail({ form, patch, errorOf, touch, today }: StepProps & 
     patch({ datesMode, ...(datesMode === "crew" && proposals.length === 0 && { dateProposals: [{ id: newId(), start: "", end: "" }] }) });
   return (
     <div className="space-y-6">
-      <SegmentedControl
+      <CapsuleChoice
         label={t("datesLabel")}
         value={form.datesMode}
         onChange={setMode}
@@ -1321,7 +1474,7 @@ export function AccommodationDetail({ form, patch, errorOf, touch, currency, loc
     patch({ accommodationMode, ...(accommodationMode === "crew" && proposals.length === 0 && { placeProposals: [{ id: newId(), link: "", price: "" }] }) });
   return (
     <div className="space-y-6">
-      <SegmentedControl
+      <CapsuleChoice
         label={t("placeLabel")}
         value={form.accommodationMode}
         onChange={setMode}
@@ -1380,7 +1533,7 @@ export function HostDetail({ form, patch, errorOf, touch, currency, allowed }: S
   const earning = hostProgrammeEarning(fee);
   return (
     <div className="space-y-5">
-      <SegmentedControl
+      <CapsuleChoice
         label={t("label")}
         value={form.hostExperience}
         onChange={(hostExperience) => patch({ hostExperience })}
@@ -1432,9 +1585,9 @@ export function LookingForDetail({ form, patch, errorOf, touch }: StepProps) {
       </FormField>
       <div role="group" aria-label={t("startWith")} className="flex flex-wrap gap-2">
         {starters.map((starter) => (
-          <Chip key={starter} active={false} onClick={() => insert(starter)}>
+          <PanelCapsule key={starter} on={false} aria-pressed={false} onClick={() => insert(starter)}>
             {`${starter.replace(/[\s–-]+$/, "")}…`}
-          </Chip>
+          </PanelCapsule>
         ))}
       </div>
     </div>

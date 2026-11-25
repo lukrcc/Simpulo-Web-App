@@ -306,7 +306,7 @@ export function BarCategories({ label, themesLabel, all, value, onSelect, onSele
         <span className="truncate">{chosen ?? themesLabel}</span>
       </button>
       <HeaderPanel id="themes-menu" open={open} onClose={close} label={label} handlers={handlers.panel} triggerRef={rootRef} panelRef={panelRef}>
-        <div role="menu" aria-label={label} onKeyDown={move} className="grid grid-cols-6 gap-x-8 gap-y-7">
+        <div role="menu" aria-label={label} onKeyDown={move} className="grid grid-cols-[repeat(6,auto)] justify-between gap-x-8 gap-y-7">
           {columns.map((c, col) => (
             <div key={c.id} className="flex min-w-0 flex-col items-start gap-2">
               <button type="button" role="menuitem" tabIndex={open ? 0 : -1} data-theme-link="" data-col={col} data-row={0} onClick={() => (close(), onSelect(value.length === 1 && value[0] === c.id && !sub ? null : c.id))} className={cn(link, "text-body font-semibold text-ink hover:underline", value.includes(c.id) && !sub && "underline underline-offset-4")}>

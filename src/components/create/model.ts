@@ -73,7 +73,9 @@ export const DETAIL_STEPS = ["title", "photos", "why", "dates", "accommodation",
  * has no answer to check later.
  */
 export const SOURCE_STEP = "source" as const;
-export const STEPS = [SOURCE_STEP, ...REQUIRED_STEPS, EXTRAS_STEP, INVITE_STEP, "ready", "details", ...DETAIL_STEPS] as const;
+/** The new flow's own steps (config/open-house-steps.ts): the place's details after "I have a place", "When?" and "Price" on their own. */
+export const NEW_FLOW_ONLY = ["placeSave", "when", "price"] as const;
+export const STEPS = [SOURCE_STEP, ...REQUIRED_STEPS, ...NEW_FLOW_ONLY, EXTRAS_STEP, INVITE_STEP, "ready", "details", ...DETAIL_STEPS] as const;
 export type StepKey = (typeof STEPS)[number];
 export type DetailKey = (typeof DETAIL_STEPS)[number];
 
@@ -711,8 +713,11 @@ export function stepErrors(step: StepKey, context: ValidationContext): FieldErro
     case "vibe":
       if (form.customVibe !== null ? !form.customVibe.trim() : !form.vibe) errors.vibe = { key: "vibe" };
       break;
-    case "where": {
-      if (!form.region.trim()) errors.region = { key: "region" };
+    case "where":
+    case "when": {
+      // A new House asks "Where?" and "When?" one at a time; editing keeps them together.
+      if (step !== "when" && !form.region.trim()) errors.region = { key: "region" };
+      if (step === "where" && !editing) break;
       if (form.datesMode === "exact") Object.assign(errors, datesErrors(context));
       else if (!form.month) errors.month = { key: "month" };
       // A window of the host's own place lies inside their rental period.
@@ -725,6 +730,8 @@ export function stepErrors(step: StepKey, context: ValidationContext): FieldErro
     }
     case "place":
       if (!form.placeMode) errors.placeMode = { key: "placeMode" };
+      break;
+    case "placeSave":
       // A place to save: the rental period, the rent and the host's statement that they may host guests there.
       if (form.placeMode === "set" && form.savePlace && !form.placeId) {
         if (!form.rentFrom || !form.rentTo || form.rentTo <= form.rentFrom) errors.rentPeriod = { key: "rentPeriod" };
@@ -740,6 +747,12 @@ export function stepErrors(step: StepKey, context: ValidationContext): FieldErro
       if (!(form.spotsTotal >= Math.max(SPOTS_MIN, minSpots))) errors.spotsTotal = { key: "spots", min: Math.max(SPOTS_MIN, minSpots) };
       // The host lives there and counts as one of the crew: at most the free rooms + the host.
       else if (form.placeId && place && form.spotsTotal > maxCrewOf(place)) errors.spotsTotal = { key: "spotsRooms", max: maxCrewOf(place) };
+      // A new House asks for the price on its own step.
+      if (!editing) break;
+      Object.assign(errors, stepErrors("price", context));
+      break;
+    }
+    case "price": {
       // The optional host fee: at most the share itself.
       const hostFee = Math.round(Number(form.hostFee));
       const feeBase = hostFeeBase(form, editing);
@@ -801,8 +814,8 @@ export function stepErrors(step: StepKey, context: ValidationContext): FieldErro
 }
 
 /** Where a form with some answers starts: the first required step not done yet, or "Ready to open?". */
-export function firstOpenStep(context: ValidationContext): StepKey {
-  return REQUIRED_STEPS.find((key) => Object.keys(stepErrors(key, context)).length > 0) ?? "ready";
+export function firstOpenStep(context: ValidationContext, steps: readonly StepKey[] = REQUIRED_STEPS): StepKey {
+  return steps.find((key) => Object.keys(stepErrors(key, context)).length > 0) ?? "ready";
 }
 
 // ─── Draft ─────────────────────────────────────────────────────────────────────

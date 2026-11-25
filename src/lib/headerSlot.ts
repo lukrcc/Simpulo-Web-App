@@ -22,24 +22,3 @@ function subscribe(listener: () => void) {
 export function useHeaderSlot(): HTMLElement | null {
   return useSyncExternalStore(subscribe, () => slot, () => null);
 }
-
-// The admin's search (⌘K) lives in the header too: SiteHeader renders this slot on /admin, AdminFrame portals AdminCommandSearch into it –
-// inside the admin's German provider.
-let adminSlot: HTMLElement | null = null;
-const adminListeners = new Set<() => void>();
-
-export function setAdminHeaderSlot(element: HTMLElement | null) {
-  if (element === adminSlot) return;
-  adminSlot = element;
-  for (const listener of adminListeners) listener();
-}
-
-function subscribeAdmin(listener: () => void) {
-  adminListeners.add(listener);
-  return () => adminListeners.delete(listener);
-}
-
-/** The header's admin-search slot (null outside /admin and on the server). */
-export function useAdminHeaderSlot(): HTMLElement | null {
-  return useSyncExternalStore(subscribeAdmin, () => adminSlot, () => null);
-}

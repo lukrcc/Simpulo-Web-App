@@ -1,13 +1,12 @@
 "use client";
 
-import { INVITE_POLICY } from "@/config/policies";
+
 import { cleanSpace } from "@/config/space";
 import { useDepthChoice } from "@/config/platform";
 import { depthLocked } from "@/lib/depth";
 import { suggestedDepth } from "@/config/depth";
-import { LegalLine } from "@/components/layout/LegalLine";
 import Link from "next/link";
-import { Eye, Link2, QrCode, UserPlus } from "lucide-react";
+import { Eye, UserPlus } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMessages, useTranslations } from "next-intl";
 import { Suspense, useEffect, useEffectEvent, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode } from "react";
@@ -26,6 +25,9 @@ import {
   LookingForDetail,
   PhotosDetail,
   PlaceStep,
+  PlaceSaveStep,
+  PeopleStep,
+  PriceStep,
   KindStep,
   DepthStep,
   ProfileNote,
@@ -88,11 +90,14 @@ import {
   type StepKey,
 } from "@/components/create/model";
 import { useSearchDemand } from "@/components/create/SearchDemandHint";
-import { InvitePage } from "@/components/InviteSheet";
-import { canInvite } from "@/lib/invites";
+import { OpenedInvite } from "@/components/InviteSheet";
+
 import { useDismiss } from "@/components/explore/Filters";
 import { useHostShare } from "@/components/share/HostShareTools";
 import { BuildingCard } from "@/components/create/BuildingCard";
+import { OPEN_HOUSE_STEPS, SECONDS_PER_STEP, openHouseSteps } from "@/config/open-house-steps";
+import { PanelCapsule } from "@/components/ui/PanelCapsule";
+import { useViewerPrice } from "@/components/ui/PriceLine";
 import { HouseCard } from "@/components/HouseCard";
 import { PayoutSetupSheet } from "@/components/payouts/PayoutSetup";
 import { usePayoutAccount } from "@/lib/payments/hooks";
@@ -101,7 +106,7 @@ import { Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
 import { useFeatureFlag } from "@/lib/featureFlags";
 import { useFormat } from "@/i18n/format";
-import { accommodationOf } from "@/config/accommodation";
+import { CATEGORY_IMAGE, TYPE_IMAGE, accommodationOf, type AccommodationCategoryId } from "@/config/accommodation";
 import { getCrew, getCurrentUser, houseInviteUrl, isCrewMember, useStore, type PersonEntry } from "@/lib/store";
 import { yourPeople } from "@/lib/yourPeople";
 import { maxCrewOf, placeById, placesOf, windowsOf } from "@/lib/ownPlaces";
@@ -158,10 +163,9 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   const details = detailsFor(hostPremium);
   // Social depth (config/platform.ts): its step only while the choice is on; fixed after the first booking (lib/depth.ts).
   const depthOn = useDepthChoice();
-  const flowSteps0 = flowRequired(REQUIRED_STEPS, depthOn);
-  const requiredSteps: readonly StepKey[] = editing ? flowRequired(EDIT_REQUIRED_STEPS, depthOn) : flowSteps0;
+  // A new House: one step, one question (config/open-house-steps.ts) – which steps apply follows the answers ("I have a place", one's own place).
+  const newFlowOf = (f: FormState) => openHouseSteps({ placeMode: f.placeMode, ownPlace: Boolean(f.placeId), depthOn }).map((s) => s.id as StepKey);
   const depthIsLocked = editing ? depthLocked(editing, store) : false;
-  const steps: StepKey[] = [...requiredSteps, ...details];
   /** Where an optional detail leads back to: the list when editing, "Ready to open?" for a new House. */
   const home: StepKey = editing ? "details" : "ready";
   const preferredCurrency = usePreferredCurrency();
@@ -171,7 +175,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   const [starters] = useState(() => Object.values(messages.create.starters).flatMap((s) => s.lookingFor));
   const me = getCurrentUser(store);
   /** A link's answers count as done: the flow starts at the first step that isn't. */
-  const startFor = (filled: FormState) => firstOpenStep({ form: filled, me, minSpots, today: todayString(), starters, place: store.places.find((p) => p.id === filled.placeId) });
+  const startFor = (filled: FormState) => firstOpenStep({ form: filled, me, minSpots, today: todayString(), starters, place: store.places.find((p) => p.id === filled.placeId) }, newFlowOf(filled).filter((k) => k !== "ready"));
 
   // Coming back: straight into the flow, where it was left off. A link with its own answers asks which it'll be, right in the flow.
   const [draft] = useState(() => (restore && !editing ? readDraft() : null));
@@ -181,7 +185,18 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   const [continuing, setContinuing] = useState<string | null>(draft ? draft.savedAt : null);
   const [conflict, setConflict] = useState<Partial<FormState> | null>(draft && prefill ? prefill : null);
   const [form, setForm] = useState<FormState>(() => (editing ? formFromStay(editing) : draft ? draft.form : { ...initialForm, ...prefill }));
-  const [step, setStep] = useState<StepKey>(() => (editing ? "details" : draft ? startFor(draft.form) : prefill ? startFor({ ...initialForm, ...prefill }) : "vibe"));
+  // Editing from Manage's "Your House page" list (?detail=space | extras): straight to that part, its button back to the list.
+  const [detailParam] = useState<StepKey | null>(() => {
+    if (!editing || typeof window === "undefined") return null;
+    const detail = new URLSearchParams(window.location.search).get("detail");
+    return detail === "space" ? "space" : detail === "extras" ? EXTRAS_STEP : null;
+  });
+  const [step, setStep] = useState<StepKey>(() => (editing ? (detailParam ?? "details") : draft ? startFor(draft.form) : prefill ? startFor({ ...initialForm, ...prefill }) : "vibe"));
+  // The steps of this form (a new House: the flow; editing: its own list), and the optional details behind them.
+  const flowAll = newFlowOf(form);
+  const flowSteps0: StepKey[] = flowAll.filter((k) => k !== "ready");
+  const requiredSteps: readonly StepKey[] = editing ? flowRequired(EDIT_REQUIRED_STEPS, depthOn) : flowSteps0;
+  const steps: StepKey[] = [...requiredSteps, ...details];
   const [templates, setTemplates] = useState<HouseTemplate[]>(() => (restore && !editing ? readTemplates() : []));
   // Opened: the success screen, and how many heard first.
   const [openedId, setOpenedId] = useState<string | null>(null);
@@ -189,7 +204,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   // "Invite by link": the token of the link made with the House – copied from the success screen.
   const [linkToken, setLinkToken] = useState<string | null>(null);
   // A required answer opened from the list (editing): its button leads back to the list.
-  const [fromList, setFromList] = useState(false);
+  const [fromList, setFromList] = useState(detailParam !== null);
   // "Open again" (/create?again=<House>): applied once the user and that House are known (the user is restored
   // after hydration), over any draft.
   const [againId, setAgainId] = useState<string | null>(null);
@@ -214,7 +229,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
     // "Add a host fee" (Payouts, share hosts): straight to "Crew and price", the host fee field focused.
     if (params.get("step") === "price" && !editing) {
       pendingFocus.current = fieldId("hostFee");
-      setStep("crew");
+      setStep("price");
     }
     const linked = prefillOf(params.toString(), todayString());
     if (linked && !prefillApplied) {
@@ -440,60 +455,63 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
       if (!place) return open("vibe");
       const filled = placeForm(place, lastWindowOf(place.id));
       const target = startFor(filled);
-      setForm(target === "crew" ? { ...filled, ...placeRent(filled, today, place) } : filled);
+      setForm(target === "price" ? { ...filled, ...placeRent(filled, today, place) } : filled);
       return open(target);
     }
-    // A new House: "About the space" (optional) right after "Where and when?", then on as before.
-    if (!editing && !fromList && step === "where") return open("space");
-    if (!editing && !fromList && step === "space") return goOn("where");
-    if (isDetail(step) || fromList) {
+    if (isDetail(step) || fromList || step === EXTRAS_STEP) {
       setFromList(false);
       return open(home);
     }
-    // A new House: after the cover the optional "Make it stand out", then the review.
-    if (step === "cover" && !editing) return open(EXTRAS_STEP);
-    if (step === EXTRAS_STEP) return open(hasInviteStep ? INVITE_STEP : "ready");
-    if (step === INVITE_STEP) return open("ready");
     goOn(step);
   }
 
-  /** On to the required step after `from` (with what entering "Crew and price" fills in). */
+  /** On to the step after `from` in the flow (with what entering "Price" fills in). */
   function goOn(from: StepKey) {
-    const following = flowSteps0[flowSteps0.indexOf(from as (typeof REQUIRED_STEPS)[number]) + 1] ?? "ready";
-    // A window of the host's own place: the place and its kind are known – straight on to "Where and when?".
-    const target: StepKey = form.placeId && (following === "place" || following === "kind") ? "where" : following;
-    // Into "Crew and price" with a kind of place and no budget yet: the budget starts from its price level (changeable).
+    const following = flowSteps0[flowSteps0.indexOf(from) + 1] ?? "ready";
+    // Into "Price" with a kind of place and no budget yet: the budget starts from its price level (changeable).
     // A place with a rent behind it ("Host from your place"): the price from the rent, pro rata by nights (lib/price.ts).
-    if (target === "crew") patch({ ...kindBudget(form, previewStay.currency), ...placeRent(form, today, ownPlace) });
-    open(target);
+    if (following === "price") patch({ ...kindBudget(form, previewStay.currency), ...placeRent(form, today, ownPlace) });
+    open(following);
   }
 
+  /** Back one step – every answer stays. */
   function back() {
-    if (!editing && !fromList && step === "space") return open("where");
-    if (!editing && !fromList && step === flowSteps0[flowSteps0.indexOf("where") + 1]) return open("space");
-    if (isDetail(step) || fromList) {
+    if (isDetail(step) || fromList || step === EXTRAS_STEP) {
       setFromList(false);
       return open(home);
     }
-    if (step === "ready") return open(editing ? "cover" : hasInviteStep ? INVITE_STEP : EXTRAS_STEP);
-    if (step === INVITE_STEP) return open(EXTRAS_STEP);
-    if (step === EXTRAS_STEP) return open("cover");
-    if (step === "vibe" && hasSource) return open(SOURCE_STEP);
-    const previous = flowSteps0[flowSteps0.indexOf(step as (typeof REQUIRED_STEPS)[number]) - 1];
-    open(form.placeId && (previous === "place" || previous === "kind") ? "vibe" : previous);
+    if (step === "ready") return open(editing ? "cover" : (flowSteps0.at(-1) ?? "vibe"));
+    const i = flowSteps0.indexOf(step);
+    if (i <= 0) return hasSource ? open(SOURCE_STEP) : undefined;
+    open(flowSteps0[i - 1]);
   }
 
   /** The card needs a face photo and a name – publishing waits for them (logged out: checked after login). */
   const profileReady = !me || (Boolean(me.photos[0]) && me.name.trim() !== "");
 
   /** Enter moves on – not from a textarea, a button, or an open suggestion list. */
-  function onKeyDown(e: KeyboardEvent<HTMLElement>) {
+  function onKeyDown(e: { key: string; defaultPrevented: boolean; shiftKey: boolean; target: EventTarget | null; preventDefault: () => void }) {
     if (e.key !== "Enter" || e.defaultPrevented || e.shiftKey || step === "details" || step === "ready") return;
     const target = e.target as HTMLElement;
-    if (target.closest("textarea, button, a, [role=switch]")) return;
+    // Not from a sheet or dialog over the page (the place search's list, "More places").
+    if (target.closest?.("[role=dialog]")) return;
+    // A picked choice (a capsule, an option card, a tile) is an answer: Enter goes on. Other buttons and links keep their own Enter.
+    const choice = target.closest("button[aria-pressed], button[role=radio]");
+    if (!choice && target.closest("textarea, button, a, [role=switch]")) return;
     e.preventDefault();
     next();
   }
+
+  // Enter = Next from anywhere on the page – Safari doesn't focus a clicked button, so the key lands on the body, not in the question.
+  const onWindowKey = useEffectEvent((e: globalThis.KeyboardEvent) => {
+    if (openedId) return;
+    onKeyDown(e);
+  });
+  useEffect(() => {
+    const listener = (e: globalThis.KeyboardEvent) => onWindowKey(e);
+    window.addEventListener("keydown", listener);
+    return () => window.removeEventListener("keydown", listener);
+  }, []);
 
   const previewStay: Stay = {
     ...input(),
@@ -516,6 +534,8 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   const demand = useSearchDemand({ city: form.city, region: form.region, startDate: previewStay.startDate, endDate: previewStay.endDate, vibe: form.vibe });
   const themeName = form.customVibe?.trim() || (form.vibe ? format.vibe(form.vibe) : "");
   const tFlow = useTranslations("create.flow");
+  const tCommon = useTranslations("common");
+  const viewerPrice = useViewerPrice(previewStay);
   const share = placeShare(form);
   const tKind = useTranslations("create.kind");
   // "Host from your place": the rental period on "Where and when?", what the price came from on "Crew and price".
@@ -528,6 +548,10 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   // "Villa" – or "Picked with the crew" for "Not sure yet".
   const kindLine = kindPlace ? kindPlace.type.label.charAt(0).toUpperCase() + kindPlace.type.label.slice(1) : form.accommodationCategory === "unsure" ? tKind("unsureLine") : "";
   const placeLine = form.placeMode === "set" ? (share ? tFlow("placeSet", { total: format.price(share.total, previewStay.currency) }) : tFlow("placeSetTitle")) : form.placeMode === "together" ? tFlow("placeTogether") : "";
+  // Until there's a cover, the preview shows what's chosen: the picture of the kind of place, else a picture of the theme (and the place,
+  // once there is one) from the Houses – never an empty surface once there's an answer.
+  const kindCategory = kindPlace?.category.id ?? (form.accommodationCategory && form.accommodationCategory !== "unsure" ? form.accommodationCategory : "");
+  const previewImage = (form.accommodationType && TYPE_IMAGE[form.accommodationType]) || (kindCategory && CATEGORY_IMAGE[kindCategory as AccommodationCategoryId]) || (form.vibe && form.customVibe === null ? suggestions[0] : undefined) || undefined;
   // The preview of a new House builds itself up from the answers; editing shows the House as it is.
   const card = editing ? (
     <HouseCard stay={previewStay} host={me} crew={me ? [me] : []} preview photoPlaceholder={t("photoPlaceholder")} />
@@ -540,8 +564,10 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
       showMeta={form.region.trim() !== "" || form.month !== ""}
       showDates={form.month !== ""}
       showPrice={form.placeMode === "set" ? share !== null : form.placeMode === "together" && (form.budgetMin !== "" || form.budgetTbd)}
-      showCrew={form.placeMode !== ""}
-      placeLabel={form.placeMode === "set" ? tFlow("cardBooked") : form.placeMode === "together" ? tFlow("cardTogether") : null}
+      showCrew
+      fallbackImage={previewImage}
+      // "Place booked" only with a place of one's own; nothing otherwise ("est." says the price may move).
+      placeLabel={form.placeMode === "set" ? tFlow("cardBooked") : null}
       kindLabel={kindLine || null}
     />
   );
@@ -563,14 +589,18 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
     <>
       {step === SOURCE_STEP && <SourceStep {...stepProps} places={myPlaces} windows={windowCounts} />}
       {step === "vibe" && <VibeStep {...stepProps} />}
-      {step === "place" && <PlaceStep {...stepProps} currency={previewStay.currency} />}
+      {step === "place" && <PlaceStep {...stepProps} />}
+      {step === "placeSave" && <PlaceSaveStep {...stepProps} currency={previewStay.currency} />}
+      {step === "when" && <WhereStep {...stepProps} today={today} editing={false} rentalNote={rentalNote} part="when" />}
+      {step === "price" && <PriceStep {...stepProps} currency={previewStay.currency} rentNote={rentNote} previewStay={previewStay} hostFees={hostPremium} />}
       {step === "kind" && <KindStep {...stepProps} />}
       {step === "depth" && depthOn && <DepthStep {...stepProps} locked={depthIsLocked} />}
       {step === EXTRAS_STEP && <ExtrasStep {...stepProps} />}
       {step === "space" && <SpaceStep {...stepProps} />}
-      {step === "where" && <WhereStep {...stepProps} today={today} editing={Boolean(editing)} rentalNote={rentalNote} />}
+      {step === "where" && <WhereStep {...stepProps} today={today} editing={Boolean(editing)} rentalNote={rentalNote} part={editing ? "both" : "where"} />}
       {step === "cover" && <CoverStep {...stepProps} suggestions={suggestions} />}
-      {step === "crew" && <CrewStep {...stepProps} currency={previewStay.currency} locked={locked} minSpots={minSpots} editing={Boolean(editing)} rentNote={rentNote} maxSpots={form.placeId && ownPlace ? maxCrewOf(ownPlace) : undefined} />}
+      {step === "crew" && !editing && <PeopleStep {...stepProps} minSpots={minSpots} maxSpots={form.placeId && ownPlace ? maxCrewOf(ownPlace) : undefined} />}
+      {step === "crew" && editing && <CrewStep {...stepProps} currency={previewStay.currency} locked={locked} minSpots={minSpots} editing={Boolean(editing)} rentNote={rentNote} maxSpots={form.placeId && ownPlace ? maxCrewOf(ownPlace) : undefined} />}
       {step === "title" && <TitleDetail {...stepProps} titleMax={titleMax} />}
       {step === "photos" && <PhotosDetail {...stepProps} />}
       {step === "why" && <WhyDetail {...stepProps} />}
@@ -602,21 +632,19 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
               setFromList(true);
               open(key);
             }}
+            // A calm list, each row with "Edit" back to its step (and back here with "Done"). What's optional comes after opening, in Manage.
             rows={[
-              { key: "theme", label: tReady("theme"), value: themeName, step: "vibe" },
-              { key: "place", label: tReady("place"), value: placeLine, step: "place" },
-              { key: "kind", label: tReady("kind"), value: kindLine, step: "kind" },
-              { key: "where", label: tReady("where"), value: placeAndTime, step: "where" },
-              { key: "crew", label: tReady("crew"), value: format.people(form.spotsTotal), step: "crew" },
-              { key: "price", label: tReady("price"), value: format.priceLabel(previewStay), step: "crew" },
-              ...(depthOn ? [{ key: "depth", label: tReady("depth"), value: tDepth(`${form.depth ?? suggestedDepth(form.vibe || null)}.title`), step: "depth" as const }] : []),
+              { key: "theme", label: tReady("theme"), value: themeName, step: "vibe" as StepKey },
+              ...(form.placeId ? [] : [{ key: "place", label: tReady("place"), value: placeLine, step: "place" as StepKey }]),
+              { key: "where", label: tReady("where"), value: format.placeLabel(previewStay), step: "where" as StepKey },
+              { key: "when", label: tReady("when"), value: form.datesMode === "exact" || form.monthEnd ? format.stayDatesLong(previewStay) : form.month ? monthName(form.month) : "", step: "when" as StepKey },
+              ...(form.placeId ? [] : [{ key: "kind", label: tReady("kind"), value: kindLine, step: "kind" as StepKey }]),
+              { key: "crew", label: tReady("crew"), value: format.people(form.spotsTotal), step: "crew" as StepKey },
+              { key: "price", label: tReady("price"), value: `${viewerPrice.label}${viewerPrice.estimated ? ` ${tCommon("estimated")}` : ""}`, step: "price" as StepKey },
+              { key: "cover", label: tReady("cover"), value: form.title.trim(), step: "cover" as StepKey },
+              ...(depthOn ? [{ key: "depth", label: tReady("depth"), value: tDepth(`${form.depth ?? suggestedDepth(form.vibe || null)}.title`), step: "depth" as StepKey }] : []),
             ]}
           />
-          {/* One line instead of a list: what's optional, how much of it is there, and the way to it. */}
-          <button type="button" onClick={() => open(EXTRAS_STEP)} className="flex w-full items-center justify-between gap-4 rounded-2xl py-2 text-left">
-            <span className="text-body text-muted">{tFlow("optionalLine", { count: extrasAdded(form), total: EXTRAS.length })}</span>
-            <span className="text-body font-semibold text-ink">{tFlow("addDetails")} →</span>
-          </button>
         </div>
       )}
     </>
@@ -626,10 +654,17 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   const stepValid = Object.keys(currentErrors).length === 0;
   const canGoBack = step !== SOURCE_STEP && (step !== "vibe" || hasSource) && !(editing && step === "details");
   const onList = step === "details";
-  // A new House: the progress bar over the full width under the header (the six steps and the review).
-  const flowSteps: StepKey[] = [...flowSteps0.flatMap((k): StepKey[] => (k === "where" ? ["where", "space"] : [k])), EXTRAS_STEP, ...(hasInviteStep ? [INVITE_STEP] : []), "ready"];
+  // A new House: the thin line under the header (the share of steps done) and, small above the question, "The place · Step 4 of 10 ·
+  // about 2 min left" (the steps left × SECONDS_PER_STEP). "I have a place" adds its step to the count.
+  const flowSteps: StepKey[] = flowAll;
   const flowIndex = flowSteps.indexOf(step);
-  const progress = !editing && flowIndex >= 0 ? (flowIndex + 1) / flowSteps.length : null;
+  const progress = !editing && flowIndex >= 0 ? flowIndex / Math.max(1, flowSteps.length - 1) : null;
+  const flowStep = OPEN_HOUSE_STEPS.find((s) => s.id === step);
+  const secondsLeft = (flowSteps.length - flowIndex) * SECONDS_PER_STEP;
+  const stepLine =
+    !editing && flowStep && flowIndex >= 0
+      ? tFlow("stepLine", { part: tFlow(`parts.${flowStep.part}`), current: flowIndex + 1, total: flowSteps.length, left: secondsLeft < 60 ? tFlow("underMinute") : tFlow("minLeft", { count: Math.round(secondsLeft / 60) }) })
+      : null;
   // Phones: the fixed Next stands on the keyboard (--vv-kb).
   useVisualViewport(true);
   const actions = onList ? (
@@ -661,7 +696,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
           {tFlow("skip")}
         </Button>
       )}
-      {(step === EXTRAS_STEP || step === INVITE_STEP) && (
+      {!editing && (step === EXTRAS_STEP || step === INVITE_STEP) && (
         <Button variant="tertiary" onClick={() => (step === EXTRAS_STEP && hasInviteStep ? open(INVITE_STEP) : open("ready"))}>
           {tFlow("skip")}
         </Button>
@@ -684,10 +719,11 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
   // No box: the question lies free on the page. Each new one cross-fades in (200ms; the key restarts it). Back and Next always sit in one
   // row at the bottom of the column – level with the card's bottom edge while the question is shorter than the card.
   const question = (
-    <section onKeyDown={onKeyDown} className="flex flex-col split:min-h-(--create-card-h)">
+    <section className="flex flex-col split:min-h-(--create-card-h)">
       <div key={step} className="animate-[fade-in_200ms_ease-out] motion-reduce:animate-none">
-        <h1 className="text-h1 text-ink">{step === INVITE_STEP && form.againFrom ? t("questions.inviteAgain") : t(`questions.${step}`)}</h1>
-        <div ref={bodyRef} className="mt-8">
+        {stepLine && <p className="mb-2 text-small text-muted">{stepLine}</p>}
+        <h1 className="text-h1 text-ink">{step === INVITE_STEP && form.againFrom ? t("questions.inviteAgain") : t(`questions.${(!editing && flowStep ? flowStep.title : step) as "vibe"}`)}</h1>
+        <div ref={bodyRef} className="mt-6">
           {body}
         </div>
         {step === "ready" && (
@@ -696,24 +732,27 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
             {/* Voluntary: never a lock on publishing, only why it helps. */}
             {me && !me.verified && (
               <p className="text-small text-muted">
-                {tVerify.rich("createHint", { link: (chunks) => <Link href="/settings#payments" className="font-semibold text-ink underline-offset-4 hover:underline">{chunks}</Link> })}
+                {tVerify.rich("createHint", { link: (chunks) => <Link href="/settings/payments" className="font-semibold text-ink underline-offset-4 hover:underline">{chunks}</Link> })}
               </p>
             )}
           </div>
         )}
       </div>
-      {/* Phones: Back and Next fixed at the bottom – over the safe area and, with the keyboard open, right on it (--vv-kb). */}
-      <div className="mt-auto flex flex-wrap items-center gap-3 pt-10 max-md:fixed max-md:inset-x-0 max-md:bottom-(--vv-kb,0px) max-md:z-30 max-md:flex-nowrap max-md:border-t max-md:border-ink/8 max-md:bg-(--bg) max-md:px-(--page-margin) max-md:pb-[max(12px,var(--safe-bottom))] max-md:pt-3">
-        {canGoBack && (
-          <Button variant="tertiary" onClick={back} className="-ml-4">
-            {t("back")}
-          </Button>
-        )}
-        <span className="flex-1" />
-        {actions}
+      {/* Back and Next: a fixed bar at the bottom on every width (CLAUDE.md "Open a House – gemeinsame UI-Regel"), always at the same place –
+          the page's tone, no line; its buttons on the question's column. Phones: over the safe area and, with the keyboard open, right on it. */}
+      <div data-create-bar className="fixed inset-x-0 bottom-(--vv-kb,0px) z-30 bg-(--bg) pb-[max(12px,var(--safe-bottom))] pt-3 md:pb-4 md:pt-4">
+        <div className="mx-auto w-[min(100%-2*var(--page-margin),1200px)] md:max-split:w-[min(100%-2*var(--page-margin),640px)] split:grid split:grid-cols-[62fr_38fr] split:gap-16">
+          <div className="flex flex-nowrap items-center gap-3">
+            {canGoBack && (
+              <Button variant="tertiary" onClick={back} className="-ml-4">
+                {t("back")}
+              </Button>
+            )}
+            <span className="flex-1" />
+            {actions}
+          </div>
+        </div>
       </div>
-      {/* No footer in the focus mode: the legal line under Back/Next. */}
-      <LegalLine className="mt-6" />
     </section>
   );
 
@@ -737,6 +776,7 @@ function CreateWizard({ restore, editing }: { restore: boolean; editing?: Stay }
         {progress !== null ? tFlow("progress", { current: flowIndex + 1, total: flowSteps.length }) : ""}
       </span>
       <CreateLayout
+        bar
         aside={
           <>
             <div className={CARD_BOX}>{card}</div>
@@ -789,16 +829,16 @@ const CARD_BOX = "mx-auto w-[min(100%,360px)]";
  * both vertically centred in the area under the header. The card is sticky at the same place in every step; only the left side changes.
  * Under 1100px one column, the card behind "Preview".
  */
-function CreateLayout({ aside, children }: { aside: ReactNode; children: ReactNode }) {
+function CreateLayout({ aside, children, bar = false }: { aside: ReactNode; children: ReactNode; /** The steps: room for the fixed Back / Next bar */ bar?: boolean }) {
   return (
     <div
       // Phones: room under the last line for the fixed Back / Next bar. Tablet: one centred column, at most 640px (the preview behind "Preview").
-      className="mx-auto w-[min(100%-2*var(--page-margin),1200px)] pb-10 pt-6 max-md:pb-32 md:max-split:w-[min(100%-2*var(--page-margin),640px)] split:grid split:grid-cols-[62fr_38fr] split:gap-16 split:py-0"
-      style={{ ["--create-card-h" as string]: `${(CARD_W * 5) / 4}px` }}
+      className="create-flow mx-auto w-[min(100%-2*var(--page-margin),1200px)] pb-32 pt-6 md:max-split:w-[min(100%-2*var(--page-margin),640px)] split:grid split:grid-cols-[62fr_38fr] split:gap-16 split:py-0 split:pb-(--create-bar-h)"
+      style={{ ["--create-card-h" as string]: `${(CARD_W * 5) / 4}px`, ["--create-bar-h" as string]: bar ? "76px" : "0px" }}
     >
-      <div className="flex min-w-0 flex-col justify-center split:min-h-[calc(100dvh-var(--header-total)-16px)] split:py-10">{children}</div>
+      <div className="flex min-w-0 flex-col justify-center split:min-h-[calc(100dvh-var(--header-total)-16px-var(--create-bar-h))] split:py-10">{children}</div>
       <aside className="hidden split:block">
-        <div className="sticky top-[calc(var(--header-total)+16px)] flex h-[calc(100dvh-var(--header-total)-16px)] items-center justify-center">
+        <div className="sticky top-[calc(var(--header-total)+16px)] flex h-[calc(100dvh-var(--header-total)-16px-var(--create-bar-h))] items-center justify-center">
           <div className="w-full">{aside}</div>
         </div>
       </aside>
@@ -889,39 +929,9 @@ function OpenedScreen({ stay, notified, host, form, linkToken, preselect }: { st
       // The clipboard can be refused; nothing else to do.
     }
   }
-  const { copy, story, busy } = useHostShare(stay);
+  const { story, busy } = useHostShare(stay);
   const [saved, setSaved] = useState(false);
-  const tInvite = useTranslations("invite");
-  // First "Fill your House": the invite sheet as a page (Your people, Saved, who's in for it, search, the link) – then the ways to share.
-  const [filling, setFilling] = useState(true);
-  const today = new Date().toISOString().slice(0, 10);
-  if (filling && canInvite(store, stay, store.currentUserId, today)) {
-    return (
-      <CreateLayout
-        aside={
-          <div className={CARD_BOX}>
-            <HouseCard stay={stay} host={host} crew={host ? [host] : []} preview />
-          </div>
-        }
-      >
-        <div data-flow-done className="question-in">
-          <InvitePage
-            stay={stay}
-            preselect={preselect}
-            onDone={() => setFilling(false)}
-            head={
-              <div>
-                <p className="text-eyebrow uppercase text-ink/55">{tInvite("fillLive")}</p>
-                <h1 className="mt-2 text-h1 text-ink">{tInvite("fillTitle")}</h1>
-                <p className="mt-3 max-w-[560px] text-body-lg text-muted">{tInvite("fillText", { hours: INVITE_POLICY.inviteHoldHours })}</p>
-              </div>
-            }
-          />
-          <LegalLine className="mt-6" />
-        </div>
-      </CreateLayout>
-    );
-  }
+  // ONE last page (CLAUDE.md "Open a House Teil 2"): "Your House is open." – share, spots for friends, your people – and the way on.
   return (
     <CreateLayout
       aside={
@@ -930,52 +940,52 @@ function OpenedScreen({ stay, notified, host, form, linkToken, preselect }: { st
         </div>
       }
     >
-      {/* The same 62 : 38 page as the steps, vertically centred: the title, a sentence, the two ways to share, then the text links. */}
-      <div data-flow-done className="question-in">
-        <section>
-          <h1 className="text-h1 text-ink">{t("title")}</h1>
-          <p className="mt-3 max-w-[560px] text-body-lg text-muted">{t("text")}</p>
-          {notified > 0 && <p className="mt-3 text-body-lg font-semibold text-ink">{t("notified", { count: notified })}</p>}
-          {/* Phones: the card under the sentence (the side column is hidden there). */}
-          <div className={cn(CARD_BOX, "mt-8 split:hidden")}>
-            <HouseCard stay={stay} host={host} crew={host ? [host] : []} preview />
-          </div>
-          {/* A host experience is paid to the host through Simpulo: payouts first (Stripe Connect). */}
-          {(stay.hostFeePerPerson ?? 0) > 0 && <OpenedPayouts />}
-          <div className="mt-8 flex flex-wrap items-center gap-3">
-            <Button size="md" disabled={busy !== null} onClick={copy}>
-              <Link2 aria-hidden />
-              {t("copy")}
-            </Button>
-            <Button variant="secondary" size="md" disabled={busy !== null} onClick={story}>
-              <QrCode aria-hidden />
-              {t("story")}
-            </Button>
-            {invite && (
-              <Button variant="secondary" size="md" onClick={copyInvite}>
-                <UserPlus aria-hidden />
+      <div data-flow-done className="question-in split:py-10">
+        <OpenedInvite
+          stay={stay}
+          preselect={preselect}
+          onStory={story}
+          storyBusy={busy !== null}
+          head={
+            <div>
+              <h1 className="text-h1 text-ink">{t("title")}</h1>
+              <p className="mt-3 max-w-[560px] text-body-lg text-muted">{t("text")}</p>
+              {notified > 0 && <p className="mt-3 text-body-lg font-semibold text-ink">{t("notified", { count: notified })}</p>}
+              {/* Phones: the card under the sentence (the side column is hidden there). */}
+              <div className={cn(CARD_BOX, "mt-8 split:hidden")}>
+                <HouseCard stay={stay} host={host} crew={host ? [host] : []} preview />
+              </div>
+              {/* A host experience is paid to the host through Simpulo: payouts first (Stripe Connect). */}
+              {(stay.hostFeePerPerson ?? 0) > 0 && <OpenedPayouts />}
+            </div>
+          }
+          extra={
+            invite ? (
+              <PanelCapsule onClick={copyInvite}>
+                <UserPlus aria-hidden className="size-4" />
                 {t("copyInvite")}
+              </PanelCapsule>
+            ) : undefined
+          }
+          links={
+            <>
+              <Button variant="tertiary" href={`/h/${stay.id}?tab=manage`}>
+                {t("yourHouses")}
               </Button>
-            )}
-          </div>
-          <div className="-ml-4 mt-8 flex flex-wrap items-center gap-2">
-            <Button
-              variant="tertiary"
-              disabled={saved}
-              onClick={() => {
-                saveTemplate(form, new Date());
-                setSaved(true);
-                showToast(t("templateSaved"));
-              }}
-            >
-              {t("saveTemplate")}
-            </Button>
-            <Button variant="tertiary" href={`/h/${stay.id}?tab=manage`}>
-              {t("yourHouses")}
-            </Button>
-          </div>
-          <LegalLine className="mt-6" />
-        </section>
+              <Button
+                variant="tertiary"
+                disabled={saved}
+                onClick={() => {
+                  saveTemplate(form, new Date());
+                  setSaved(true);
+                  showToast(t("templateSaved"));
+                }}
+              >
+                {t("saveTemplate")}
+              </Button>
+            </>
+          }
+        />
       </div>
     </CreateLayout>
   );

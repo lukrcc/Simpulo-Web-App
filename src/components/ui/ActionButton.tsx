@@ -13,10 +13,10 @@ const primaryLook =
 const variants: Record<ButtonVariant, string> = {
   primary: primaryLook,
   // Light floor: a raised warm white; on a dark ground a 1px cream 25 % outline (--secondary-*).
-  secondary: "border border-(--secondary-edge) bg-(--secondary-bg) text-ink shadow-(--secondary-shadow) hover:-translate-y-px hover:bg-(--secondary-hover) disabled:translate-y-0 disabled:text-muted",
+  secondary: "border border-(--secondary-edge) bg-(--secondary-bg) text-ink shadow-(--secondary-shadow) hover:-translate-y-px hover:bg-(--secondary-hover) disabled:translate-y-0 disabled:border-transparent disabled:bg-ink/10 disabled:text-muted disabled:shadow-none",
   tertiary: "text-ink hover:bg-ink/6 disabled:text-muted disabled:hover:bg-transparent",
   // A filled quiet surface, no black: "Filters" and a list's "Show more" – there for the taking, never the main action.
-  soft: "bg-ink/7 text-ink hover:bg-ink/12 disabled:cursor-default",
+  soft: "bg-ink/7 text-ink hover:bg-ink/12 disabled:cursor-default disabled:bg-ink/10 disabled:text-muted",
   // On a photo, and only there.
   onImage: "on-image",
   // The stage's main action – the primary itself (on a stage it is cream with ink words by the tokens).

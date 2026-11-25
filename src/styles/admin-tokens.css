@@ -1334,3 +1334,85 @@ body:has(.admin-scope) {
 :root:not([data-theme="dark"]) .admin-scope [data-row-on] {
   box-shadow: var(--adm-card-shadow);
 }
+
+/* ── Kontrast für Auswahl (CLAUDE.md "Admin: Kontrast für Auswahl"): EINE Art Kapsel im ganzen Admin – Zeitraum, Aufgaben-Filter,
+   Themen-Leisten, Sortieren, Kapsel-Gruppen und der System · Hell · Dunkel-Streifen unten links. Kein Schatten, kein Rahmen. Gewählt
+   Graphit #1D1D1F mit weißer Schrift (Dunkel: #F2F2F7 mit dunkler Schrift), Medium; nicht gewählt ohne Fläche, grau #6E6E73 (4,6 : 1 auf
+   #F2F2F7), Hover eine leichte graue Fläche und die Schrift dunkel. Zahlen in der Kapsel in derselben Farbe, etwas leichter (Gewicht 400).
+   Die Farbpunkte vor den Filtern bleiben. Seitenleiste: nicht aktiv grau (Schrift und Symbol), aktiv eine leichte graue Fläche #E3E3E8,
+   Schrift dunkel Medium, Symbol in der Seitenfarbe. As specific as it must be (:root ×4) to win over every earlier capsule rule. ── */
+:root {
+  --adm-sel-bg: #1d1d1f;
+  --adm-sel-fg: #ffffff;
+  --adm-unsel-fg: #6e6e73;
+  --adm-unsel-hover-bg: rgb(0 0 0 / 0.05);
+  --adm-unsel-hover-fg: #1d1d1f;
+  --adm-nav-idle: #6e6e73;
+  --adm-nav-on-bg: #e3e3e8;
+  --adm-nav-on-fg: #1d1d1f;
+}
+:root[data-theme="dark"] {
+  --adm-sel-bg: #f2f2f7;
+  --adm-sel-fg: #1d1d1f;
+  --adm-unsel-fg: var(--text-muted);
+  --adm-unsel-hover-bg: rgb(255 255 255 / 0.08);
+  --adm-unsel-hover-fg: var(--text);
+  --adm-nav-idle: var(--text-muted);
+  --adm-nav-on-bg: rgb(255 255 255 / 0.1);
+  --adm-nav-on-fg: var(--text);
+}
+:root:root:root:root .admin-scope :is(.adm-cap, [data-capsule-group] > div > :is(button, a), [data-admin-theme-switch] > button) {
+  border-color: transparent;
+  background-color: transparent;
+  box-shadow: none;
+  color: var(--adm-unsel-fg);
+  font-weight: 500;
+}
+:root:root:root:root .admin-scope :is(.adm-cap, [data-capsule-group] > div > :is(button, a), [data-admin-theme-switch] > button):is(:hover, [data-open]):not(:disabled, [data-on], [aria-checked="true"], [aria-current="page"]) {
+  background-color: var(--adm-unsel-hover-bg);
+  color: var(--adm-unsel-hover-fg);
+}
+:root:root:root:root .admin-scope :is(.adm-cap[data-on], [data-capsule-group] > div > :is([aria-checked="true"], [aria-current="page"]), [data-admin-theme-switch] > button[aria-checked="true"]),
+:root:root:root:root .admin-scope :is(.adm-cap[data-on], [data-capsule-group] > div > :is([aria-checked="true"], [aria-current="page"]), [data-admin-theme-switch] > button[aria-checked="true"]):hover {
+  border-color: transparent;
+  background-color: var(--adm-sel-bg);
+  box-shadow: none;
+  color: var(--adm-sel-fg);
+  font-weight: 500;
+}
+:root:root:root:root .admin-scope :is(.adm-cap, [data-capsule-group] > div > :is(button, a)) .adm-cap-count {
+  color: inherit;
+  opacity: 1;
+  font-weight: 400;
+}
+/* The groups' tracks and the theme strip: no surface of their own. */
+:root:root:root:root .admin-scope :is([data-capsule-group], [data-admin-theme-switch]) {
+  background-color: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+/* The side list. */
+:root:root:root:root .admin-scope [data-admin-nav] nav a {
+  color: var(--adm-nav-idle);
+  font-weight: 400;
+  background-color: transparent;
+  box-shadow: none;
+}
+:root:root:root:root .admin-scope [data-admin-nav] nav a svg {
+  opacity: 1;
+}
+:root:root:root:root .admin-scope [data-admin-nav] nav a:hover:not([aria-current="page"]) {
+  background-color: var(--adm-unsel-hover-bg);
+  color: var(--adm-unsel-hover-fg);
+}
+:root:root:root:root .admin-scope [data-admin-nav] nav a[aria-current="page"],
+:root:root:root:root .admin-scope [data-admin-nav] nav a[aria-current="page"]:hover {
+  background-color: var(--adm-nav-on-bg);
+  box-shadow: none;
+  color: var(--adm-nav-on-fg);
+  font-weight: 500;
+}
+/* A chosen list row (Aufgaben and every list with detail): white, no shadow. */
+:root:root:root:root .admin-scope [data-row-on] {
+  box-shadow: none;
+}

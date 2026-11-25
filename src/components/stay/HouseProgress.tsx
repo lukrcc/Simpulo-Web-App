@@ -31,6 +31,8 @@ export interface Step {
   key: string;
   label: string;
   done: boolean;
+  /** How far the current step is ("1 of 4") – small under its word while it's the one in progress */
+  progress?: string;
 }
 
 /**
@@ -54,17 +56,16 @@ export function Stepper({ steps, label }: { steps: Step[]; label: string }) {
                   <Check className="size-3" strokeWidth={3} />
                 </span>
               )}
-              {state === "now" && (
-                <>
-                  <span className="progress-pulse absolute size-5 rounded-full bg-ink/25" />
-                  <span className="relative size-3.5 rounded-full bg-ink ring-[3px] ring-bg" />
-                </>
-              )}
+              {/* In progress: a ring (not filled – it mustn't look done), CLAUDE.md "House-Bereich – gemeinsame UI-Regel". */}
+              {state === "now" && <span className="size-4 rounded-full border-2 border-ink" />}
               {state === "later" && <span className="size-3 rounded-full border-2 border-ink/25" />}
             </span>
-            <span className={cn("shrink-0 text-small max-md:sr-only", state === "now" ? "font-semibold text-ink" : state === "done" ? "text-ink" : "text-muted")}>
-              {step.label}
-              <span className="sr-only"> · {t(`state.${state}`)}</span>
+            <span className={cn("flex shrink-0 flex-col text-small max-md:sr-only", state === "now" ? "font-semibold text-ink" : state === "done" ? "text-ink" : "text-muted")}>
+              <span>
+                {step.label}
+                <span className="sr-only"> · {t(`state.${state}`)}</span>
+              </span>
+              {state === "now" && <span className="text-small font-normal text-muted">{step.progress ?? t("stepOf", { current: i + 1, total: steps.length })}</span>}
             </span>
             {i < steps.length - 1 && <span aria-hidden className={cn("h-0.5 min-w-4 flex-1 rounded-full", step.done ? "bg-ink" : "bg-ink/15")} />}
           </li>
@@ -73,7 +74,7 @@ export function Stepper({ steps, label }: { steps: Step[]; label: string }) {
     </ol>
     {current >= 0 && (
       <p aria-hidden className="mt-2 text-small font-semibold text-ink md:hidden">
-        {steps[current].label}
+        {steps[current].label} <span className="font-normal text-muted">· {steps[current].progress ?? t("stepOf", { current: current + 1, total: steps.length })}</span>
       </p>
     )}
     </div>
@@ -83,7 +84,7 @@ export function Stepper({ steps, label }: { steps: Step[]; label: string }) {
 /** The one card under the stepper: what the current step is about and its action. At most 640px, left-aligned. */
 export function StepCard({ children, id }: { children: ReactNode; id?: string }) {
   return (
-    <section id={id} className="flex max-w-[640px] scroll-mt-[calc(var(--header-total)+24px)] flex-col gap-4 rounded-[20px] bg-(--surface) p-6">
+    <section id={id} className="flex max-w-[640px] scroll-mt-[calc(var(--header-total)+24px)] flex-col gap-4 rounded-[20px] bg-(--raised-plain,var(--surface)) p-6">
       {children}
     </section>
   );
@@ -177,7 +178,15 @@ export function HostProgress({ stay, requests, chat, onSheet, onLock }: { stay: 
 
   return (
     <>
-      <Stepper label={t("progress")} steps={HOST_STEPS.map((key, i) => ({ key, label: t(`steps.${key}`), done: done[i] }))} />
+      <Stepper
+        label={t("progress")}
+        steps={HOST_STEPS.map((key, i) => ({
+          key,
+          label: t(`steps.${key}`),
+          done: done[i],
+          progress: key === "crew" ? t("ofCount", { done: crewInOf(store, stay), total: stay.spotsTotal }) : key === "paid" && progress.count > 0 ? t("ofCount", { done: progress.paidCount, total: progress.count }) : undefined,
+        }))}
+      />
       <StepCard>{next}</StepCard>
     </>
   );

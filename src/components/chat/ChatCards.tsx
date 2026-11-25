@@ -40,7 +40,7 @@ export function DayDivider({ day }: { day: string }) {
 export function SystemLine({ message }: { message: Message }) {
   const messageText = useMessageText();
   return (
-    <p className="mx-auto my-3 max-w-[80%] text-center text-small text-ink/45">{messageText(message)}</p>
+    <p className="mx-auto my-3 max-w-[80%] text-center text-small text-muted">{messageText(message)}</p>
   );
 }
 

@@ -25,7 +25,7 @@ export function Notices() {
   return (
     <Container page width="narrow">
       {/* Back: where you came from, else Settings › Privacy & safety (the installed app has no browser back). */}
-      <BackButton fallback="/settings#privacy" label={t("back")} className="-ml-1 mb-2" />
+      <BackButton fallback="/settings/privacy" label={t("back")} className="-ml-1 mb-2" />
       <h1 className="text-h1 text-ink">{t("title")}</h1>
       <p className="mt-3 text-body-lg text-muted">{t("intro")}</p>
       {!store.currentUserId ? (

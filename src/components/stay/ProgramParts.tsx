@@ -3,6 +3,7 @@
 // The programme builder for Pro hosts (CLAUDE.md "Programm-Baukasten"): the editor in Manage (a day plan per House day – time, title,
 // where, a few words – templates by theme, sorted by dragging or the arrows, the arc's own moments), the crew's view in Plan (in full from
 // two days before, a preview until then), "What's planned" on the House page, and the programme's feedback for the host after the House.
+import { PanelCapsule } from "@/components/ui/PanelCapsule";
 import { ArrowDown, ArrowUp, GripVertical, Sparkles, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState, type DragEvent } from "react";
@@ -194,7 +195,7 @@ export function ProgramEditor({ stay }: { stay: Stay }) {
 
 // ── Plan: the crew's view ──────────────────────────────────────────────────────────────────────────────────────────────────────
 
-export function ProgramView({ stay, isHost }: { stay: Stay; isHost: boolean }) {
+export function ProgramView({ stay, isHost, onHostAdd }: { stay: Stay; isHost: boolean; /** The host's empty programme: "Plan the programme" → Manage */ onHostAdd?: () => void }) {
   const t = useTranslations("program");
   const f = useFormat();
   const store = useStore();
@@ -202,7 +203,7 @@ export function ProgramView({ stay, isHost }: { stay: Stay; isHost: boolean }) {
   if (!isProHouse(stay)) return null;
   const items = stay.program ?? [];
   const host = findUser(store, stay.hostId);
-  if (items.length === 0) return <p className="text-body text-muted">{t("planEmpty", { host: host ? firstName(host) : "" })}</p>;
+  if (items.length === 0) return isHost && onHostAdd ? <PanelCapsule onClick={onHostAdd}>{t("planAdd")}</PanelCapsule> : <p className="text-body text-muted">{t("planEmpty", { host: host ? firstName(host) : "" })}</p>;
   if (!programFull(stay, now, isHost)) {
     return (
       <div data-program-view="preview" className="flex flex-col gap-3">

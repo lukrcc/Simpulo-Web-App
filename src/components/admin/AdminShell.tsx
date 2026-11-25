@@ -24,7 +24,6 @@ import { useAdminPeriod } from "@/lib/admin/period";
 import { AdminPageHeader, PeriodDays, PeriodRange, PeriodRow, PeriodTabs, TabLevelContext } from "./AdminLayout";
 import { AdminTooltip } from "./AdminTooltip";
 import { AdminThemeSwitch, useAdminThemeLabels } from "./AdminThemeSwitch";
-import { AdminCommandSearch } from "./AdminCommandSearch";
 import { useAdminSearch } from "@/lib/admin/urlState";
 import { useAdminTasks } from "@/lib/admin/useAdminTasks";
 import { taskCounts } from "@/lib/admin/tasks";
@@ -138,8 +137,6 @@ export function AdminFrame({ children }: { children: ReactNode }) {
   return (
     <NextIntlClientProvider locale={"de" as Locale} messages={adminMessages} timeZone="UTC">
       <AdminFrameInner>{children}</AdminFrameInner>
-      {/* The admin's search in the header (⌘K) – portalled into the bar's slot, inside this German provider. */}
-      <AdminCommandSearch />
       {/* The admin's one tooltip – large, cream (the app's Tooltip stays out on admin pages). */}
       <AdminTooltip />
     </NextIntlClientProvider>
@@ -226,7 +223,8 @@ function AdminFrameInner({ children }: { children: ReactNode }) {
     href: a.href,
     label: t(`nav.${a.key}`),
     icon: ADMIN_ICONS[ADMIN_PAGE_STYLE[a.key].icon],
-    iconColor: `var(--adm-c-${ADMIN_PAGE_STYLE[a.key].color})`,
+    // Only the active entry in its page's colour; the others grey like their words (CLAUDE.md "Admin: Kontrast für Auswahl").
+    iconColor: active === a.href ? `var(--adm-c-${ADMIN_PAGE_STYLE[a.key].color})` : "var(--adm-nav-idle)",
     selected: active === a.href,
     current: active === a.href,
     badge: needs[a.key] ? <NavBadge count={needs[a.key]!} label={t("needsYou", { count: needs[a.key]! })} urgent={a.key === "inbox" && counts.safetyOpen} /> : undefined,

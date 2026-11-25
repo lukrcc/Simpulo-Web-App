@@ -25,7 +25,7 @@ import { daysUntil } from "@/lib/admin/ledger";
 import { deadlineLabel } from "@/lib/admin/exporters";
 import { useAdminData } from "@/lib/admin/store";
 import { TASK_AREAS, taskArea, tomorrowOf, type AdminTask, type TaskArea } from "@/lib/admin/tasks";
-import { useAdminTasks, useDoneAdminTasks, useSnoozedAdminTasks } from "@/lib/admin/useAdminTasks";
+import { useAdminTasks, useSnoozedAdminTasks } from "@/lib/admin/useAdminTasks";
 import { useAdminInputs } from "@/lib/admin/useAdminInputs";
 import { useAdminTab } from "@/lib/admin/urlState";
 import { findUser, useStore } from "@/lib/store";
@@ -35,7 +35,7 @@ import { cn } from "@/lib/utils";
 import { Img } from "@/components/ui/Img";
 import { InfoTip } from "./AdminNumbers";
 import { AdminShell } from "./AdminShell";
-import { AdminListDetail, AdminSearch, AdminSort, AdminTabs, BackToList, DirectLink, type ListDetailRow } from "./AdminLayout";
+import { AdminListDetail, AdminSort, AdminTabs, BackToList, DirectLink, type ListDetailRow } from "./AdminLayout";
 import { detectSafetySubtype, SAFETY_ACTIONS, SAFETY_SUBTYPES, type SafetySubtype } from "@/config/support-templates";
 import { tEn } from "@/lib/i18n/translate";
 import { stripeUrl } from "@/config/tools";
@@ -116,7 +116,7 @@ function ConfirmAction({ label, question, onConfirm }: { label: string; question
 }
 
 /** One sentence per element (shortened to one line in the row by the layout). */
-/** A task in one sentence (the list's row; also the admin search, AdminCommandSearch). */
+/** A task in one sentence (the list's row). */
 export function useSentence() {
   const t = useTranslations("admin.today");
   const tReports = useTranslations("admin.reports");
@@ -173,7 +173,7 @@ export function AdminInbox() {
   const f = useFormat();
   const open = useAdminTasks();
   const snoozed = useSnoozedAdminTasks();
-  const done = useDoneAdminTasks();
+
   const sentence = useSentence();
   const actions = useAdminActions();
   const showToast = useToast();
@@ -183,7 +183,8 @@ export function AdminInbox() {
   const inboxUrl = useAdminTab<InboxTab>(TABS, "all");
   const tab = inboxUrl.tab;
   const setTab = (next: InboxTab) => inboxUrl.open(next);
-  const [status, setStatus] = useState<"open" | "done">("open");
+  // Only open tasks are listed (CLAUDE.md "Admin: Kontrast für Auswahl"): what's done disappears – it stays in the data, not in the list. No
+  // search field; "Frühere Meldungen" in the detail still filters the list by a name (a capsule with × clears it).
   const [query, setQuery] = useState("");
   // ?task= (the admin search, ⌘K) opens one task.
   const [selectedId, setSelectedId] = useState<string | null>(() => (typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("task")));
@@ -192,8 +193,8 @@ export function AdminInbox() {
   const q = query.trim().toLowerCase();
   const inTab = (task: AdminTask, key: InboxTab) => key === "all" || tabOf(task) === key;
   const filter = (list: readonly AdminTask[]) => list.filter((task) => inTab(task, tab)).filter((task) => !q || sentence(task).toLowerCase().includes(q));
-  const main = status === "open" ? ordered(filter(open)) : filter(done).toSorted((a, b) => b.createdAt.localeCompare(a.createdAt));
-  const later = status === "open" ? ordered(filter(snoozed)) : [];
+  const main = ordered(filter(open));
+  const later = ordered(filter(snoozed));
   // What can be opened, in the order shown: the list, then the "Später" section when it's open.
   const visible = [...main, ...(showLater ? later : [])];
   // The first task opens on its own – never "pick one on the left".
@@ -224,7 +225,6 @@ export function AdminInbox() {
       title: sentence(task),
       // A grey line of text, no pill (CLAUDE.md "Ruhe"): "Art · Datum".
       meta: `${tToday(`kind.${task.kind}`)} · ${f.day(task.createdAt)}`,
-      done: status === "done",
       ...extra,
     };
   };
@@ -244,7 +244,7 @@ export function AdminInbox() {
         ? later.map((task, i) => row(task, { section: i === 0 ? toggle : undefined }))
         : [{ id: "later-section", title: "", section: toggle, sectionOnly: true }]),
   ];
-  const counts = status === "open" ? [...open, ...snoozed] : done;
+  const counts = [...open, ...snoozed];
 
   return (
     <AdminShell
@@ -258,10 +258,11 @@ export function AdminInbox() {
         />
       }
       aside={
-        <>
-          <AdminTabs label={t("statusLabel")} value={status} onChange={(next) => (setStatus(next), setSelectedId(null))} tabs={[{ value: "open", label: t("status.open") }, { value: "done", label: t("status.done") }]} />
-          <AdminSearch label={t("search")} value={query} onChange={setQuery} />
-        </>
+        query ? (
+          <button type="button" data-on onClick={() => setQuery("")} aria-label={t("clearFilter", { name: query })} className="adm-cap">
+            {query} <span aria-hidden>×</span>
+          </button>
+        ) : undefined
       }
     >
       <AdminListDetail
@@ -271,22 +272,22 @@ export function AdminInbox() {
         rows={rows}
         selectedId={selected?.id ?? null}
         onSelect={setSelectedId}
-        onDone={status === "open" ? (id) => markDone(visible.find((x) => x.id === id)!) : undefined}
+        onDone={(id) => markDone(visible.find((x) => x.id === id)!)}
         doneLabel={tToday("action.done")}
-        empty={<p className="text-h3 text-adm-good">{status === "open" ? tNew("allDone") : tNew("noneDone")}</p>}
+        empty={<p className="text-h3 text-adm-good">{tNew("allDone")}</p>}
         detail={
           selected ? (
             <InboxDetail
               key={selected.id}
               task={selected}
               sentence={sentence(selected)}
-              isOpen={status === "open"}
+              isOpen
               isLater={later.some((x) => x.id === selected.id)}
               onBack={() => setSelectedId(null)}
               onDone={() => markDone(selected)}
               onLater={() => putOff(selected)}
               onSettled={() => goNext(selected)}
-              onFilter={(q) => (setStatus("open"), setQuery(q))}
+              onFilter={setQuery}
             />
           ) : main.length === 0 && later.length > 0 ? (
             <p className="py-2 text-body text-muted">{tNew("allDone")}</p>

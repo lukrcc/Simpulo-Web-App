@@ -19,9 +19,13 @@ const LARGE_PREFIXES = ["/co-living/", "/collections/", "/themes/"];
 const NONE_EXACT = ["/create", "/welcome", "/preview", "/invite", "/me"];
 /** The footer only on public pages (CLAUDE.md "Footer nur auf öffentlichen Seiten"): your own areas have none – the profile (yours and
  *  others'), Your houses, a House's members' area (/h/…), Messages, Settings, Your people, Saved, decisions about you, Open a House. */
-const NONE_PREFIXES = ["/messages", "/admin", "/profile", "/u", "/your-houses", "/h", "/settings", "/people", "/saved", "/notices", "/create", "/welcome"];
+const NONE_PREFIXES = ["/messages", "/admin", "/profile", "/u", "/your-houses", "/h", "/houses", "/settings", "/people", "/saved", "/notices", "/create", "/welcome"];
 
-export function footerOf(pathname: string, search?: URLSearchParams | null): FooterVariant {
+/** The start page and Explore show the footer only to visitors (logged out) – signed in they're your app (CLAUDE.md "Footer nur öffentlich"). */
+const PUBLIC_ONLY_LOGGED_OUT = ["/", "/explore"];
+
+export function footerOf(pathname: string, search?: URLSearchParams | null, loggedIn = false): FooterVariant {
+  if (loggedIn && PUBLIC_ONLY_LOGGED_OUT.includes(pathname)) return "none";
   // Onboarding: Edit profile as the first steps (?setup=1) – a flow, no footer.
   if (pathname === "/settings/profile" && search?.get("setup") === "1") return "none";
   if (NONE_EXACT.includes(pathname) || NONE_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))) return "none";

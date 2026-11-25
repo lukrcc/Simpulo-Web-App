@@ -48,7 +48,8 @@ export function AppShell({ children }: { children: ReactNode }) {
           drop that padding and the footer via data-app-pane (globals.css). Phones: never less than the tab bar covers (--tabbar-clear) + 24px. */}
       <main className="flex-1 pb-[max(6rem,calc(var(--tabbar-clear)+1.5rem))] md:pt-(--header-h) md:pb-(--footer-gap)">{children}</main>
       {/* usePathname suspends on dynamic routes during prerender. */}
-      <Suspense fallback={<SlimFooter />}>
+      {/* No footer while the route is resolved: a private page must never flash the public one. */}
+      <Suspense fallback={null}>
         <FooterByRoute large={<Footer />} slim={<SlimFooter />} />
       </Suspense>
       <Suspense fallback={null}>

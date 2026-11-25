@@ -30,7 +30,7 @@ const DOT: Record<Size, string> = { xs: "size-2 ring-[1.5px]", sm: "size-2 ring-
  * members (useCanInvite: a free spot, not started) the circles carry "+" and open the InviteSheet; for visitors they're plain dashed circles,
  * not clickable. A full House: no empty circles. `names`: first names under the faces (the Crew sections).
  */
-export function CrewRow({ stay, crew, size = "md", tone = "light", names = false, max = 8, hiddenCount = 0, interactive = true, className }: { stay: Stay; crew: User[]; size?: Size; tone?: keyof typeof TONE; names?: boolean; /** At most this many circles in all */ max?: number; /** Members not shown (privacy): a "+N" before the free circles */ hiddenCount?: number; /** false: the circles only show (another invite entry is in the same block) */ interactive?: boolean; className?: string }) {
+export function CrewRow({ stay, crew, size = "md", tone = "light", names = false, max = 8, hiddenCount = 0, interactive = true, filled = false, className }: { stay: Stay; crew: User[]; size?: Size; tone?: keyof typeof TONE; names?: boolean; /** At most this many circles in all */ max?: number; /** Members not shown (privacy): a "+N" before the free circles */ hiddenCount?: number; /** false: the circles only show (another invite entry is in the same block) */ interactive?: boolean; /** The House area's head: a free spot is a filled grey circle with "+" (no dashed edge) */ filled?: boolean; className?: string }) {
   const t = useTranslations("invite");
   const faceOf = useCrewFaceOf(stay);
   const can = useCanInvite(stay.id) && interactive;
@@ -47,8 +47,8 @@ export function CrewRow({ stay, crew, size = "md", tone = "light", names = false
   };
   const circle = (i: number) => {
     // "+" only where you can invite here; for visitors (and beside another invite entry in the same block) an empty dashed circle.
-    const body = can ? <Plus aria-hidden className={cn(PLUS[size], colors.plus)} strokeWidth={2} /> : null;
-    const style = cn("flex shrink-0 items-center justify-center rounded-full border-[1.5px] border-dashed", CIRCLE[size], colors.edge);
+    const body = can || filled ? <Plus aria-hidden className={cn(PLUS[size], filled ? "text-muted" : colors.plus)} strokeWidth={2} /> : null;
+    const style = filled ? cn("flex shrink-0 items-center justify-center rounded-full bg-(--chip-bg)", CIRCLE[size]) : cn("flex shrink-0 items-center justify-center rounded-full border-[1.5px] border-dashed", CIRCLE[size], colors.edge);
     return can ? (
       <button key={`free-${i}`} type="button" onClick={invite} aria-label={t("addSpot")} className={cn(style, "transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-(--focus-ring)", colors.hover)}>
         {body}

@@ -66,7 +66,7 @@ export const NOTIFY_CATALOG = {
   paid: money("store › payShare", "crew"),
   bookingConfirmed: money("store › confirmBooking", "crew"),
   cancelled: money("store › closeStay, leaveStay", "crew"),
-  refund: money("store › settlePayments, leaveStay", "guest", "/settings#payments"),
+  refund: money("store › settlePayments, leaveStay", "guest", "/settings/payments"),
   // In-app + email (no push): the reason, if any, and three similar Houses.
   guestRemoved: money("store › removeMember", "guest", "/explore", { push: false }),
   houseMilestone: money("store › acceptRequest, takeWaitlistSpot, redeemHouseInvite, respondToInvite (crew complete)", "crew"),
@@ -99,7 +99,7 @@ export const NOTIFY_CATALOG = {
   supportReply: account("lib/admin/actions › reply", "account", "/messages?id=support", { inApp: true }),
   // ── Terms and the account ──
   termsUpdate: account("consent/Agreements › TermsGate → store › announceTerms", "account", "/terms", { inApp: true }),
-  accountPaused: account("store › updateCurrentUser (paused)", "account", "/settings#privacy", { inApp: true }),
+  accountPaused: account("store › updateCurrentUser (paused)", "account", "/settings/privacy", { inApp: true }),
   accountDeleted: account("store › deleteAccount (email only – the account is gone)", "account", "/"),
 } satisfies Record<string, CatalogEntry>;
 

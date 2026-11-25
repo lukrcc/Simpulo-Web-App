@@ -29,6 +29,11 @@ export interface ProfileMetrics {
   replyHours: number | null;
 }
 
+/** The Houses someone lived in (completed, host or crew), the latest first – the profile's strip names the last one and the countries. */
+export function completedStaysOf(data: StoreData, userId: string, today: string): Stay[] {
+  return data.stays.filter((s) => isCompleted(s, today) && isCrewMember(data, s, userId)).toSorted((a, b) => b.endDate.localeCompare(a.endDate));
+}
+
 export function profileMetrics(data: StoreData, user: User, today: string): ProfileMetrics {
   const completed = data.stays.filter((s) => isCompleted(s, today) && isCrewMember(data, s, user.id));
   const people = new Set(completed.flatMap((s) => getCrew(data, s).map((u) => u.id)).filter((id) => id !== user.id));

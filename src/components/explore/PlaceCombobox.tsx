@@ -1,12 +1,11 @@
 "use client";
 
-import { placeImageOf } from "@/config/place-images";
 import { MapPin, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
 import { formInput } from "@/components/form/FormLayout";
 import { Img } from "@/components/ui/Img";
-import { searchPlaces } from "@/lib/data";
+import { getPlaceImage, searchPlaces } from "@/lib/data";
 import { ALL_PLACES, placeKindOf } from "@/lib/data/places";
 import { isListedStay } from "@/lib/launch";
 import { stayInPlace, type SearchPlace } from "@/lib/savedSearches";
@@ -34,6 +33,9 @@ function usePopularPlaces(): SearchPlace[] {
 export function PlaceCombobox({ id, onPick, label, placeholder, limit }: { id: string; onPick: (place: SearchPlace) => void; label: string; placeholder: string; /** At most this many places (the header's sheet: 4 – it never scrolls) */ limit?: number }) {
   const t = useTranslations("explore.search");
   const popular = usePopularPlaces();
+  const { stays } = useStore();
+  // The header's panel (limit): the field a capsule, the rows round (CLAUDE.md "Panels einheitlich").
+  const panel = Boolean(limit);
   const [query, setQuery] = useState("");
   const [found, setFound] = useState<{ query: string; hits: SearchPlace[] } | null>(null);
   // The header's sheet (limit): nothing chosen in advance – a row gets its surface only on hover or by the keyboard (CLAUDE.md "ruhiger
@@ -95,19 +97,20 @@ export function PlaceCombobox({ id, onPick, label, placeholder, limit }: { id: s
           }}
           onKeyDown={onKey}
           placeholder={placeholder}
-          className={cn(formInput, "pl-10")}
+          className={panel ? "h-10 w-full rounded-full border-0 bg-(--panel-field) pl-10 pr-4 text-body text-ink outline-none transition-colors placeholder:text-muted focus:bg-(--panel-field-focus) focus-visible:outline-2 focus-visible:outline-(--focus-ring)" : cn(formInput, "pl-10")}
         />
       </div>
       {suggestions.length > 0 && (
         <ul id={`${id}-suggestions`} role="listbox" className={cn("mt-2", limit ? "overflow-hidden" : "max-h-80 overflow-y-auto overscroll-contain")}>
           {suggestions.map((place, i) => {
             const kind = placeKindOf(place.id);
-            const cover = placeImageOf(place.id);
+            // The cover of the most popular House there (lib/data getPlaceImage); none: the pin.
+            const cover = getPlaceImage(place.id, stays);
             return (
               <li key={place.id} id={`${id}-option-${i}`} role="option" aria-selected={i === active}>
-                <button type="button" onClick={() => onPick(place)} onMouseEnter={limit ? () => setActive(none) : undefined} className={cn("flex w-full items-center gap-3 rounded-2xl text-left text-body hover:bg-ink/5", limit ? "min-h-13 px-2.5 py-2" : "px-3 py-2", i === active && "bg-ink/5")}>
+                <button type="button" onClick={() => onPick(place)} onMouseEnter={limit ? () => setActive(none) : undefined} className={cn("flex w-full items-center gap-3 text-left text-body hover:bg-ink/5", panel ? "min-h-13 rounded-full py-2 pl-2 pr-4" : "rounded-2xl px-3 py-2", i === active && "bg-ink/5")}>
                   {/* Every row alike: the place's picture in a square (40px; the header's sheet 36px, rows about 52px), or its pin in the same square. */}
-                  <span className={cn("relative flex shrink-0 items-center justify-center overflow-hidden rounded-xl bg-ink/8 text-muted", limit ? "size-9" : "size-10")}>
+                  <span className={cn("relative flex shrink-0 items-center justify-center overflow-hidden bg-ink/8 text-muted", panel ? "size-9 rounded-full" : "size-10 rounded-xl")}>
                     {cover ? <Img src={cover} alt="" fill sizes="40px" className="object-cover" /> : <MapPin aria-hidden className="size-4" />}
                   </span>
                   <span className="min-w-0 flex-1 truncate">

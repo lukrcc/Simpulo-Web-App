@@ -388,7 +388,7 @@ function StayDetailContent({ stay }: { stay: Stay }) {
   const ctaNote = withdrawNote ?? (blockedByHost
     ? t("page.notForYou")
     : verifiedOnly && spotsLeft > 0
-    ? tVerify.rich("verifiedOnlyHint", { link: (chunks) => <Link href="/settings#payments" className="font-semibold text-ink underline-offset-4 hover:underline">{chunks}</Link> })
+    ? tVerify.rich("verifiedOnlyHint", { link: (chunks) => <Link href="/settings/payments" className="font-semibold text-ink underline-offset-4 hover:underline">{chunks}</Link> })
     : offer?.offerExpiresAt
     ? t("page.offerUntil", { time: `${format.day(offer.offerExpiresAt)} ${format.time(offer.offerExpiresAt)}` })
     : canWaitlist && waitlistWhy === "covered" && canJoin

@@ -250,8 +250,7 @@ export const PLAN_LABELS = {
 } as const;
 
 // ─── Hebel: die fünf stärksten Pre-Launch-Hebel nach Wirkung ────────────────────────────────────────────────────────────────────────
-// Vorbereitet für eine Karte „Hebel“ (Symbol `Zap` – `Target` trägt schon „Bedarf“). Die Seite Marketing hat bereits acht Karten
-// (Regel „Acht Karten“): die Karte kommt erst, wenn eine andere ersetzt oder zusammengelegt ist.
+// Die Karte „Hebel“ (Symbol `Zap` – `Target` trägt schon „Bedarf“) ersetzt „Warteliste“ (Regel „Acht Karten“); ?topic=hebel zeigt alle fünf.
 
 export interface MarketingLever {
   id: string;
@@ -272,3 +271,10 @@ export const marketingLevers: readonly MarketingLever[] = [
 
 /** Die Stufen-Legende, einzeilig unter der Rangliste. */
 export const leverStageLegend = "A Creator · B Gruppen-Anführer · C Nomaden vor Ort";
+
+export const LEVER_LABELS = {
+  byEffect: "Hebel nach Wirkung",
+  info: "Die fünf stärksten Hebel vor dem Launch, nach Wirkung geordnet – oben die Top 3, alle in der Ansicht.",
+  title: "Hebel nach Wirkung",
+  audience: "Zielgruppe",
+} as const;

@@ -3,7 +3,7 @@
 import { FoundingBadge } from "@/components/ui/FoundingBadge";
 import { isFoundingHost } from "@/lib/founding";
 import { getProfileVisibility, hostsPublicly, photoHiddenFor, profileHref, userByProfileId, visibleHostedHouses } from "@/lib/privacy";
-import { currentHouseOf, profileMetrics } from "@/lib/metrics/profile";
+import { completedStaysOf, currentHouseOf, profileMetrics } from "@/lib/metrics/profile";
 import { placeShortOf, shortNameOf } from "@/lib/shortName";
 import { BackButton } from "@/components/ui/BackButton";
 import { publicName, showsAge } from "@/config/privacy";
@@ -15,8 +15,8 @@ import { use, useState, useSyncExternalStore, type ReactNode } from "react";
 import { RequireLogin } from "@/components/auth/RequireLogin";
 import { useInForLine } from "@/components/InFor";
 import { HeroPhotos } from "@/components/HeroBand";
-import { FrameStrip, PageFrame } from "@/components/PageFrame";
-import { StripFig } from "@/components/StripFig";
+import { PageFrame } from "@/components/PageFrame";
+import { StatsStrip, type StatsBlock } from "@/components/StatsStrip";
 import { crewThreadId } from "@/lib/links";
 import { InviteSheet } from "@/components/InviteSheet";
 import { Container } from "@/components/layout/Container";
@@ -243,6 +243,8 @@ function ProfileBento({ user, isMe, previewing, view, viewerId, today, onOpenPho
         // A breath of the first photo's colour (lib/stageTint.ts) – not when the photos are hidden from this viewer.
         accent={photos.length > 0 ? userAccentOf(user) : undefined}
         height={preview ? "split:h-[440px]" : undefined}
+        // The same strip as Your houses (components/StatsStrip.tsx) – the same height.
+        stripHeight="138px"
         media={
           <div data-preview-part="photos" className="absolute inset-0">
             {/* "Hide my photo until I'm accepted": a host with only their request sees no photos (lib/privacy.ts). Your own: a click edits them. */}
@@ -413,6 +415,7 @@ function ProfileActions({ user, isMe, previewing, viewerId, today }: { user: Use
     : undefined;
   return (
     <>
+      <InviteToHouse user={user} viewerId={viewerId} previewing={previewing} today={today} />
       {shared && !previewing && (
         <Button variant="secondary" size="sm" href={`/messages/${crewThreadId(shared.id)}`} className="mr-1">
           {tv("message")}
@@ -445,51 +448,34 @@ function ProfileActions({ user, isMe, previewing, viewerId, today }: { user: Use
  * right your own "1 housemate to confirm" (only when there is one) and "Invite friends" (→ /invite, the light button on the dark strip);
  * someone else's: "Invite to a House" (only your people, into a House of yours with room).
  */
-function ProfileFrameStrip({ user, isMe, previewing, viewerId, today, preview, view }: { user: User; isMe: boolean; previewing: boolean; viewerId: string | null; today: string; preview?: boolean; view: ProfileVisibility }) {
+function ProfileFrameStrip({ user, isMe, today, preview, view }: { user: User; isMe: boolean; previewing: boolean; viewerId: string | null; today: string; preview?: boolean; view: ProfileVisibility }) {
   const tv = useTranslations("profile.view");
   const store = useStore();
-  const guard = usePreviewGuard();
   const [confirming, setConfirming] = useState(false);
-  const [inviting, setInviting] = useState(false);
   const m = profileMetrics(store, user, today);
+  const lived = completedStaysOf(store, user.id, today);
   const toConfirm = isMe ? view.toConfirm.filter((e) => !isBlocked(store, e.user.id)) : [];
-  const yours = !isMe && viewerId ? yourPeople(store, viewerId).some((p) => p.user.id === user.id) : false;
-  const mineOpen =
-    yours && viewerId && !previewing
-      ? store.stays
-          .filter((s) => canInvite(store, s, viewerId, today) && !store.joinRequests.some((r) => r.stayId === s.id && r.userId === user.id && ["invited", "pending", "accepted", "waitlisted", "waitlist_requested"].includes(r.status)))
-          .toSorted((a, b) => a.startDate.localeCompare(b.startDate))
-      : [];
-  const buttons = preview ? undefined : isMe ? (
-    <>
-      {toConfirm.length > 0 && (
-        <Button variant="creamOutline" size="md" onClick={() => setConfirming(true)}>
-          {tv("confirmButton", { count: toConfirm.length })}
-        </Button>
-      )}
-      <Button variant="cream" size="md" href="/invite">
-        <UserPlus aria-hidden />
-        {tv("inviteFriends")}
-      </Button>
-    </>
-  ) : mineOpen.length > 0 ? (
-    <Button variant="creamOutline" size="md" onClick={() => guard(() => setInviting(true))} data-preview-action>
-      <UserPlus aria-hidden />
-      {tv("inviteToHouse")}
-    </Button>
-  ) : undefined;
+  const countries = [...new Set(lived.map((s) => s.location.country).filter(Boolean))];
+  const countryLine = countries.length > 3 ? `${countries.slice(0, 3).join(", ")} ${tv("statMore", { count: countries.length - 3 })}` : countries.join(", ");
+  const links = isMe && !preview;
+  // The one numbers strip (components/StatsStrip.tsx, CLAUDE.md "Kennzahlen-Streifen"): your own four blocks, someone else's three – no
+  // "to confirm", no Friends. A block leads somewhere only on your own profile.
+  const blocks: StatsBlock[] = [
+    { key: "houses", label: tv("statHouses"), value: String(m.houses), line: lived[0] ? shortNameOf(lived[0]) : undefined, href: links ? "/your-houses#row-livedIn" : undefined },
+    {
+      key: "livedWith",
+      label: tv("statLivedWith"),
+      value: String(m.livedWith),
+      line: toConfirm.length > 0 ? tv("statToConfirm", { count: toConfirm.length }) : undefined,
+      // Housemates to confirm: the block opens the confirmation (it lives here, not on /people); else /people.
+      ...(links ? (toConfirm.length > 0 ? { onClick: () => setConfirming(true) } : { href: "/people?tab=lived" }) : {}),
+    },
+    { key: "countries", label: tv("statCountries"), value: String(m.countries), line: countryLine || undefined, href: links ? "/people" : undefined },
+    ...(isMe ? [{ key: "friends", label: tv("statFriends"), value: String(friendsOf(store, user.id).length), line: tv("statInvite"), href: links ? "/invite" : undefined }] : []),
+  ];
   return (
     <>
-      <FrameStrip
-        figures={
-          <>
-            <StripFig value={String(m.houses)} label={tv("barHouses", { count: m.houses })} />
-            <StripFig value={String(m.livedWith)} label={tv("barLivedWith")} href={isMe && !preview ? "/people?tab=lived" : undefined} />
-            <StripFig value={String(m.countries)} label={tv("barCountries", { count: m.countries })} />
-          </>
-        }
-        buttons={buttons}
-      />
+      <StatsStrip blocks={blocks} />
       <Sheet open={confirming} onClose={() => setConfirming(false)} title={tv("confirmTitle")}>
         <p className="text-small text-muted">{tv("toConfirm")}</p>
         <ul className="mt-4 space-y-3">
@@ -504,7 +490,31 @@ function ProfileFrameStrip({ user, isMe, previewing, viewerId, today, preview, v
           ))}
         </ul>
       </Sheet>
-      {mineOpen.length > 0 && <InviteSheet houses={mineOpen} open={inviting} onClose={() => setInviting(false)} preselect={[user.id]} />}
+    </>
+  );
+}
+
+/** Someone else's profile, one of your people with a House of yours that has room: "Invite to a House" (with the actions top right). */
+function InviteToHouse({ user, viewerId, previewing, today }: { user: User; viewerId: string | null; previewing: boolean; today: string }) {
+  const tv = useTranslations("profile.view");
+  const store = useStore();
+  const guard = usePreviewGuard();
+  const [inviting, setInviting] = useState(false);
+  const yours = viewerId ? yourPeople(store, viewerId).some((p) => p.user.id === user.id) : false;
+  const mineOpen =
+    yours && viewerId && !previewing
+      ? store.stays
+          .filter((s) => canInvite(store, s, viewerId, today) && !store.joinRequests.some((r) => r.stayId === s.id && r.userId === user.id && ["invited", "pending", "accepted", "waitlisted", "waitlist_requested"].includes(r.status)))
+          .toSorted((a, b) => a.startDate.localeCompare(b.startDate))
+      : [];
+  if (mineOpen.length === 0) return null;
+  return (
+    <>
+      <Button variant="secondary" size="sm" onClick={() => guard(() => setInviting(true))} data-preview-action className="mr-1">
+        <UserPlus aria-hidden />
+        {tv("inviteToHouse")}
+      </Button>
+      <InviteSheet houses={mineOpen} open={inviting} onClose={() => setInviting(false)} preselect={[user.id]} />
     </>
   );
 }

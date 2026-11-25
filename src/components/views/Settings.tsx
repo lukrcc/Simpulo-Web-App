@@ -2,21 +2,18 @@
 
 import { hidesPhotoUntilAccepted, hostPageInSearch, hostsPublicly } from "@/lib/privacy";
 import { useMyApplication } from "@/components/platform/HostApply";
-import { Bell, Check, HelpCircle, Languages, LogOut, LayoutDashboard, ChevronLeft, ChevronRight, CircleUser, CreditCard, Lock, Plus, Search, Settings2, ShieldCheck, SunMoon, Wallet, type LucideIcon } from "lucide-react";
+import { Bell, Check, HelpCircle, Languages, LayoutDashboard, ChevronLeft, CreditCard, Lock, Plus, Search, Settings2, ShieldCheck, Wallet, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
-import { useState, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { RequireLogin } from "@/components/auth/RequireLogin";
 import { Input } from "@/components/ui/Input";
 import { Container } from "@/components/layout/Container";
 import { currencyLabel, useSetViewerCurrency } from "@/components/layout/CurrencyPicker";
-import { LegalLine } from "@/components/layout/LegalLine";
 import { PayoutSetupSheet, useStartOnboarding } from "@/components/payouts/PayoutSetup";
 import { RefundLine } from "@/components/payments/Refund";
 import { IconTile, RowSelect, SettingsGroup, SettingsRow } from "@/components/settings/SettingsList";
-import { ThemeSwitch } from "@/components/settings/ThemeSwitch";
-import { SideNav } from "@/components/settings/SideNav";
 import { Button } from "@/components/ui/ActionButton";
 import { Avatar } from "@/components/ui/Avatar";
 import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
@@ -35,79 +32,41 @@ import { CURRENCY_CODES, clearViewerCurrency, currencyName, serverViewerCurrency
 import { setInstallHintsOff, useInstallHintsOff, useIsStandalone } from "@/lib/install";
 import { useIsAdmin } from "@/lib/admin/access";
 import { SHOW_LANGUAGE_SETTING } from "@/i18n/config";
-import { applyThemePref, THEME_PREFS, useThemePref, type ThemePref } from "@/lib/theme";
 import { openGetHelp, openShareIdea } from "@/lib/support/feedback";
 import { payments } from "@/lib/payments";
 import { useIdentity, usePayoutAccount } from "@/lib/payments/hooks";
 import { findUser, getCurrentUser, settingsOf, useStore } from "@/lib/store";
 import type { User } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { MEDIA } from "@/config/breakpoints";
+import { SETTINGS_ALIASES, SETTINGS_ENTRIES, SETTINGS_SECTIONS, SETTINGS_SUBPAGES, type SettingsIcon, type SettingsSection, type SettingsSubpage } from "@/config/settings";
 
-/** The areas, in the side list's order (CLAUDE.md "Profil ohne Pop-up": Account · Notifications · Appearance · Privacy · Language first,
- *  then the rest); each is its URL hash (#payments), a page behind one is "#payments/history". */
-const SECTIONS = ["account", "notifications", "appearance", "privacy", "language", "payments", "general"] as const;
-type Section = (typeof SECTIONS)[number];
-const SUBPAGES = ["payments/history", "general/currency", "general/language"] as const;
-type Subpage = (typeof SUBPAGES)[number];
-
-/** Links from before the merge still land in the right place. */
-const ALIASES: Record<string, Section> = { payouts: "payments", verification: "payments", preferences: "general", profile: "account" };
-
-/** The areas' line icons: 20px, no tile behind them, the header's stroke (1.75). */
-const SECTION_ICONS: Record<Section, LucideIcon> = {
-  account: CircleUser,
-  payments: CreditCard,
-  notifications: Bell,
-  appearance: SunMoon,
-  privacy: ShieldCheck,
-  language: Languages,
-  general: Settings2,
+/** The rows' small symbols (config/settings.ts names them). */
+const ENTRY_ICONS: Record<SettingsIcon, LucideIcon> = {
+  bell: Bell,
+  shield: ShieldCheck,
+  languages: Languages,
+  card: CreditCard,
+  settings: Settings2,
+  help: HelpCircle,
+  admin: LayoutDashboard,
 };
 
 /** ⚠ MOCK: saved cards and wallets (no payment provider yet). */
 const MOCK_CARDS = [{ id: "pm-1", brand: "Visa", last4: "4242", isDefault: true }] as const;
 
-
-export function Settings() {
+/** /settings (the list) and /settings/<area>[/<page>] (`path`, checked by the route). */
+export function Settings({ path = "" }: { path?: string }) {
   const t = useTranslations("settings");
   return (
     <RequireLogin title={t("loginTitle")}>
-      <SettingsGate />
+      <SettingsGate path={path} />
     </RequireLogin>
   );
 }
 
-function SettingsGate() {
+function SettingsGate({ path }: { path: string }) {
   const me = getCurrentUser(useStore());
-  return me ? <SettingsContent me={me} /> : null;
-}
-
-/** Where Settings is: an area and maybe a page behind it – from the hash. Nothing on the server (no hash there) and on the phone's list. */
-function useRoute(): { section: Section | null; subpage: Subpage | null } {
-  const hash = useSyncExternalStore(
-    (onChange) => {
-      window.addEventListener("hashchange", onChange);
-      window.addEventListener("popstate", onChange);
-      return () => {
-        window.removeEventListener("hashchange", onChange);
-        window.removeEventListener("popstate", onChange);
-      };
-    },
-    () => window.location.hash.slice(1),
-    () => "",
-  );
-  const subpage = SUBPAGES.find((s) => s === hash) ?? null;
-  const head = hash.split("/")[0];
-  const section = SECTIONS.find((s) => s === head) ?? ALIASES[head] ?? null;
-  return { section, subpage };
-}
-
-/** Goes to an area or a page behind one ("" = the list), as a history entry – Back goes where you came from. */
-function go(hash: string) {
-  window.history.pushState(null, "", hash ? `#${hash}` : window.location.pathname + window.location.search);
-  window.dispatchEvent(new HashChangeEvent("hashchange"));
-  if (window.matchMedia(MEDIA.belowLg).matches) window.scrollTo(0, 0);
+  return me ? <SettingsContent me={me} path={path} /> : null;
 }
 
 /** Every change is saved at once: this quiet confirmation at the bottom says so. */
@@ -118,137 +77,132 @@ function useSaved() {
 }
 
 /**
- * /settings like the iOS settings on every width (CLAUDE.md "Profilseite neu"): first ONE list – Account · Notifications · Appearance (System ·
- * Light · Dark right in the row) · Privacy · Language, then Payments & payouts · Chats · General, then Help, and set apart at the end Log out (no
- * chevron); an area opens as its own view with "‹ Settings". Rows with an icon, the title and a chevron, fine lines between, no boxes. No Save:
- * every change is saved right away ("Saved ✓").
+ * /settings like the iPhone's Settings (CLAUDE.md "Settings wie iOS-Einstellungen"): one narrow column (680px) on the page's ground, a big
+ * title, grouped lists in rounded white surfaces (graphite in dark mode) – the account card, then the rows of config/settings.ts, then Log out
+ * in red on its own. Each area is its own page (/settings/account …) with "‹ Settings" and a big title; a page behind one goes back to it.
+ * Old #hash links are taken over. No Save: every change is saved right away ("Saved ✓").
  */
-function SettingsContent({ me }: { me: User }) {
-  const t = useTranslations("settings");
+function SettingsContent({ me, path }: { me: User; path: string }) {
   const tu = useTranslations("settings.ui");
-  const { section, subpage } = useRoute();
+  const router = useRouter();
   const isAdmin = useIsAdmin() === true;
+  const subpage = (SETTINGS_SUBPAGES as readonly string[]).includes(path) ? (path as SettingsSubpage) : null;
+  const section = (SETTINGS_SECTIONS as readonly string[]).find((s) => s === path.split("/")[0]) as SettingsSection | undefined;
+
+  // Links from before the pages (/settings#privacy, #payments/history): onto the page itself.
+  useEffect(() => {
+    if (path) return;
+    const follow = () => {
+      const hash = window.location.hash.slice(1);
+      if (!hash) return;
+      const head = hash.split("/")[0];
+      const target = (SETTINGS_SUBPAGES as readonly string[]).includes(hash) ? hash : (SETTINGS_SECTIONS as readonly string[]).includes(head) ? head : SETTINGS_ALIASES[head];
+      if (target) router.replace(`/settings/${target}`);
+      else window.history.replaceState(null, "", window.location.pathname);
+    };
+    follow();
+    window.addEventListener("hashchange", follow);
+    return () => window.removeEventListener("hashchange", follow);
+  }, [path, router]);
 
   return (
-    <Container className="pb-10 pt-6 md:pt-10 lg:pt-14">
-      <h1 className="sr-only">{t("title")}</h1>
-      <div className="mx-auto max-w-[720px]">
-        {section === null ? (
-          <SettingsHome isAdmin={isAdmin} />
+    <Container className="settings-page pb-10 pt-6 md:pt-10">
+      <div className="mx-auto max-w-[680px]">
+        {!section ? (
+          <SettingsHome me={me} isAdmin={isAdmin} />
         ) : (
           <div className="min-w-0">
             {/* Back one level, like iOS – from a page behind an area to the area, from an area to the list. */}
-            <button type="button" onClick={() => go(subpage ? section : "")} className="-ml-1 mb-3 inline-flex min-h-11 items-center gap-0.5 text-body text-ink">
+            <Link href={subpage ? `/settings/${section}` : "/settings"} className="-ml-1.5 mb-2 inline-flex min-h-11 items-center gap-0.5 text-body text-ink">
               <ChevronLeft aria-hidden className="size-5" />
               {subpage ? tu(`nav.${section}`) : tu("back")}
-            </button>
+            </Link>
             {section === "account" && <AccountArea me={me} />}
             {section === "payments" && (subpage === "payments/history" ? <PaymentHistory me={me} /> : <PaymentsArea me={me} />)}
             {section === "notifications" && <NotificationsArea me={me} />}
-            {section === "appearance" && <AppearanceArea />}
             {section === "language" && <LanguageArea />}
             {section === "privacy" && <PrivacyArea me={me} />}
             {section === "general" && (subpage === "general/currency" ? <CurrencyPage me={me} /> : subpage === "general/language" && SHOW_LANGUAGE_SETTING ? <LanguagePage /> : <GeneralArea me={me} />)}
           </div>
         )}
       </div>
-      {/* Phones and the installed app: the legal links at the very bottom of Settings too. */}
-      <LegalLine align="center" className="mt-10 md:hidden" />
     </Container>
   );
 }
 
-/** The list (iOS): areas with a chevron, Appearance with its switch in the row, Help, and Log out set apart at the end. */
-function SettingsHome({ isAdmin }: { isAdmin: boolean }) {
+/** The list: the account card, the groups of config/settings.ts (Admin only for admins), Log out in red on its own – it asks first. */
+function SettingsHome({ me, isAdmin }: { me: User; isAdmin: boolean }) {
   const tu = useTranslations("settings.ui");
   const tm = useTranslations("nav.menu");
   const store = useStore();
   const router = useRouter();
   const showToast = useToast();
-  const row = "flex min-h-14 w-full items-center gap-4 py-3 text-left text-body-lg text-ink transition-colors duration-150 hover:bg-ink/3";
-  const area = (key: Section) => (
-    <li key={key} className="border-b border-line last:border-b-0">
-      <a href={`#${key}`} className={row}>
-        <RowIcon icon={SECTION_ICONS[key]} />
-        <span className="min-w-0 flex-1 truncate">{tu(`nav.${key}`)}</span>
-        <ChevronRight aria-hidden className="size-4 shrink-0 text-ink/30" />
-      </a>
-    </li>
-  );
+  const [confirming, setConfirming] = useState(false);
+  const groups = ([2, 3, 4, 5] as const)
+    .map((g) => SETTINGS_ENTRIES.filter((e) => e.group === g && (!e.adminOnly || isAdmin)))
+    .filter((rows) => rows.length > 0);
   return (
-    <nav aria-label={tu("sidebarTitle")} className="space-y-8">
-      <ul>
-        {area("account")}
-        {area("notifications")}
-        {/* Light and dark right in the row – the same change as the tab bar's button. */}
-        <li className="border-b border-line">
-          <div className={cn(row, "flex-wrap gap-y-2 hover:bg-transparent")}>
-            <RowIcon icon={SECTION_ICONS.appearance} />
-            <span className="min-w-0 flex-1 truncate">{tu("nav.appearance")}</span>
-            <ThemeSwitch />
-          </div>
-        </li>
-        {area("privacy")}
-        {area("language")}
-      </ul>
-      <ul>
-        {area("payments")}
-        {area("general")}
-        {isAdmin && (
-          <li className="border-b border-line last:border-b-0">
-            <Link href="/admin" className={row}>
-              <RowIcon icon={LayoutDashboard} />
-              <span className="min-w-0 flex-1 truncate">{tu("general.admin")}</span>
-              <ChevronRight aria-hidden className="size-4 shrink-0 text-ink/30" />
-            </Link>
-          </li>
-        )}
-      </ul>
-      <ul>
-        <li className="border-b border-line">
-          <button type="button" onClick={() => openGetHelp()} className={row}>
-            <RowIcon icon={HelpCircle} />
-            <span className="min-w-0 flex-1 truncate">{tm("help")}</span>
-            <ChevronRight aria-hidden className="size-4 shrink-0 text-ink/30" />
+    <nav aria-label={tu("sidebarTitle")}>
+      <h1 className="mb-6 text-h1 text-ink">{tu("sidebarTitle")}</h1>
+      <div className="space-y-7">
+        <SettingsGroup>
+          <SettingsRow
+            href="/settings/account"
+            icon={<Avatar user={me} size="lg" />}
+            inset={84}
+            title={<span className="text-h3 text-ink">{me.name.split(" ")[0]}</span>}
+            subtitle={tu("accountCardSub")}
+            chevron
+          />
+        </SettingsGroup>
+        {groups.map((rows) => (
+          <SettingsGroup key={rows[0].id}>
+            {rows.map((e) => {
+              const Icon = ENTRY_ICONS[e.icon];
+              return (
+                <SettingsRow
+                  key={e.id}
+                  href={e.href}
+                  icon={
+                    <IconTile>
+                      <Icon aria-hidden strokeWidth={1.75} />
+                    </IconTile>
+                  }
+                  title={tu(e.title as Parameters<typeof tu>[0])}
+                  value={e.value ? tu(e.value as Parameters<typeof tu>[0]) : undefined}
+                  chevron
+                />
+              );
+            })}
+          </SettingsGroup>
+        ))}
+        {/* Log out: its own group, centred, the system's red, no symbol, no chevron – it asks first. */}
+        <SettingsGroup>
+          <button type="button" onClick={() => setConfirming(true)} className="flex min-h-13 w-full items-center justify-center px-4 text-body text-(--settings-danger) transition-colors duration-150 hover:bg-ink/4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-(--focus-ring)">
+            {tm("logOut")}
           </button>
-        </li>
-        <li>
-          <button
-            type="button"
-            onClick={() => {
-              store.logout();
-              showToast(tm("loggedOut"));
-              router.push("/");
-            }}
-            className={row}
-          >
-            <RowIcon icon={LogOut} />
-            <span className="min-w-0 flex-1 truncate">{tm("logOut")}</span>
-          </button>
-        </li>
-      </ul>
+        </SettingsGroup>
+      </div>
+      <ConfirmSheet
+        open={confirming}
+        title={tu("account.logOutConfirmTitle")}
+        description={tu("account.logOutConfirmText")}
+        confirmLabel={tm("logOut")}
+        onClose={() => setConfirming(false)}
+        onConfirm={() => {
+          setConfirming(false);
+          store.logout();
+          showToast(tm("loggedOut"));
+          router.push("/");
+        }}
+      />
     </nav>
   );
 }
 
-function RowIcon({ icon: Icon }: { icon: LucideIcon }) {
-  return <Icon aria-hidden className="size-5 shrink-0 text-muted" strokeWidth={1.75} />;
-}
-
-/** An area's title (and a page's way back to its area). */
-function AreaTitle({ title, back }: { title: string; back?: { label: string; hash: string } }) {
-  return (
-    // Level with the side list's profile card (80px): the title centred in the same height.
-    <div className="mb-6 lg:flex lg:min-h-20 lg:flex-col lg:justify-center">
-      {back && (
-        <button type="button" onClick={() => go(back.hash)} className="-ml-1 mb-2 inline-flex items-center gap-0.5 self-start text-body text-ink max-lg:hidden">
-          <ChevronLeft aria-hidden className="size-5" />
-          {back.label}
-        </button>
-      )}
-      <h2 className="text-h2 text-ink">{title}</h2>
-    </div>
-  );
+/** An area's big title (iOS's large title). */
+function AreaTitle({ title }: { title: string; back?: unknown }) {
+  return <h1 className="mb-6 text-h1 text-ink">{title}</h1>;
 }
 
 /** "aisha.k@example.com" → "ai•••@example.com": enough to recognise, not to copy. */
@@ -278,8 +232,12 @@ function AccountArea({ me }: { me: User }) {
   const application = useMyApplication();
   const tApply = useTranslations("platform.apply");
   return (
-    <div className="space-y-8">
+    <div className="space-y-7">
       <AreaTitle title={tu("nav.account")} />
+      {/* Profile first – the account card on the list promises "Profile, sign-in & security". */}
+      <SettingsGroup>
+        <SettingsRow icon={<Avatar user={me} size="sm" />} inset={60} title={tu("profileSub")} chevron href="/settings/profile" />
+      </SettingsGroup>
       <SettingsGroup title={tu("account.groupSignIn")}>
         {/* Mock: no real account system to change it in yet. The address, partly masked; "No email added" only when the sign-in isn't email. */}
         <SettingsRow title={t("email")} value={email ? maskEmail(email) : t("noEmail")} chevron onClick={() => showToast(t("changeSoon"))} />
@@ -339,7 +297,7 @@ function PaymentsArea({ me }: { me: User }) {
   async function verify() {
     if (verifying) return;
     setVerifying(true);
-    router.push(await payments.startIdentityCheck(me.id, "/settings#payments"));
+    router.push(await payments.startIdentityCheck(me.id, "/settings/payments"));
   }
 
   const payoutRow = (() => {
@@ -376,7 +334,7 @@ function PaymentsArea({ me }: { me: User }) {
   })();
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-7">
       <AreaTitle title={tNav("payments")} />
       <SettingsGroup title={tu("groupPaying")}>
         {MOCK_CARDS.map((card) => (
@@ -393,7 +351,7 @@ function PaymentsArea({ me }: { me: User }) {
       {/* Hosts: private or business, and – behind its switch, past the threshold – the tax details (CLAUDE.md "Plattform-Pflichten"). */}
       <HostDuties me={me} onSaved={saved} />
       <SettingsGroup title={tu("groupHistory")}>
-        <SettingsRow title={tu("paymentHistory")} chevron onClick={() => go("payments/history")} />
+        <SettingsRow title={tu("paymentHistory")} chevron href="/settings/payments/history" />
       </SettingsGroup>
       <PayoutSetupSheet open={setupOpen} onClose={() => setSetupOpen(false)} />
     </div>
@@ -423,8 +381,8 @@ function PaymentHistory({ me }: { me: User }) {
   const store = useStore();
   const history = store.payments.filter((p) => p.userId === me.id && p.status !== "pending").toSorted((a, b) => (b.paidAt ?? "").localeCompare(a.paidAt ?? ""));
   return (
-    <div className="space-y-8">
-      <AreaTitle title={tu("paymentHistory")} back={{ label: tu("backTo"), hash: "payments" }} />
+    <div className="space-y-7">
+      <AreaTitle title={tu("paymentHistory")} />
       <SettingsGroup>
         {history.length === 0 ? (
           <SettingsRow title={<span className="text-muted">{t("noHistory")}</span>} />
@@ -469,7 +427,7 @@ function NotificationsArea({ me }: { me: User }) {
     saved();
   }
   return (
-    <div className="space-y-8">
+    <div className="space-y-7">
       <AreaTitle title={tNav("notifications")} />
       <SettingsGroup>
         <SettingsRow title={t("lockedTitle")} subtitle={t("lockedText")} control={<Lock aria-label={t("lockedTitle")} className="size-4 shrink-0 text-muted" />} />
@@ -614,7 +572,7 @@ function PrivacyArea({ me }: { me: User }) {
   const messages = messagePermissionOf(me);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-7">
       <AreaTitle title={tu("nav.privacy")} />
       {/* What others see – in plain words, from the switches below. */}
       <SettingsGroup title={tu("privacy.seeTitle")}>
@@ -735,30 +693,11 @@ function PrivacyArea({ me }: { me: User }) {
 
 // ─── Appearance ───────────────────────────────────────────────────────────────
 
-/**
- * Light or dark (CLAUDE.md "Dark Mode"): System (default, follows the device) · Light · Dark – one tap, the chosen one checked. Saved on the
- * account (UserSettings.appearance, every device) and in this device's cookie (lib/theme.ts), so the first paint is right next time.
- */
-function AppearanceArea() {
-  const tu = useTranslations("settings.ui");
-  return (
-    <div className="space-y-8">
-      <AreaTitle title={tu("nav.appearance")} />
-      {/* Light · Dark (components/settings/ThemeSwitch – the same change as the tab bar's button): the first visit starts from the device,
-          a choice is kept on this device and on the account. */}
-      <div className="space-y-3">
-        <ThemeSwitch />
-        <p className="text-small text-muted">{tu("appearance.hint")}</p>
-      </div>
-    </div>
-  );
-}
-
 /** Language: English only for now (the account field is ready, i18n/config.ts). */
 function LanguageArea() {
   const tu = useTranslations("settings.ui");
   return (
-    <div className="space-y-8">
+    <div className="space-y-7">
       <AreaTitle title={tu("nav.language")} />
       <SettingsGroup footer={tu("general.languageSoon")}>
         <SettingsRow title={tu("general.english")} control={<Check aria-hidden className="size-4 text-ink" strokeWidth={2.5} />} />
@@ -784,12 +723,12 @@ function GeneralArea({ me }: { me: User }) {
   const saved = useSaved();
   const hintsOff = useInstallHintsOff();
   return (
-    <div className="space-y-8">
+    <div className="space-y-7">
       <AreaTitle title={tu("nav.general")} />
       <SettingsGroup>
-        <SettingsRow title={tu("general.currency")} value={automatic ? tu("general.automaticValue", { label: currencyLabel(current) }) : currencyLabel(current)} chevron onClick={() => go("general/currency")} />
+        <SettingsRow title={tu("general.currency")} value={automatic ? tu("general.automaticValue", { label: currencyLabel(current) }) : currencyLabel(current)} chevron href="/settings/general/currency" />
         {/* Hidden until a second language exists (i18n/config.ts SHOW_LANGUAGE_SETTING); the account field is ready. */}
-        {SHOW_LANGUAGE_SETTING && <SettingsRow title={tu("general.language")} value={tu("general.english")} chevron onClick={() => go("general/language")} />}
+        {SHOW_LANGUAGE_SETTING && <SettingsRow title={tu("general.language")} value={tu("general.english")} chevron href="/settings/general/language" />}
       </SettingsGroup>
       {/* Your people and – not in the installed app – Get the app, as in the avatar menu (Log out also sits in Account › Devices). */}
       <SettingsGroup>
@@ -837,6 +776,7 @@ function CurrencyPage({ me }: { me: User }) {
   const store = useStore();
   const saved = useSaved();
   const pick = useSetViewerCurrency();
+  const router = useRouter();
   const { automatic, current, detected } = useCurrencyState(me);
   const [query, setQuery] = useState("");
   const q = query.trim().toLowerCase();
@@ -847,11 +787,11 @@ function CurrencyPage({ me }: { me: User }) {
       clearViewerCurrency();
     } else pick(code);
     saved();
-    go("general");
+    router.push("/settings/general");
   };
   return (
     <div className="space-y-6">
-      <AreaTitle title={tu("currency")} back={{ label: tu("backTo"), hash: "general" }} />
+      <AreaTitle title={tu("currency")} />
       <label className="relative block">
         <span className="sr-only">{tu("search")}</span>
         <Search aria-hidden className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted" />
@@ -886,7 +826,7 @@ function LanguagePage() {
   const tu = useTranslations("settings.ui.general");
   return (
     <div className="space-y-6">
-      <AreaTitle title={tu("language")} back={{ label: tu("backTo"), hash: "general" }} />
+      <AreaTitle title={tu("language")} />
       <SettingsGroup footer={tu("languageSoon")}>
         <SettingsRow title={tu("english")} control={<Check aria-hidden className="size-4 text-ink" strokeWidth={2.5} />} />
       </SettingsGroup>
