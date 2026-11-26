@@ -77,7 +77,7 @@ function SupportContent({ embedded }: { embedded: boolean }) {
     <ThreadFrame
       embedded={embedded}
       head={
-        embedded ? undefined : <div className="flex h-16 items-center gap-3 px-5">
+        embedded ? <ChatInfoBar threadId={SUPPORT_THREAD_ID} /> : <div className="flex h-16 items-center gap-3 px-5">
           <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-ink text-inverse">
             <LifeBuoy aria-hidden className="size-5" />
           </span>

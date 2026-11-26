@@ -3928,7 +3928,9 @@ const en = {
       "filterLabel": "Show",
       "filterAll": "All",
       "filterUnread": "Unread",
-      "unreadEmpty": "All read."
+      "unreadEmpty": "All read.",
+      "collapseList": "Hide chats",
+      "expandList": "Show chats"
     },
     "thread": {
       "openHouseArea": "Open {house}",

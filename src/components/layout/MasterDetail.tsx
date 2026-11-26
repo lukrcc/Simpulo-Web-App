@@ -1,5 +1,4 @@
-import type { CSSProperties, ReactNode } from "react";
-import { MESSENGER } from "@/config/messenger";
+import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { Container } from "./Container";
 
@@ -18,8 +17,10 @@ interface MasterDetailProps {
   fixedList?: boolean;
   /** Messages: the window's whole height under the bar, no footer; the list 380px with 24px inside on both sides, the detail edge to edge (top, right, bottom), every corner square. The list scrolls itself. */
   fullHeight?: boolean;
-  /** Messages from 744px: the info bar across list and chat at the bottom (chat/ChatInfoBar) – the columns end on top of it */
-  bar?: ReactNode;
+  /** Messages from 744px: the list is folded away – the chat card takes the whole width */
+  listCollapsed?: boolean;
+  /** Messages from 744px: what sits top left in the chat card (the list's fold button) */
+  cardCorner?: ReactNode;
 }
 
 // Desktop: each column scrolls on its own (thin hover scrollbar, see .scroll-pane); nothing else scrolls.
@@ -30,23 +31,24 @@ const column = "split:scroll-pane split:h-full split:min-h-0";
  * On desktop the page is exactly the window, with the one-line footer under it: only the columns scroll.
  * `data-app-pane="desktop"` drops the main's bottom padding (globals.css).
  */
-export function MasterDetail({ title, list, detail, detailFill = false, fixedList = false, fullHeight = false, bar }: MasterDetailProps) {
+export function MasterDetail({ title, list, detail, detailFill = false, fixedList = false, fullHeight = false, listCollapsed = false, cardCorner }: MasterDetailProps) {
   if (fullHeight) {
     return (
-      // Header + the columns + the info bar + the light end (--tabbar-safe) = exactly one screen (CLAUDE.md "Messenger – lange Info-Leiste").
-      <div data-app-pane="desktop" data-messenger style={{ "--msg-bar-h": bar ? `${MESSENGER.infoBarHeight}px` : "0px" } as CSSProperties}>
-      {/* The list: 24px inside on both sides (beyond 1680px its left edge stays on the container's); the chat edge to edge. List and chat on
-          the page's ground, a 1px line ink 8 % between them; the list 320px on a tablet, clamp(320px, 24vw, 400px) on the desktop. */}
-      <div className="min-h-[calc(100dvh-var(--header-total))] md:grid md:h-[calc(100dvh-var(--header-h)-var(--band-h)-var(--tabbar-safe)-var(--msg-bar-h))] md:min-h-0 md:grid-cols-[320px_minmax(0,1fr)] md:overflow-hidden split:grid-cols-[calc(var(--list-gutter)+clamp(320px,24vw,400px))_minmax(0,1fr)] [--list-gutter:max(24px,calc((100vw-1680px)/2))]">
-        {/* One background with the chat (the page's), a fine vertical line between them; the list starts at the top, no gap. */}
-        <div aria-label={title} className="mx-auto w-[min(100%-2*var(--page-margin),1680px)] min-w-0 pt-6 md:mx-0 md:flex md:h-full md:min-h-0 md:w-auto md:flex-col md:px-4 md:pb-4 md:pt-0 split:pl-(--list-gutter) split:pr-6">
-          {list}
+      // Messages (CLAUDE.md "Messages: Chat als schwebende Karte"): header + the columns + the light end (--tabbar-safe) = exactly one screen.
+      // The list on the page's ground; the chat a floating card – radius 24, 16px to the list, the header, the right edge and the tab bar (it
+      // sits 12px inside --tabbar-safe, so the card keeps 4px more), no edge, no shadow. Folded list: the card takes the whole width.
+      <div data-app-pane="desktop" data-messenger data-list-collapsed={listCollapsed ? "" : undefined}>
+        <div className={cn("min-h-[calc(100dvh-var(--header-total))] md:grid md:h-[calc(100dvh-var(--header-h)-var(--band-h)-var(--tabbar-safe))] md:min-h-0 md:overflow-hidden [--list-gutter:max(16px,calc((100vw-1680px)/2))]", listCollapsed ? "md:grid-cols-[minmax(0,1fr)]" : "md:grid-cols-[320px_minmax(0,1fr)] split:grid-cols-[calc(var(--list-gutter)+clamp(320px,24vw,400px))_minmax(0,1fr)]")}>
+          <div aria-label={title} className={cn("mx-auto w-[min(100%-2*var(--page-margin),1680px)] min-w-0 pt-6 md:mx-0 md:flex md:h-full md:min-h-0 md:w-auto md:flex-col md:pb-1 md:pl-4 md:pt-4 split:pl-(--list-gutter)", listCollapsed && "md:hidden")}>
+            {list}
+          </div>
+          <div className="hidden min-w-0 md:block md:h-full md:min-h-0 md:pb-1 md:pl-4 md:pr-4 md:pt-4">
+            <div data-chat-card className="relative h-full min-h-0 overflow-hidden rounded-[24px]">
+              {detail}
+              {cardCorner && <div className="absolute left-3 top-3 z-30">{cardCorner}</div>}
+            </div>
+          </div>
         </div>
-        <div className="hidden min-w-0 md:block md:h-full md:min-h-0">
-          <div className="h-full min-h-0 overflow-hidden">{detail}</div>
-        </div>
-      </div>
-      {bar && <div className="max-md:hidden">{bar}</div>}
       </div>
     );
   }

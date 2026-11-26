@@ -18,10 +18,10 @@ import { housePhotos } from "@/lib/utils";
 import { CrewChatMenu } from "./ThreadHeader";
 
 /**
- * The messenger's info bar (CLAUDE.md "Messenger – lange Info-Leiste unten"), from 744px: one flat line across list and chat, a fine line on
- * top, right above the light end of the tab bar – no capsule. A House's chat: its picture and "Fitness House Canggu · 12–26 Feb · 3 of 5 in"
- * (both a link into the House's area), the crew's faces, right the gear (the House's settings: the host Edit House, a guest "Your stay") and
- * the "…" by role. A question (1:1): the person and "About {House}", right "…" (Report, Block). Simpulo Support: its name and line.
+ * The chat card's head (CLAUDE.md "Messages: Chat als schwebende Karte"), from 744px, inside the card on its ground – no line. A House's chat:
+ * its picture and "Fitness House Canggu · 12–26 Feb · 3 of 5 in" (a link into the House's area), the crew's faces, the gear (host Edit House,
+ * guest "Your stay") and "…" by role. A question (1:1): the person and "About {House}", "…" (Report, Block). Simpulo Support: its name and
+ * line. Top left the card keeps room for the list's fold button (globals.css).
  */
 export function ChatInfoBar({ threadId }: { threadId: string | null }) {
   const t = useTranslations("messages.thread");

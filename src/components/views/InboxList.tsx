@@ -1,13 +1,14 @@
 "use client";
 
 import { useReloadOnReturn } from "@/lib/useReloadOnReturn";
-import { ChevronRight, LifeBuoy, MessageCircle, Search } from "lucide-react";
+import { ChevronRight, LifeBuoy, MessageCircle, PanelLeft, Search } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { RequireLogin } from "@/components/auth/RequireLogin";
 import { MasterDetail } from "@/components/layout/MasterDetail";
+import { setListCollapsed, useListCollapsed } from "@/lib/messengerList";
 import { Button } from "@/components/ui/ActionButton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { IconButton } from "@/components/ui/IconButton";
@@ -68,6 +69,7 @@ function InboxContent() {
   const me = store.currentUserId;
   // List and chat side by side from 744px (Tablet and Desktop); phones: the list, a chat opens as its own page.
   const isDesktop = useMediaQuery(MEDIA.tabletUp);
+  const collapsed = useListCollapsed();
   const params = useSearchParams();
   const selectedId = params.get("id");
   const f = useFormat();
@@ -158,6 +160,12 @@ function InboxContent() {
     <MasterDetail
       title={t("title")}
       fullHeight
+      listCollapsed={collapsed}
+      cardCorner={
+        <IconButton size="md" aria-label={collapsed ? t("expandList") : t("collapseList")} aria-expanded={!collapsed} onClick={() => setListCollapsed(!collapsed)}>
+          <PanelLeft className="size-5" aria-hidden />
+        </IconButton>
+      }
       list={
         <>
           {/* No All / Unread – one list by the newest message, unread in bold with the dot; the search only with many chats. */}
@@ -184,7 +192,7 @@ function InboxContent() {
           )}
           {/* No footer and no legal line on Messages – the one dark page, nothing light under it. */}
           {/* The rows reach the list's edges (--bleed-l/-r: the column's inner padding) – the chosen chat a calm fill across the whole row. */}
-          <div className="[--bleed-l:var(--page-margin)] [--bleed-r:var(--page-margin)] md:scroll-pane md:-ml-(--bleed-l) md:-mr-(--bleed-r) md:min-h-0 md:flex-1 md:pl-(--bleed-l) md:pr-(--bleed-r) md:pt-1 md:[--bleed-l:16px] md:[--bleed-r:16px] split:[--bleed-l:var(--list-gutter)] split:[--bleed-r:24px]">{chats}</div>
+          <div className="[--bleed-l:var(--page-margin)] [--bleed-r:var(--page-margin)] md:scroll-pane md:-ml-(--bleed-l) md:-mr-(--bleed-r) md:min-h-0 md:flex-1 md:pl-(--bleed-l) md:pr-(--bleed-r) md:pt-1 md:[--bleed-l:16px] md:[--bleed-r:0px] split:[--bleed-l:var(--list-gutter)]">{chats}</div>
         </>
       }
       // Mounted from 744px only: on phones it would mark the chat as read without anyone seeing it.
@@ -226,7 +234,7 @@ function ThreadRowLink({ row, active, isDesktop }: { row: ThreadRow; active: boo
       href={isDesktop ? `/messages?id=${thread.id}` : `/messages/${thread.id}`}
       scroll={false}
       aria-current={active ? "page" : undefined}
-      // Chosen: a calm fill across the whole row, no capsule (tokens.css .chat-row, CLAUDE.md "Messenger ruhig").
+      // Rows inset with radius 16; chosen light graphite with white words, dark one step lighter (globals.css [data-messenger] .chat-row).
       className="chat-row -ml-(--bleed-l) -mr-(--bleed-r) block pl-(--bleed-l) pr-(--bleed-r)"
     >
       <span className="flex items-center gap-3 py-3">

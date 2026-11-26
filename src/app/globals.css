@@ -2658,14 +2658,36 @@ html[data-footer="none"] main:not(:has([data-app-pane])) > .page-container:last-
   --bubble-other: color-mix(in srgb, var(--surface-page) 94%, #000000);
   --bubble-other-line: transparent;
 }
-:root:not([data-theme="dark"]) [data-messenger] .chat-row {
+/* CLAUDE.md "Messages: Chat als schwebende Karte": light the card pure white, dark one step lighter than the page (--surface over --bg).
+   The ground is taken on the card itself – inside the chat's dark scope --surface means something else. */
+:root:not([data-theme="dark"]) [data-messenger] [data-chat-card] {
+  --chat-card-ground: #ffffff;
+}
+:root[data-theme="dark"] [data-messenger] [data-chat-card] {
+  --chat-card-ground: var(--surface);
+}
+[data-messenger] [data-chat-card] {
+  background-color: var(--chat-card-ground);
+}
+:root[data-theme="dark"] [data-messenger] [data-chat-card] [data-chat-theme] {
+  --chat-bg: var(--chat-card-ground);
+}
+/* The card's head leaves room for the list's fold button top left. */
+[data-messenger] [data-chat-card] [data-chat-info-bar] {
+  padding-left: 64px;
+}
+/* The list, the same in both modes: rows inset 8px, radius 16; chosen light graphite with white words, dark a step lighter surface. */
+[data-messenger] .chat-row {
   margin-inline: 8px;
+  padding-right: 16px;
   border-radius: 16px;
 }
 :root:not([data-theme="dark"]) [data-messenger] .chat-row[aria-current="page"] {
   background-color: #221e1b;
-  border-radius: 16px;
   --text: #ffffff;
   --text-muted: rgb(255 255 255 / 0.7);
   color: #ffffff;
+}
+:root[data-theme="dark"] [data-messenger] .chat-row[aria-current="page"] {
+  background-color: var(--surface-2);
 }
