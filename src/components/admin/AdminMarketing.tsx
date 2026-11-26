@@ -60,6 +60,7 @@ import { findUser, useStore } from "@/lib/store";
 import { memoriesStats } from "@/lib/memories";
 import { useMemorySrc } from "@/lib/memoryMedia";
 import type { HouseMemory } from "@/lib/types";
+import { copyText } from "@/lib/clipboard";
 
 type Tab = "overview" | "countdown" | "pipeline" | "partners" | "content" | "levers";
 /** Überblick first and by default (CLAUDE.md "Überblick zuerst"); deep links (?tab=pipeline|partners|content) open their tab. */
@@ -1259,7 +1260,7 @@ function ContactDetail({ contact, onBack, onDeleted, isPartner, onToPartner, inP
           <AdminButton
             variant="secondary"
             onClick={() => {
-              void navigator.clipboard?.writeText(link).catch(() => {});
+              void copyText(link).catch(() => {});
               setCopied(true);
               window.setTimeout(() => setCopied(false), 1500);
             }}

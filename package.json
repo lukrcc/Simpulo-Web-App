@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "predev": "tsx scripts/sync-destination-images.ts",
-    "dev": "next dev",
+    "dev": "next dev -H 0.0.0.0 -p 3000",
     "prebuild": "tsx scripts/sync-destination-images.ts",
     "build": "next build",
     "postbuild": "tsx scripts/check-messages.ts",
@@ -12,7 +12,6 @@
     "check:messages": "tsx scripts/check-messages.ts",
     "start": "next start",
     "lint": "eslint",
-    "dev:lan": "next dev -H 0.0.0.0",
     "screenshots": "node scripts/screenshots.mjs",
     "test:breiten": "tsx scripts/breiten-test.mjs"
   },

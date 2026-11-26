@@ -11,6 +11,7 @@ import { useToast } from "@/components/ui/Toast";
 import { simpuloInviteLink } from "@/lib/links";
 import { getCurrentUser, useStore } from "@/lib/store";
 import type { User } from "@/lib/types";
+import { copyText } from "@/lib/clipboard";
 
 /**
  * /invite (CLAUDE.md "Profilseite neu"): your link to Simpulo – `/?ref={you}&src=friend` (lib/links.ts) – shown, to copy, and to share (the
@@ -40,7 +41,7 @@ function InviteBody({ me }: { me: User }) {
   const canShare = hydrated && typeof navigator.share === "function";
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(url);
+      await copyText(url);
       showToast(t("copied"));
     } catch {
       // no clipboard – the link is on the page to select

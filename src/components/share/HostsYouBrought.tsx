@@ -14,6 +14,7 @@ import { useFormat } from "@/i18n/format";
 import { shareUrl } from "@/lib/growth";
 import { hostReferralPath, hostsBroughtBy } from "@/lib/hostReferral";
 import { useStore } from "@/lib/store";
+import { copyText } from "@/lib/clipboard";
 
 export function HostsYouBrought() {
   const t = useTranslations("hostReferral");
@@ -41,7 +42,7 @@ export function HostsYouBrought() {
           variant="secondary"
           onClick={async () => {
             try {
-              await navigator.clipboard.writeText(link);
+              await copyText(link);
               setCopied(true);
             } catch {
               showToast(tCommon("linkCopyFailed"));

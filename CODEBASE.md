@@ -19,7 +19,7 @@ Stand: 11. Nov 2026. Erstellt durch eine reine Lese-Analyse, ohne Änderungen am
 | Hosting | `apphosting.yaml` nennt **Firebase App Hosting** (Secret `sitePassword` → `SITE_PASSWORD`). Der Code nutzt aber auch Vercel-Header (`x-vercel-ip-country`). Es gibt noch **kein Firebase-SDK** im Projekt. |
 | Backend | Keins. Alles läuft im Browser auf Mock-Daten. `emptyAdapter` und `payments/stripe.ts` sind Stubs. |
 
-**Skripte:** `npm run dev` (vorher läuft `scripts/sync-destination-images.ts`), `build`, `start`, `lint`, `dev:lan` (Zugriff aus dem LAN).
+**Skripte:** `npm run dev` (vorher läuft `scripts/sync-destination-images.ts`), `build`, `start`, `lint`; `npm run dev` hört immer auf das ganze Netzwerk (`-H 0.0.0.0 -p 3000`, http://simpulo.local:3000).
 
 **Umgebungsvariablen:**
 

@@ -42,6 +42,7 @@ import { stripeUrl } from "@/config/tools";
 import { TicketDetail } from "./AdminSupport";
 import { nudgeAudience } from "@/lib/houseHelp";
 import { monthYear, num } from "@/lib/i18n/adminFormat";
+import { copyText } from "@/lib/clipboard";
 
 export type InboxTab = "all" | TaskArea;
 const TABS: readonly InboxTab[] = ["all", ...TASK_AREAS];
@@ -834,7 +835,7 @@ function ContextGrid({ facts }: { facts: readonly { key: string; label: string; 
                 type="button"
                 aria-label={t("copyEmail")}
                 onClick={() => {
-                  void navigator.clipboard?.writeText(fact.value as string);
+                  void copyText(fact.value as string).catch(() => {});
                   showToast(t("copied"));
                 }}
                 className="adm-press flex size-6 shrink-0 items-center justify-center rounded-full text-muted hover:bg-ink/6 hover:text-ink"

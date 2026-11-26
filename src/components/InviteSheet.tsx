@@ -22,6 +22,7 @@ import { findUser, friendSpotsFor, isConnection, useStore, type InviteResult } f
 import { shareUrl } from "@/lib/growth";
 import type { HouseInvite, Stay, User } from "@/lib/types";
 import { cn, firstName, housePhotos, openSpots } from "@/lib/utils";
+import { copyText } from "@/lib/clipboard";
 
 const isTouchDevice = () => "ontouchstart" in window || navigator.maxTouchPoints > 0;
 
@@ -300,7 +301,7 @@ function useFriendLink(stay: Stay) {
     const url = ensure();
     if (!url) return;
     try {
-      await navigator.clipboard.writeText(url);
+      await copyText(url);
       showToast(t("copied"));
     } catch {
       showToast(tCommon("linkCopyFailed"));

@@ -12,8 +12,9 @@ const nextConfig: NextConfig = {
   // The Next.js dev indicator sat on top of the left nav rail / DevSwitcher – hide it (errors still surface).
   devIndicators: false,
   // Dev only: other hosts that may load the dev server's JS/HMR (hostnames only – no scheme, no port; `*` = one
-  // label). Phones on the LAN, the iPhone hotspot range and Cloudflare quick tunnels.
-  allowedDevOrigins: ["*.trycloudflare.com", "192.168.178.*", "172.20.10.*", "192.168.151.196", "10.219.49.*"],
+  // label). Phones on the LAN, the iPhone hotspot range and Cloudflare quick tunnels. The Mac by its Bonjour name (http://simpulo.local:3000,
+  // works on every device in the network without knowing the IP) – see README "Auf Mac, iPad und iPhone testen".
+  allowedDevOrigins: ["*.trycloudflare.com", "192.168.178.*", "172.20.10.*", "192.168.151.196", "10.219.49.*", "simpulo.local"],
   partialPrefetching: true,
   async redirects() {
     return [

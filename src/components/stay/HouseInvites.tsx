@@ -13,6 +13,7 @@ import { findUser, houseInviteUrl, openHouseInvites, useStore } from "@/lib/stor
 import type { HouseInvite, Stay } from "@/lib/types";
 import { cn, openSpots } from "@/lib/utils";
 import { DetailSection, ListRow } from "./DetailSection";
+import { copyText } from "@/lib/clipboard";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -47,7 +48,7 @@ export function HostInvitesSection({ stay }: { stay: Stay }) {
     if (invite.email) return showToast(t("resentEmail", { email: invite.email }));
     // Link only: the renewed link goes to the clipboard, to send again.
     try {
-      await navigator.clipboard.writeText(linkOf(stay, invite));
+      await copyText(linkOf(stay, invite));
       showToast(t("resentLink"));
     } catch {
       showToast(tCommon("linkCopyFailed"));
@@ -140,7 +141,7 @@ function InviteForm({ stay, onDone }: { stay: Stay; onDone: () => void }) {
 
   async function copy(invite: HouseInvite) {
     try {
-      await navigator.clipboard.writeText(linkOf(stay, invite));
+      await copyText(linkOf(stay, invite));
       setCopied(true);
     } catch {
       showToast(tCommon("linkCopyFailed"));

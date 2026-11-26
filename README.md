@@ -20,6 +20,27 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Auf Mac, iPad und iPhone testen (lokales Netzwerk)
+
+Den Dev-Server starten:
+
+```bash
+npm run dev
+```
+
+Er hört immer auf das ganze Netzwerk (`next dev -H 0.0.0.0 -p 3000`). Danach auf **allen Geräten im selben WLAN** öffnen:
+**http://simpulo.local:3000** – der Bonjour-Name des Macs, bleibt gleich, auch wenn sich die IP ändert. Auf dem Mac selbst geht auch
+http://localhost:3000.
+
+Den Namen zeigt `scutil --get LocalHostName` (Systemeinstellungen › Allgemein › Freigaben › Lokaler Hostname). Über die IP des Macs
+(`ipconfig getifaddr en0`) geht es ebenfalls, solange sie in 192.168.178.* liegt. Wer einen anderen Namen oder ein anderes Netz nutzt,
+trägt ihn in `allowedDevOrigins` in `next.config.ts` ein und startet den Dev-Server neu – sonst blockiert Next.js Hot Reload und
+Server-Aufrufe von diesem Gerät.
+
+Über http (statt https/localhost) fehlen dem Browser einige APIs (`navigator.clipboard`, `crypto.randomUUID`, Push). Die App fragt sie nur
+mit Prüfung ab; Kopieren läuft über `copyText` (`src/lib/clipboard.ts`) mit Rückfallweg. Mock-Daten und Dev-Menü hängen an
+`NODE_ENV` (`src/lib/appMode.ts`), nicht am Hostnamen – in Produktion bleiben beide aus.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

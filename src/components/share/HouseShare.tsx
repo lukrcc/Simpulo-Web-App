@@ -17,6 +17,7 @@ import { findUser, useStore } from "@/lib/store";
 import type { Stay } from "@/lib/types";
 import { housePhotos, openSpots } from "@/lib/utils";
 import { downloadBlob, renderStoryImage } from "./storyImage";
+import { copyText } from "@/lib/clipboard";
 
 const noSubscribe = () => () => {};
 /** navigator.share exists – false on the server and while hydrating. */
@@ -47,7 +48,7 @@ export function HouseShareSheet({ stay, open, onClose }: { stay: Stay; open: boo
 
   async function copy() {
     try {
-      await navigator.clipboard.writeText(link("copy"));
+      await copyText(link("copy"));
       done("copy");
       showToast(t("linkCopied"));
       onClose();

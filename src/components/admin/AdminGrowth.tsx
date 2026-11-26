@@ -42,6 +42,7 @@ import { useAdminInputs } from "@/lib/admin/useAdminInputs";
 import { dec, eur, num, pct } from "@/lib/i18n/adminFormat";
 import { shortNameOf } from "@/lib/shortName";
 import { useLiveVisitors } from "./AdminCockpit";
+import { copyText } from "@/lib/clipboard";
 
 const DIRECT = "\u0000direct";
 const NO_REF = "\u0000none";
@@ -439,7 +440,7 @@ function CreateLink() {
   const link = open ? `${window.location.origin}${path}${path.includes("?") ? "&" : "?"}src=${encodeURIComponent(channel)}` : "";
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(link);
+      await copyText(link);
     } catch {
       // the field stays selectable by hand
     }

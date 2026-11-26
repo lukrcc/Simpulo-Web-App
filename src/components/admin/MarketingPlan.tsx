@@ -18,6 +18,7 @@ import { isFoundingHost } from "@/lib/founding";
 import { day, num, share } from "@/lib/i18n/adminFormat";
 import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
+import { copyText } from "@/lib/clipboard";
 
 const DAY = 86_400_000;
 const at = (d: string) => Date.parse(`${d}T00:00:00Z`);
@@ -257,7 +258,7 @@ export function FounderFormat() {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(FOUNDER_FORMAT.brief.join("\n"));
+      await copyText(FOUNDER_FORMAT.brief.join("\n"));
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
     } catch {

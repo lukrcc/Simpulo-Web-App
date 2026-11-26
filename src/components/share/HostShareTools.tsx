@@ -11,6 +11,7 @@ import { findUser, useStore } from "@/lib/store";
 import type { Stay } from "@/lib/types";
 import { housePhotos, openSpots } from "@/lib/utils";
 import { downloadBlob, renderStoryImage } from "./storyImage";
+import { copyText } from "@/lib/clipboard";
 
 type Tool = "copy" | "story";
 
@@ -45,7 +46,7 @@ export function useHostShare(stay: Stay) {
     void run(
       "copy",
       async () => {
-        await navigator.clipboard.writeText(link("copy"));
+        await copyText(link("copy"));
         store.track("link_shared", { houseId: stay.id, channel: "copy" });
         showToast(t("linkCopied"));
       },

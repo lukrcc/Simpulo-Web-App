@@ -11,6 +11,7 @@ import { useToast } from "@/components/ui/Toast";
 import { SHARE_CHANNELS, shareUrl } from "@/lib/growth";
 import { useStore } from "@/lib/store";
 import type { User } from "@/lib/types";
+import { copyText } from "@/lib/clipboard";
 
 /** Houses are shared with HouseShare (system dialog / "Share this House"); this sheet shares profiles. */
 export type ShareTarget = { kind: "profile"; user: User };
@@ -60,7 +61,7 @@ export function ShareSheet({ target, open, onClose }: { target: ShareTarget; ope
       return;
     }
     try {
-      await navigator.clipboard.writeText(url);
+      await copyText(url);
       showToast(channel === "copy" ? tCommon("linkCopied") : t("pasteHint", { channel: t(`channels.${channel}`) }));
       onClose();
     } catch {

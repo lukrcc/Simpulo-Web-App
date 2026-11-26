@@ -59,6 +59,7 @@ import { memberStage } from "@/lib/joinFlow";
 import { cn, housePhotos, openSpots, typicalDayOf } from "@/lib/utils";
 import { SEARCH_HEAD_START_HOURS } from "@/config/explore";
 import { inHeadStart, isListedStay } from "@/lib/launch";
+import { copyText } from "@/lib/clipboard";
 
 /** Houses already counted as viewed in this page load (memory only). */
 const viewedHouses = new Set<string>();
@@ -272,7 +273,7 @@ function StayDetailContent({ stay }: { stay: Stay }) {
   /** The friend's link: /h/[id]?with=<request id>. */
   async function copyFriendLink(requestId: string) {
     try {
-      await navigator.clipboard.writeText(`${window.location.origin}/h/${stay.id}?with=${requestId}`);
+      await copyText(`${window.location.origin}/h/${stay.id}?with=${requestId}`);
       showToast(tInvite("copied", { hours: INVITE_POLICY.inviteHoldHours }));
     } catch {
       showToast(tCommon("linkCopyFailed"));

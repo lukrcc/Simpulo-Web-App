@@ -26,6 +26,7 @@ import { day, eur, num } from "@/lib/i18n/adminFormat";
 import { linkBase } from "@/lib/links";
 import { findUser, useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
+import { copyText } from "@/lib/clipboard";
 
 export const PARTNER_KINDS: readonly PartnerKind[] = MARKETING_KINDS;
 const LADDERS: readonly PartnerLadder[] = [1, 2, 3];
@@ -352,7 +353,7 @@ function Effect({ partner }: { partner: MarketingPartner }) {
         <AdminButton
           variant="secondary"
           onClick={() => {
-            void navigator.clipboard?.writeText(link).catch(() => {});
+            void copyText(link).catch(() => {});
             setCopied(true);
             window.setTimeout(() => setCopied(false), 1500);
           }}

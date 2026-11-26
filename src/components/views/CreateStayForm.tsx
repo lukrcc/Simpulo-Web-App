@@ -89,6 +89,7 @@ import {
   type HouseTemplate,
   type StepKey,
 } from "@/components/create/model";
+import { copyText } from "@/lib/clipboard";
 import { useSearchDemand } from "@/components/create/SearchDemandHint";
 import { OpenedInvite } from "@/components/InviteSheet";
 
@@ -923,7 +924,7 @@ function OpenedScreen({ stay, notified, host, form, linkToken, preselect }: { st
   async function copyInvite() {
     if (!invite) return;
     try {
-      await navigator.clipboard.writeText(houseInviteUrl(window.location.origin, stay, invite));
+      await copyText(houseInviteUrl(window.location.origin, stay, invite));
       showToast(t("inviteCopied"));
     } catch {
       // The clipboard can be refused; nothing else to do.

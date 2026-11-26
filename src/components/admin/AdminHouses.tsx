@@ -16,6 +16,7 @@ import { findUser, useStore, type ClaimableStayInput } from "@/lib/store";
 import type { Stay } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { AdminShell } from "./AdminShell";
+import { copyText } from "@/lib/clipboard";
 
 /** The link a creator claims their prepared House with (tagged, so claims show up per channel). */
 function claimLink(token: string): string {
@@ -28,7 +29,7 @@ function useCopyClaimLink() {
   const showToast = useToast();
   return async (token: string) => {
     try {
-      await navigator.clipboard.writeText(claimLink(token));
+      await copyText(claimLink(token));
       showToast(t("linkCopied"));
     } catch {
       showToast(tCommon("linkCopyFailed"));

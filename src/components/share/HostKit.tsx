@@ -18,6 +18,7 @@ import { shortNameOf } from "@/lib/shortName";
 import type { Stay } from "@/lib/types";
 import { housePhotos, openSpots } from "@/lib/utils";
 import { downloadBlob, renderStoryImage } from "./storyImage";
+import { copyText } from "@/lib/clipboard";
 
 type Piece = "story" | "bio" | "post";
 
@@ -63,7 +64,7 @@ function KitFor({ stay }: { stay: Stay }) {
 
   async function copy(piece: Piece) {
     try {
-      await navigator.clipboard.writeText(texts[piece]);
+      await copyText(texts[piece]);
       setCopied(piece);
       window.setTimeout(() => setCopied((p) => (p === piece ? null : p)), 1600);
       store.track("link_shared", { houseId: stay.id, channel: "hostkit" });
