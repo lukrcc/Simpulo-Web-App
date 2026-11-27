@@ -188,7 +188,7 @@ export const ADMIN_PAGES: Readonly<Record<AdminPageKey, AdminPageDef>> = {
   },
   marketing: {
     path: "/admin/marketing",
-    capsules: caps("overview", "countdown", "pipeline", "partners", "content", "levers"),
+    capsules: caps("overview", "countdown", "pipeline", "partners", "content", "levers", "akquise"),
     tiles: {
       launch: { tab: "countdown" },
       levers: { tab: "levers" },

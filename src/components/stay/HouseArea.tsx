@@ -1,5 +1,7 @@
 "use client";
 
+import { HeaderViews } from "@/components/layout/header/HeaderViews";
+import { usePageView } from "@/lib/pageViews";
 import { FrameStrip, PageFrame } from "@/components/PageFrame";
 import { StripFig } from "@/components/StripFig";
 
@@ -12,7 +14,7 @@ import { similarHouses } from "@/lib/requests";
 import { HostHelpChecklist } from "./HostHelpChecklist";
 import { HostChecklist } from "@/components/onboarding/HostOnboarding";
 import { ProgramEditor, ProgramFeedbackSummary, ProgramView } from "./ProgramParts";
-import { CalendarDays, ChevronLeft, Check, Images, ListChecks, MessageCircle, Plus, RotateCcw, Share, Users, Wallet, type LucideIcon } from "lucide-react";
+import { CalendarDays, Check, Images, ListChecks, MessageCircle, Plus, RotateCcw, Share, Users, Wallet, type LucideIcon } from "lucide-react";
 import { useHouseShareSheet } from "@/components/share/HouseShare";
 import { InviteSheet } from "@/components/InviteSheet";
 import { useCanInvite } from "@/lib/invites";
@@ -94,6 +96,10 @@ function phaseOf(stay: Stay, today: string): { key: "starts"; days: number } | {
  * The House area. `ended`: the guest was removed by the host or their 48 hours to pay ran out – they still see it, Me opens with what
  * happened (also a line in Messages, the direct chat with the host).
  */
+/** The House area's views in the bar – no Manage (its parts live in the views), Money and To do open from the overview's cards. */
+const BAR_VIEWS = ["overview", "chat", "plan", "crew", "moments"] as const;
+type BarView = (typeof BAR_VIEWS)[number];
+
 export function HouseArea({ stay, role, ended }: { stay: Stay; role: "member" | "host"; ended?: "removed" | "paymentLapsed" | "moderation" }) {
   const t = useTranslations("house.area");
   const tBack = useTranslations("common");
@@ -125,9 +131,13 @@ export function HouseArea({ stay, role, ended }: { stay: Stay; role: "member" | 
   // Old links: "Me" opens Plan; "Manage" (and /h/[id]/manage) the overview.
   const askedRaw = params.get("tab");
   const asked = (askedRaw === "me" ? "plan" : askedRaw === "manage" ? "overview" : askedRaw) as View | null;
-  const fallback: View = ended ? "plan" : "overview";
+  // The bar's views for this House (CLAUDE.md "Kopfleiste als Seitenwerkzeug"): Overview · Chat · Plan · Crew · Moments – the last one chosen is
+  // kept for the session (per House) and opens again without a ?tab.
+  const [remembered, remember] = usePageView<BarView>(`house:${stay.id}`, BAR_VIEWS, ended ? "plan" : "overview");
+  const fallback: View = remembered;
   const tab: View = asked && VIEWS.includes(asked) && (asked !== "todo" || isHost) ? asked : (fromFocus ?? fallback);
   const setTab = (next: View) => {
+    if ((BAR_VIEWS as readonly string[]).includes(next)) remember(next as BarView);
     const q = new URLSearchParams(params.toString());
     if (next === "overview") q.delete("tab");
     else q.set("tab", next);
@@ -246,14 +256,11 @@ export function HouseArea({ stay, role, ended }: { stay: Stay; role: "member" | 
       )}
 
       <div className="page-container explore-width">
-        {/* A detail page: "‹ {House}" back to the overview, the area's big title; the head isn't repeated. */}
+        {/* The bar's views; a detail page keeps only its big title – no "‹ {House}" (the bar navigates), the head isn't repeated. */}
+        <HeaderViews label={t("viewsLabel")} value={(BAR_VIEWS as readonly string[]).includes(tab) ? (tab as BarView) : null} onChange={setTab} views={BAR_VIEWS.map((value) => ({ value, label: t(`tabs.${value}`) }))} />
         {tab !== "overview" && (
           <div className="pt-8">
-            <button type="button" onClick={() => setTab("overview")} className="-ml-1.5 inline-flex min-h-11 items-center gap-0.5 text-body text-ink">
-              <ChevronLeft aria-hidden className="size-5" />
-              <span className="max-w-[40ch] truncate">{stay.title}</span>
-            </button>
-            <h2 className="mt-1 text-h1 text-ink">{t(`tabs.${tab}`)}</h2>
+            <h2 className="text-h1 text-ink">{t(`tabs.${tab}`)}</h2>
           </div>
         )}
         <div className="pt-8">

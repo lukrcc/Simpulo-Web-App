@@ -2,6 +2,7 @@
 
 // Dev-only switches that aren't feature flags (Dev menu › Scenario / Data & look), kept in this browser (localStorage, try/catch). Outside
 // APP_MODE "dev" every reader gets the defaults – nothing here ever changes what users see.
+import { pageTone } from "@/config/theme";
 import { useSyncExternalStore } from "react";
 import { APP_MODE } from "./appMode";
 
@@ -23,9 +24,11 @@ export interface DevSettings {
   simOffline: boolean;
   /** "Agreements" (lib/consent.ts): simulate a new version of the Terms or of the community guidelines – everyone has to agree again */
   consentBump: "terms" | "code" | null;
+  /** "Page tone" (config/theme.ts): compare the light page grounds a · b · c · d; null = the configured one */
+  pageTone: "a" | "b" | "c" | "d" | null;
 }
 
-const DEFAULTS: DevSettings = { houseRole: "auto", installedApp: false, adminRole: true, arcDay: null, clockHours: 0, simOffline: false, consentBump: null };
+const DEFAULTS: DevSettings = { houseRole: "auto", installedApp: false, adminRole: true, arcDay: null, clockHours: 0, simOffline: false, consentBump: null, pageTone: null };
 export const DEV_SETTINGS_KEY = "simpulo:dev";
 const DEV = APP_MODE === "dev";
 
@@ -63,6 +66,7 @@ export function setDevSetting<K extends keyof DevSettings>(key: K, value: DevSet
     // not saved – still switched for this visit
   }
   if (key === "installedApp") applyInstalledApp(value as boolean);
+  if (key === "pageTone") document.documentElement.setAttribute("data-page-tone", (value as DevSettings["pageTone"]) ?? pageTone);
   for (const listener of listeners) listener();
 }
 

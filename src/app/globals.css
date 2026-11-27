@@ -304,6 +304,10 @@
   --text-small: 13px;
   --text-small--line-height: 1.4;
   --text-small--font-weight: 500;
+  /* Messages' chat strip: a name under a 40px picture (CLAUDE.md "Messages breiter und ruhiger"). */
+  --text-caption: 12px;
+  --text-caption--line-height: 1.35;
+  --text-caption--font-weight: 400;
   --text-eyebrow: 12px;
   --text-eyebrow--line-height: 1.3;
   --text-eyebrow--font-weight: 600;
@@ -2552,10 +2556,10 @@ html[data-footer="none"] main:not(:has([data-app-pane])) > .page-container:last-
   --raised-plain: #ffffff;
 }
 :root[data-theme="dark"] :is(.create-flow, .house-area) {
-  --create-option: #2b2724;
-  --create-option-hover: #332e2b;
-  --create-field: #2b2724;
-  --raised-plain: #2b2724;
+  --create-option: #1c1c1e;
+  --create-option-hover: #2c2c2e;
+  --create-field: #2c2c2e;
+  --raised-plain: #1c1c1e;
 }
 .create-flow :is(input, textarea, select, button)[class*="focus:ring-accent/15"] {
   height: 40px;
@@ -2651,43 +2655,123 @@ html[data-footer="none"] main:not(:has([data-app-pane])) > .page-container:last-
    the page's tone, the chat column pure white, the others' bubbles a grey one step darker than the page, the chosen chat graphite with white
    words. No lines between list, head, messages and composer – only the surfaces. */
 [data-chat-theme] {
-  --composer-fill: color-mix(in srgb, var(--text) 6%, transparent);
+  --composer-fill: var(--fill);
 }
+/* CLAUDE.md "Messages: Chat ohne Karte": the chat lies on the page itself – no card, no surface, no edge (the card keeps only its margins and
+   the fold button). The others' bubbles, the composer field and its "+" are the raised surface (light pure white, dark --surface, the same
+   --chat-row-on as the chosen chat in the list); your own bubbles graphite as before. */
 :root:not([data-theme="dark"]) [data-messenger] [data-chat-theme] {
-  --chat-bg: #ffffff;
-  --bubble-other: color-mix(in srgb, var(--surface-page) 94%, #000000);
+  --chat-bg: var(--surface-page);
+}
+:root[data-theme="dark"] [data-messenger] [data-chat-theme] {
+  --chat-bg: #161617;
+}
+/* :root first – it has to win over the dark chat grounds of tokens.css (:root[data-theme] :is([data-chat-theme=…])). */
+:root [data-messenger] [data-chat-theme] {
+  --bubble-other: var(--chat-row-on);
   --bubble-other-line: transparent;
-}
-/* CLAUDE.md "Messages: Chat als schwebende Karte": light the card pure white, dark one step lighter than the page (--surface over --bg).
-   The ground is taken on the card itself – inside the chat's dark scope --surface means something else. */
-:root:not([data-theme="dark"]) [data-messenger] [data-chat-card] {
-  --chat-card-ground: #ffffff;
-}
-:root[data-theme="dark"] [data-messenger] [data-chat-card] {
-  --chat-card-ground: var(--surface);
+  --composer-fill: var(--chat-row-on);
 }
 [data-messenger] [data-chat-card] {
-  background-color: var(--chat-card-ground);
+  background-color: transparent;
 }
-:root[data-theme="dark"] [data-messenger] [data-chat-card] [data-chat-theme] {
-  --chat-bg: var(--chat-card-ground);
+/* The send button: a graphite circle with a white arrow in both modes (dark: the graphite of your own bubbles). */
+[data-chat-theme] {
+  --send-bg: #221e1b;
 }
-/* The card's head leaves room for the list's fold button top left. */
-[data-messenger] [data-chat-card] [data-chat-info-bar] {
-  padding-left: 64px;
+:root[data-theme="dark"] [data-chat-theme] {
+  --send-bg: #4d4642;
 }
-/* The list, the same in both modes: rows inset 8px, radius 16; chosen light graphite with white words, dark a step lighter surface. */
+/* Chat colours (CLAUDE.md "Chat-Farben pro Chat"): per chat and person – your own bubbles, the active send button and a faint glow (~3 %) in
+   the chat's ground. White words hold on each (light ≥ 5.5 : 1, dark ≥ 5.2 : 1). Not the others' bubbles, the unread dot or the bars.
+   Switching chats blends in 200ms. */
+:root {
+  --chat-color-graphite: #48423e;
+  --chat-color-ocean: #2f5d7c;
+  --chat-color-sage: #3e6b51;
+  --chat-color-sunset: #b4441f;
+}
+:root[data-theme="dark"] {
+  --chat-color-graphite: #4d4642;
+  --chat-color-ocean: #3a6688;
+  --chat-color-sage: #45765a;
+  --chat-color-sunset: #b8481f;
+}
+[data-chat-color="graphite"] { --chat-color: var(--chat-color-graphite); }
+[data-chat-color="ocean"] { --chat-color: var(--chat-color-ocean); }
+[data-chat-color="sage"] { --chat-color: var(--chat-color-sage); }
+[data-chat-color="sunset"] { --chat-color: var(--chat-color-sunset); }
+:root [data-messenger] [data-chat-color] {
+  --bubble-own: var(--chat-color);
+  --send-bg: var(--chat-color);
+  --chat-tint-bg: color-mix(in oklab, var(--chat-bg) 97%, var(--chat-color));
+  background-color: var(--chat-tint-bg);
+  transition: background-color 200ms ease-out;
+}
+/* The chat's head and its composer line lie on the same tinted ground (no seam to the messages); the chat strip above stays untinted. */
+[data-messenger] [data-chat-color] :is(.chat-glass, [data-composer-bar]) {
+  background-color: var(--chat-tint-bg);
+  transition: background-color 200ms ease-out;
+}
+[data-messenger] [data-chat-color] .bubble-own {
+  transition: background-color 200ms ease-out;
+}
+/* Name colours (CLAUDE.md "Messages breiter und ruhiger"): every other person in a chat gets one of eight calm tones, stable per person
+   (lib/chatColors.ts nameToneOf) – their name over a group, a fine 2px ring round their face, the bar of a quote of theirs. Light ≥ 5 : 1 on
+   the page and on white, dark ≥ 6.8 : 1. Never the others' bubbles. */
+:root {
+  --name-blue: #2f6690;
+  --name-teal: #1d7472;
+  --name-green: #3a7546;
+  --name-olive: #6b6a1f;
+  --name-orange: #a84d1b;
+  --name-red: #b03a48;
+  --name-purple: #6e4aa8;
+  --name-pink: #a03c78;
+}
+:root[data-theme="dark"] {
+  --name-blue: #7fb2dd;
+  --name-teal: #5ec1be;
+  --name-green: #79c28a;
+  --name-olive: #c2c062;
+  --name-orange: #e9935f;
+  --name-red: #ec8794;
+  --name-purple: #b49bea;
+  --name-pink: #e08bc0;
+}
+/* The narrow rail: the chosen chat a white circle behind its picture (dark: the raised surface), hover half of that. */
+[data-messenger] .rail-item {
+  transition: background-color 150ms ease-out;
+}
+[data-messenger] .rail-item:hover {
+  background-color: color-mix(in oklab, var(--chat-row-on) 50%, transparent);
+}
+[data-messenger] .rail-item.is-active {
+  background-color: var(--chat-row-on);
+}
+/* The list, the same in both modes (CLAUDE.md "Messages: ruhige Liste"): rows inset 8px, radius 16; the chosen chat the chat card's surface
+   (light pure white, dark the raised --surface) with the normal text colour, hover half of that step. No graphite. */
+[data-messenger] {
+  --chat-row-on: #ffffff;
+}
+:root[data-theme="dark"] [data-messenger] {
+  --chat-row-on: var(--surface);
+}
 [data-messenger] .chat-row {
   margin-inline: 8px;
   padding-right: 16px;
   border-radius: 16px;
 }
-:root:not([data-theme="dark"]) [data-messenger] .chat-row[aria-current="page"] {
-  background-color: #221e1b;
-  --text: #ffffff;
-  --text-muted: rgb(255 255 255 / 0.7);
-  color: #ffffff;
+[data-messenger] .chat-row:hover {
+  background-color: color-mix(in oklab, var(--chat-row-on) 50%, transparent);
 }
-:root[data-theme="dark"] [data-messenger] .chat-row[aria-current="page"] {
-  background-color: var(--surface-2);
+[data-messenger] .chat-row[aria-current="page"] {
+  background-color: var(--chat-row-on);
+}
+
+/* Messages from 744px (CLAUDE.md "Messages breiter und ruhiger"): the messages over the full width between the page's edges – the others' at the
+   left edge, yours at the right; time and system lines centred. */
+[data-messenger] [data-message-list-inner] {
+  max-width: none;
+  padding-inline: var(--page-margin);
 }

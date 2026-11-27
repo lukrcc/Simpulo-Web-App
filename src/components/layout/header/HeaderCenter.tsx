@@ -14,7 +14,7 @@ import { VIBE_ICONS } from "@/config/explore";
 import { useFormat } from "@/i18n/format";
 import { VIBES } from "@/lib/catalog";
 import { cn } from "@/lib/utils";
-import { hdrItem } from "./headerItem";
+import { hdrItem, hdrViewsRow } from "./headerItem";
 
 /** Room kept between the middle and each side group. */
 const CENTER_AIR = 24;
@@ -100,7 +100,8 @@ export function HeaderCenter({ filtersRef, ...p }: HeaderCenterProps) {
       ref={box}
       data-header-center
       data-squeeze={squeeze}
-      className="flex min-w-0 items-center gap-1"
+      // The one row of views in the bar (CLAUDE.md "Kopfleiste als Seitenwerkzeug" – the same as HeaderViews on the other tabs).
+      className={hdrViewsRow}
     >
       {/* Short Trips · Search · Themes · Filters (CLAUDE.md "Kopfleiste wie apple.com"). */}
       {(

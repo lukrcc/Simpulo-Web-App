@@ -59,6 +59,12 @@ export interface AdminData {
   backlog: Record<string, "open" | "inProgress" | "done" | "parked">;
   /** Admin › System › Launch: points confirmed by hand (config/launch.ts ids) → when */
   launchChecks?: Record<string, string>;
+  /** Admin › Marketing › Akquise: the Founding-Host contacts (lib/acquisition.ts – Firestore later, admins only) */
+  acquisitionContacts?: import("@/lib/acquisition").AcquisitionContact[];
+  /** Akquise › Vorlagen: templates edited in Admin, by id (config/acquisition.ts holds the start texts) */
+  acquisitionTemplates?: Record<string, { subject: string | null; body: string }>;
+  /** Akquise › Heute: DMs sent, by day (YYYY-MM-DD) */
+  acquisitionDms?: Record<string, number>;
   /** Admin › Labore: a lab's status and test answers set by click (lib/admin/labs.ts ids), over the start values there */
   labStates?: Record<string, { status?: "idea" | "test" | "revenue"; test?: Partial<Record<"uniqueData" | "strengthensCore" | "littleCapital" | "littlePersonalData" | "payingBuyer", "yes" | "no" | "open">> }>;
   /** Aufgaben › Sicherheit: the kind of a safety case set by hand (task id → config/support-templates.ts SafetySubtype); else recognised */

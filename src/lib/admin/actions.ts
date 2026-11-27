@@ -1,6 +1,7 @@
 "use client";
 
 // Every admin action – and each writes its line in the admin log. No admin component changes data any other way.
+import type { AcquisitionContact } from "@/lib/acquisition";
 import { setPlatformPhase } from "@/config/platform";
 import { readPlatformPhase } from "@/lib/data";
 import { HIGHLIGHT_POLICY, HOST_REFERRAL } from "@/config/policies";
@@ -14,7 +15,7 @@ import type { ApplicationStatus, HostHelpItem, HostTier, HostApplication, Platfo
 import { addContentHouse, addHouseAction, addTeamMessage, markNudged, addMarketingContact, addMarketingPartner, deleteMarketingContact, deleteMarketingPartner, patchMarketingContact, patchMarketingPartner, setHouseDone, setMarketingClips, setMarketingStep, patchRoadmapTodo, setRoadmapReached, addCostEntry, deleteCostEntry, setLaunchTask, addLaunchCustomTask, deleteLaunchCustomTask, addOwnTodo, patchRoadmapMilestone, addContentPost, patchContentPost, deleteContentPost } from "./store";
 import { useAdminData } from "./store";
 import { setSafetySubtype } from "./store";
-import { appendAdminLog, patchApplication, patchTaxQuestion, setBacklog, setLaunchCheck, patchLabState, setFundingDoc, setLocation, patchTicket, setReceipt, setTaskState, pushWithdrawal, setApplicationStatus } from "./store";
+import { appendAdminLog, patchApplication, patchTaxQuestion, setBacklog, setLaunchCheck, patchLabState, addAcquisitionContact, patchAcquisitionContact, removeAcquisitionContact, setAcquisitionTemplate, bumpAcquisitionDms, setFundingDoc, setLocation, patchTicket, setReceipt, setTaskState, pushWithdrawal, setApplicationStatus } from "./store";
 import type { ContentPost, CostEntry, MarketingContact, MarketingPartner, TaxQuestion } from "@/lib/data";
 
 /** Reports opened in this visit (the log line once each). */
@@ -268,6 +269,31 @@ export function useAdminActions() {
     setBacklogStatus(id: string, title: string, status: "open" | "inProgress" | "done" | "parked", statusLabel: string) {
       setBacklog(id, status);
       appendAdminLog("backlog_status", `${title} · ${statusLabel}`, by);
+    },
+    /** Akquise: a new Founding-Host contact (logged with its name). */
+    addAcquisitionContact(contact: Omit<AcquisitionContact, "id">) {
+      const added = addAcquisitionContact(contact);
+      appendAdminLog("acq_contact", `${added.name} · neu`, by, added.id);
+      return added;
+    },
+    /** Akquise: change a contact's fields; a new status is logged and lands in its history (with today's day). */
+    patchAcquisitionContact(contact: AcquisitionContact, patch: Partial<Omit<AcquisitionContact, "id" | "history">>, today: string, statusLabel?: string) {
+      patchAcquisitionContact(contact.id, patch, today);
+      if (patch.status && patch.status !== contact.status) appendAdminLog("acq_status", `${contact.name} · ${statusLabel ?? patch.status}`, by, contact.id);
+    },
+    /** Akquise: remove a contact for good (data protection – the log keeps only the id). */
+    removeAcquisitionContact(id: string) {
+      removeAcquisitionContact(id);
+      appendAdminLog("acq_contact", `${id} · gelöscht`, by, id);
+    },
+    /** Akquise › Vorlagen: save an edited template, or null back to the start text. */
+    setAcquisitionTemplate(id: string, label: string, template: { subject: string | null; body: string } | null) {
+      setAcquisitionTemplate(id, template);
+      appendAdminLog("acq_template", `${label} · ${template ? "geändert" : "zurückgesetzt"}`, by);
+    },
+    /** Akquise › Heute: +1 DM sent today (not logged – a counter). */
+    bumpAcquisitionDms(day: string, by_: number) {
+      bumpAcquisitionDms(day, by_);
     },
     /** Labore: a lab's status (Idee · Test · Einnahme) – "Einnahme" only with a paying buyer (the page checks, lib/admin/labState.ts). */
     setLabStatus(id: string, name: string, status: "idea" | "test" | "revenue", statusLabel: string) {

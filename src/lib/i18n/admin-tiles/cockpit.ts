@@ -93,6 +93,7 @@ export const TILES_COCKPIT = {
   partnersActive: "Partner aktiv {active} von {all}",
   launchDate: "{date} · Marketing-Start {start}",
   pipelineSplit: "geantwortet {replied} · Demo {demo}",
+  acqSplit: "geantwortet {replied} · Founding {founding} / {goal}",
   partnersOf: "von {all} Partnern",
   partnersDue: "Schritte fällig {due}",
   shortsPlanned: "geplant diese Woche {planned}",

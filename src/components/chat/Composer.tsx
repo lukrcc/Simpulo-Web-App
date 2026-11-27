@@ -1,7 +1,7 @@
 "use client";
 
 import { useFormatLocale } from "@/i18n/formatLocale";
-import { ArrowUp, FileText, Paperclip, Reply, X } from "lucide-react";
+import { ArrowUp, FileText, Paperclip, Plus, Reply, Smile, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type ClipboardEvent, type KeyboardEvent } from "react";
 import { LinkPreviewCard } from "@/components/stay/LinkPreviewCard";
@@ -10,8 +10,7 @@ import { previewForUrl } from "@/lib/data";
 import { useStore } from "@/lib/store";
 import type { Attachment } from "@/lib/types";
 import { cn, findUrls } from "@/lib/utils";
-import { formatSize } from "./chatUtils";
-import { EmojiPicker } from "./EmojiPicker";
+import { formatSize, PICKER_EMOJIS } from "./chatUtils";
 import { MEDIA } from "@/config/breakpoints";
 
 /** Up to five lines (16px type, 22px lines) and the field's inner padding – four on phones (< 744px), the keyboard takes the rest. */
@@ -203,51 +202,106 @@ export function Composer({ threadId, placeholder, replyTo, onCancelReply, onSend
         </ul>
       )}
 
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          send();
-        }}
-        // A flat line (CLAUDE.md "Messenger – flaches Eingabefeld"): no capsule, no edge, no fill – the fine line to the messages is the
-        // frame's (ThreadFrame); 52px, it grows to five lines.
-        // CLAUDE.md "Messages: Kopf oben, Schreibleiste unten": a capsule field – filled, no edge, a fine graphite ring on focus.
-        className="composer-field flex min-h-13 items-end gap-1 rounded-[26px] bg-(--composer-fill) px-1.5 py-[5px] transition-shadow focus-within:shadow-[0_0_0_1.5px_var(--text)]"
-      >
+      {/* CLAUDE.md "Messages: Chat-Leiste oben": a round "+" left outside the field (a small menu: photo or file · emoji), the field a white
+          capsule (no edge, a fine graphite ring on focus), send a round button right outside it – both circles as high as the field. */}
+      <div className="flex items-end gap-2">
         <input ref={fileRef} type="file" accept="image/*,application/pdf" multiple hidden onChange={onFiles} />
+        <PlusMenu onFiles={() => fileRef.current?.click()} onEmoji={insertEmoji} />
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            send();
+          }}
+          className="composer-field flex min-h-12 min-w-0 flex-1 items-end rounded-[24px] bg-(--composer-fill) py-1 pl-4 pr-3 transition-shadow focus-within:shadow-[0_0_0_1.5px_var(--text)]"
+        >
+          <textarea
+            ref={textareaRef}
+            rows={1}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={onKeyDown}
+            onPaste={onPaste}
+            placeholder={placeholder}
+            aria-label={t("messageLabel")}
+            className="min-h-10 min-w-0 flex-1 resize-none bg-transparent px-1 py-2 text-input text-ink outline-none placeholder:text-ink/45"
+          />
+        </form>
+        {/* Send – a circle right outside the field, as high as it (CLAUDE.md "Messages: Chat-Leiste oben"): grey and disabled while empty,
+            in the chat's colour with a white arrow once there is something to send. Enter sends, Shift+Enter a new line. */}
         <button
           type="button"
-          onClick={() => fileRef.current?.click()}
-          aria-label={t("attach")}
-          className="flex size-10 shrink-0 items-center justify-center rounded-full text-ink/60 hover:bg-ink/5 hover:text-ink"
-        >
-          <Paperclip className="size-[18px]" />
-        </button>
-        <EmojiPicker onPick={insertEmoji} />
-        <textarea
-          ref={textareaRef}
-          rows={1}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={onKeyDown}
-          onPaste={onPaste}
-          placeholder={placeholder}
-          aria-label={t("messageLabel")}
-          className="ml-1 min-h-10 min-w-0 flex-1 resize-none bg-transparent px-1 py-2 text-input text-ink outline-none placeholder:text-ink/45"
-        />
-        {/* The chat's one main action, 40px: empty grey and disabled; with something to send the action orange (--brand-action, "join in")
-            with a white arrow (an icon: 3 : 1 is enough). Enter sends, Shift+Enter a new line. */}
-        <button
-          type="submit"
+          onClick={send}
           disabled={!canSend}
           aria-label={t("send")}
-          className={cn(
-            "ml-1 flex size-10 shrink-0 items-center justify-center rounded-full bg-ink text-inverse transition-[background-color,color,transform] hover:opacity-90 active:scale-95",
-            "disabled:pointer-events-none disabled:bg-ink/8 disabled:text-ink/35",
-          )}
+          className="flex size-12 shrink-0 items-center justify-center rounded-full bg-(--send-bg) text-on-signal transition-[background-color,color,transform] duration-200 hover:opacity-90 active:scale-95 disabled:pointer-events-none disabled:bg-(--composer-fill) disabled:text-ink/35"
         >
-          <ArrowUp className="size-[18px]" strokeWidth={2.25} />
+          <ArrowUp className="size-5" strokeWidth={2.25} />
         </button>
-      </form>
+      </div>
+    </div>
+  );
+}
+
+/** The round "+" left of the field: a small menu above it – Photo or file (the file picker) · Emoji (the emoji grid in the same menu). */
+function PlusMenu({ onFiles, onEmoji }: { onFiles: () => void; onEmoji: (emoji: string) => void }) {
+  const t = useTranslations("messages.thread");
+  const [open, setOpen] = useState<null | "menu" | "emoji">(null);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: PointerEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(null);
+    };
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(null);
+    };
+    document.addEventListener("pointerdown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+  const row = "flex h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-body text-ink hover:bg-ink/5";
+  return (
+    <div ref={ref} className="relative shrink-0">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => (o ? null : "menu"))}
+        aria-label={t("addMore")}
+        aria-expanded={open !== null}
+        className={cn("flex size-12 items-center justify-center rounded-full bg-(--composer-fill) text-ink transition-transform hover:opacity-80 active:scale-95", open && "opacity-80")}
+      >
+        <Plus className={cn("size-5 transition-transform duration-150", open && "rotate-45")} aria-hidden />
+      </button>
+      {open === "menu" && (
+        <div role="menu" aria-label={t("addMore")} className="glass-panel absolute bottom-full left-0 z-40 mb-2 w-56 rounded-[20px]! p-1.5">
+          <button type="button" role="menuitem" onClick={() => (setOpen(null), onFiles())} className={row}>
+            <Paperclip className="size-[18px] text-muted" aria-hidden />
+            {t("attach")}
+          </button>
+          <button type="button" role="menuitem" onClick={() => setOpen("emoji")} className={row}>
+            <Smile className="size-[18px] text-muted" aria-hidden />
+            {t("emoji")}
+          </button>
+        </div>
+      )}
+      {open === "emoji" && (
+        <div role="dialog" aria-label={t("emoji")} className="glass-panel absolute bottom-full left-0 z-40 mb-2 grid w-[288px] grid-cols-8 gap-0.5 rounded-[20px]! p-2">
+          {PICKER_EMOJIS.map((emoji) => (
+            <button
+              key={emoji}
+              type="button"
+              // Keep the textarea's focus and selection, so the emoji lands at the cursor.
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => onEmoji(emoji)}
+              className="flex size-8 items-center justify-center rounded-lg text-h3 hover:bg-bg"
+            >
+              {emoji}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -50,7 +50,9 @@ import { hostStatsFor } from "@/lib/hostStats";
 import { areaHref, focusOfTask, hostManageHref, manageHref, stepHref } from "@/lib/houseTasks";
 import { Avatar } from "@/components/ui/Avatar";
 import { useCardTask, useNeedsYou } from "@/lib/needsYou";
-import { StatsStrip } from "@/components/StatsStrip";
+import { StatsGroup } from "@/components/StatsGroup";
+import { HeaderViews } from "@/components/layout/header/HeaderViews";
+import { usePageView } from "@/lib/pageViews";
 import { useGridColumns } from "@/lib/useGridColumns";
 import { didntWorkOut } from "@/lib/requests";
 import { crewInOf, crewThreadId, findUser, getCrew, getCrewThread, getCurrentUser, getMyPayment, isCrewMember, settingsOf, useStore } from "@/lib/store";
@@ -282,6 +284,16 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
   // No tabs (CLAUDE.md "Your houses – Reihen statt Reiter"): under the strip the rows Going · Waiting · Hosting · Your places · Lived in · Saved,
   // a title without a count each; empty rows left out (Hosting only with Houses or drafts of your own).
   const shown = rows.filter((row) => row.key !== "nextTrip" && row.cards.length > 0);
+  // The bar's views (CLAUDE.md "Kopfleiste als Seitenwerkzeug"): Going (Going and Waiting, For your next trip) · Hosting (Hosting, Your
+  // places) · Lived in · Saved (the saved Houses and people) – a view without anything in it is left out; Going by default, kept for the session.
+  const hasHosting = shown.some((row) => row.key === "hosting") || placeCards.length > 0;
+  const savedPeopleCount = (settingsOf(getCurrentUser(store)).savedPeopleIds ?? []).length;
+  const hasSaved = savedCards.length > 0 || savedPeopleCount > 0;
+  type View = "going" | "hosting" | "livedIn" | "saved";
+  const views: View[] = ["going", ...(hasHosting ? (["hosting"] as const) : []), ...(livedIn.length > 0 ? (["livedIn"] as const) : []), ...(hasSaved ? (["saved"] as const) : [])];
+  const [view, setView] = usePageView<View>("yourHouses", views, "going");
+  const inView = (key: YourRowKey) => (view === "going" ? key === "going" || key === "waiting" : view === "hosting" ? key === "hosting" : view === "livedIn" ? key === "livedIn" : key === "saved");
+  const visible = shown.filter((row) => inView(row.key));
 
   // "See all": one row as a grid, under the way back.
   if (group) {
@@ -307,6 +319,7 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
 
   return (
     <>
+      <HeaderViews label={tDash("views.label")} views={views.map((value) => ({ value, label: tDash(`views.${value}`) }))} value={view} onChange={setView} />
       {/* The dashboard as a full-width band under the header (components/HeroBand): left Up next – exactly one House, its photo to the edge –,
           right Ember to the window's edge: Needs you (the fixed columns), Coming up and the Payouts footer, --hero-h high. */}
       <PageFrame
@@ -336,11 +349,11 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
         media={<UpNextMedia stay={upNext} lastLived={livedIn[0]} request={upNext ? joined.find((j) => j.stay.id === upNext.id)?.request : undefined} now={now} news={upNext ? activity.get(upNext.id) : undefined} />}>
         <TodoTile groups={payOk ? TODO_GROUPS : TODO_GROUPS.filter((g) => g !== "pay")} entries={todo} now={now} />
       </PageFrame>
-    <Container className={cn("explore-width explore-root", nextTripCards.length > 0 ? "pb-0" : "pb-16")}>
+    <Container className={cn("explore-width explore-root", view === "going" && nextTripCards.length > 0 ? "pb-0" : "pb-16")}>
       {probe}
       {/* The rows right under the strip: 32px down, 40px apart – each four tiles, more scroll sideways (the shelf of Explore) with "See all →". */}
       <div className={cn(FRAME_BODY_TOP, "flex flex-col gap-10")}>
-        {shown.map((row) => (
+        {visible.map((row) => (
           <Fragment key={row.key}>
             <CardRow
               id={row.key}
@@ -356,13 +369,13 @@ function YourHousesContent({ group }: { group?: YourRowKey }) {
           </Fragment>
         ))}
         {/* Your places also without Houses of your own (the hosting row left out). */}
-        {!shown.some((row) => row.key === "hosting") && placeCards.length > 0 && <CardRow id="places" title={tPlaces("title")} cards={placeCards} cols={myCols} showCount={false} slideClass="my-slide" />}
-        <SavedPeople />
+        {view === "hosting" && !shown.some((row) => row.key === "hosting") && placeCards.length > 0 && <CardRow id="places" title={tPlaces("title")} cards={placeCards} cols={myCols} showCount={false} slideClass="my-slide" />}
+        {view === "saved" && <SavedPeople />}
       </div>
       <PayoutSetupSheet open={payoutSheet} onClose={() => setPayoutSheet(false)} />
       <PickOneSheet pairs={picking} onClose={() => setPicking(null)} />
     </Container>
-    {nextTripCards.length > 0 && <NextTripBand cards={nextTripCards} cols={cols} title={tDash("rows.nextTrip")} />}
+    {view === "going" && nextTripCards.length > 0 && <NextTripBand cards={nextTripCards} cols={cols} title={tDash("rows.nextTrip")} />}
     </>
   );
 }
@@ -901,8 +914,11 @@ function StageStrip({ today, host, earnings, hosting, going, waiting, livedIn, p
         peopleBlock,
       ];
   return (
-    // The one numbers strip (components/StatsStrip.tsx), shared with the profile.
-    <StatsStrip blocks={blocks} />
+    // The numbers as a white group (components/StatsGroup.tsx – shared with the profile; CLAUDE.md "Profil neu geordnet": it replaced the dark
+    // strip), on the page's ground at the strip's place, on the page's grid.
+    <div data-stats-band className="band-inset-full flex items-center py-4 md:h-(--frame-strip-h)">
+      <StatsGroup blocks={blocks} className="w-full" />
+    </div>
   );
 }
 

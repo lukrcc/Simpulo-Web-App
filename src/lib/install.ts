@@ -133,7 +133,7 @@ export function isStandalone(): boolean {
 }
 
 /** For the inline script in app/layout.tsx: is-standalone (and, simulated in dev, sim-standalone) on <html> before anything paints. */
-export const STANDALONE_SCRIPT = `try{var h=document.documentElement,s=matchMedia(${JSON.stringify(standaloneQuery)}).matches||navigator.standalone===true,d=false;if(h.getAttribute("data-app-mode")==="dev"){try{d=!!(JSON.parse(localStorage.getItem(${JSON.stringify(DEV_SETTINGS_KEY)})||"{}").installedApp)}catch(e){}}if(s||d)h.classList.add("is-standalone");if(d)h.classList.add("sim-standalone")}catch(e){}`;
+export const STANDALONE_SCRIPT = `try{var h=document.documentElement,s=matchMedia(${JSON.stringify(standaloneQuery)}).matches||navigator.standalone===true,d=false;if(h.getAttribute("data-app-mode")==="dev"){try{var o=JSON.parse(localStorage.getItem(${JSON.stringify(DEV_SETTINGS_KEY)})||"{}");d=!!o.installedApp;if(o.pageTone)h.setAttribute("data-page-tone",o.pageTone)}catch(e){}}if(s||d)h.classList.add("is-standalone");if(d)h.classList.add("sim-standalone")}catch(e){}`;
 
 function subscribeStandalone(onChange: () => void) {
   const media = window.matchMedia(standaloneQuery);

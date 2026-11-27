@@ -22,3 +22,24 @@ function subscribe(listener: () => void) {
 export function useHeaderSlot(): HTMLElement | null {
   return useSyncExternalStore(subscribe, () => slot, () => null);
 }
+
+// The page's own views in the middle of the bar (CLAUDE.md "Kopfleiste als Seitenwerkzeug"): every page but Explore and the admin – Your houses,
+// Messages, Profile … portal their HeaderViews into it. One element, outside React, like the Explore slot.
+let pageSlot: HTMLElement | null = null;
+const pageListeners = new Set<() => void>();
+
+export function setPageSlot(element: HTMLElement | null) {
+  if (element === pageSlot) return;
+  pageSlot = element;
+  for (const listener of pageListeners) listener();
+}
+
+function subscribePage(listener: () => void) {
+  pageListeners.add(listener);
+  return () => pageListeners.delete(listener);
+}
+
+/** The bar's middle for a page's views (null on Explore, in the admin and on the server). */
+export function usePageSlot(): HTMLElement | null {
+  return useSyncExternalStore(subscribePage, () => pageSlot, () => null);
+}

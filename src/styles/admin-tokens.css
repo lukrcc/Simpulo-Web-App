@@ -1416,3 +1416,18 @@ body:has(.admin-scope) {
 :root:root:root:root .admin-scope [data-row-on] {
   box-shadow: none;
 }
+
+/* The product's colours turned neutral (CLAUDE.md "Farb-Token neutral") – the admin's dark mode keeps the grounds it was measured on (the
+   statuses, groups and charts above are tuned to these): page #1A1715, raised #23201D, filled #2B2724, text cream. Light mode pins its own above. */
+:root[data-theme="dark"] :is(.admin-scope, body:has(.admin-scope)) {
+  --bg: #1a1715;
+  --surface: #23201d;
+  --surface-2: #2b2724;
+  --fill: #2b2724;
+  --band: #211d1b;
+  --glass-bg: rgba(38, 34, 31, 0.8);
+  --glass-solid: #26221f;
+  --text: #f4eee7;
+  --text-muted: rgba(244, 238, 231, 0.66);
+  --text-faint: rgba(244, 238, 231, 0.45);
+}

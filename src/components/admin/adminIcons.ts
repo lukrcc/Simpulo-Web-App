@@ -6,7 +6,7 @@ import {
   GitBranch, Globe, Handshake, HeartHandshake, Home, Inbox, Infinity as InfinityIcon, Landmark, Layers, LayoutGrid, Lightbulb, ListChecks, Mail,
   Map as MapIcon, MapPin, Megaphone, MessageSquare, MinusCircle, Network, Percent, PieChart, PiggyBank, Repeat, Rocket, Scale, ScatterChart,
   ScrollText, Search, SearchCheck, Shapes, ShieldOff, SlidersHorizontal, Smartphone, Split, Star, Tags, Target, ThumbsUp, Timer, TrendingUp,
-  User, UserPlus, Users, Wallet, Wrench, Store, Waves, ShieldCheck, Sprout, Sparkles, Zap, type LucideIcon,
+  User, UserPlus, Users, Wallet, Wrench, Store, Waves, ShieldCheck, Sprout, Sparkles, Zap, Crown, type LucideIcon,
 } from "lucide-react";
 
 export const ADMIN_ICONS = {
@@ -15,7 +15,7 @@ export const ADMIN_ICONS = {
   GitBranch, Globe, Handshake, HeartHandshake, Home, Inbox, Infinity: InfinityIcon, Landmark, Layers, LayoutGrid, Lightbulb, ListChecks, Mail,
   Map: MapIcon, MapPin, Megaphone, MessageSquare, MinusCircle, Network, Percent, PieChart, PiggyBank, Repeat, Rocket, Scale, ScatterChart,
   ScrollText, Search, SearchCheck, Shapes, ShieldOff, SlidersHorizontal, Smartphone, Split, Star, Tags, Target, ThumbsUp, Timer, TrendingUp,
-  User, UserPlus, Users, Wallet, Wrench, Store, Waves, ShieldCheck, Sprout, Sparkles, Zap,
+  User, UserPlus, Users, Wallet, Wrench, Store, Waves, ShieldCheck, Sprout, Sparkles, Zap, Crown,
 } satisfies Record<string, LucideIcon>;
 
 export type AdminIconName = keyof typeof ADMIN_ICONS;

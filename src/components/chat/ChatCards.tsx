@@ -31,7 +31,7 @@ export function DayDivider({ day }: { day: string }) {
         : new Intl.DateTimeFormat(locale, { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" }).format(new Date(`${day}T00:00:00Z`));
   return (
     <div className="my-5 flex justify-center">
-      <span className="rounded-full bg-ink/8 px-3 py-1 text-small text-ink/70">{label}</span>
+      <span className="rounded-full bg-ink/6 px-3 py-1 text-small text-muted">{label}</span>
     </div>
   );
 }

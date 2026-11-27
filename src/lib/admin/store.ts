@@ -4,6 +4,7 @@
 // (getAdminData – the mock now, Firestore later) and this browser keeps its changes (localStorage, try/catch; "Reset mock data" clears it).
 // The waitlist and the host application write here (addWaitlistEntry, addHostApplication); admin actions only through lib/admin/actions.ts,
 // which also writes the log.
+import type { AcquisitionContact } from "@/lib/acquisition";
 import type { PlatformPhase } from "@/lib/types";
 import type { HouseAction } from "@/lib/houseHelp";
 import { useSyncExternalStore } from "react";
@@ -25,7 +26,7 @@ function read(): AdminData {
       ? {
           waitlist: saved.waitlist ?? seed.waitlist,
           // Saved before followers were counted: they come from the seed.
-          applications: (saved.applications ?? seed.applications).map((a) => ({ ...a, audienceSize: a.audienceSize ?? seed.applications.find((s) => s.id === a.id)?.audienceSize ?? 0 })), log: saved.log ?? seed.log, tickets: saved.tickets ?? seed.tickets, withdrawals: saved.withdrawals ?? seed.withdrawals, taskStates: saved.taskStates ?? seed.taskStates, receipts: saved.receipts ?? seed.receipts, taxQuestions: saved.taxQuestions ?? seed.taxQuestions, fundingDocs: saved.fundingDocs ?? seed.fundingDocs, backlog: saved.backlog ?? seed.backlog, location: saved.location ?? seed.location, marketingContacts: saved.marketingContacts ?? seed.marketingContacts, marketingSteps: saved.marketingSteps ?? seed.marketingSteps, marketingClips: saved.marketingClips ?? seed.marketingClips, marketingPartners: saved.marketingPartners ?? seed.marketingPartners, houseDone: saved.houseDone ?? seed.houseDone, contentHouses: saved.contentHouses ?? seed.contentHouses, hostTax: saved.hostTax ?? seed.hostTax, launchChecks: saved.launchChecks ?? seed.launchChecks, labStates: saved.labStates ?? seed.labStates, safetySubtypes: saved.safetySubtypes ?? seed.safetySubtypes, houseActions: saved.houseActions ?? seed.houseActions, nudged: saved.nudged ?? seed.nudged, roadmapTodos: saved.roadmapTodos ?? seed.roadmapTodos, roadmapReached: saved.roadmapReached ?? seed.roadmapReached, costEntries: saved.costEntries ?? seed.costEntries, launchTasks: saved.launchTasks ?? seed.launchTasks, launchCustomTasks: saved.launchCustomTasks ?? seed.launchCustomTasks, contentPosts: saved.contentPosts ?? seed.contentPosts, contentSprints: saved.contentSprints ?? seed.contentSprints }
+          applications: (saved.applications ?? seed.applications).map((a) => ({ ...a, audienceSize: a.audienceSize ?? seed.applications.find((s) => s.id === a.id)?.audienceSize ?? 0 })), log: saved.log ?? seed.log, tickets: saved.tickets ?? seed.tickets, withdrawals: saved.withdrawals ?? seed.withdrawals, taskStates: saved.taskStates ?? seed.taskStates, receipts: saved.receipts ?? seed.receipts, taxQuestions: saved.taxQuestions ?? seed.taxQuestions, fundingDocs: saved.fundingDocs ?? seed.fundingDocs, backlog: saved.backlog ?? seed.backlog, location: saved.location ?? seed.location, marketingContacts: saved.marketingContacts ?? seed.marketingContacts, marketingSteps: saved.marketingSteps ?? seed.marketingSteps, marketingClips: saved.marketingClips ?? seed.marketingClips, marketingPartners: saved.marketingPartners ?? seed.marketingPartners, houseDone: saved.houseDone ?? seed.houseDone, contentHouses: saved.contentHouses ?? seed.contentHouses, hostTax: saved.hostTax ?? seed.hostTax, launchChecks: saved.launchChecks ?? seed.launchChecks, labStates: saved.labStates ?? seed.labStates, acquisitionContacts: saved.acquisitionContacts ?? seed.acquisitionContacts, acquisitionTemplates: saved.acquisitionTemplates ?? seed.acquisitionTemplates, acquisitionDms: saved.acquisitionDms ?? seed.acquisitionDms, safetySubtypes: saved.safetySubtypes ?? seed.safetySubtypes, houseActions: saved.houseActions ?? seed.houseActions, nudged: saved.nudged ?? seed.nudged, roadmapTodos: saved.roadmapTodos ?? seed.roadmapTodos, roadmapReached: saved.roadmapReached ?? seed.roadmapReached, costEntries: saved.costEntries ?? seed.costEntries, launchTasks: saved.launchTasks ?? seed.launchTasks, launchCustomTasks: saved.launchCustomTasks ?? seed.launchCustomTasks, contentPosts: saved.contentPosts ?? seed.contentPosts, contentSprints: saved.contentSprints ?? seed.contentSprints }
       : seed;
   } catch {
     current = seed;
@@ -213,6 +214,34 @@ export function setFundingDoc(key: string, status: AdminData["fundingDocs"][stri
 /** Internal – lib/admin/actions.ts sets a safety case's kind by hand (Aufgaben › Sicherheit) and logs it. */
 export function setSafetySubtype(taskId: string, kind: "harassment" | "payment" | "onsite") {
   write({ ...read(), safetySubtypes: { ...read().safetySubtypes, [taskId]: kind } });
+}
+
+/** Internal – lib/admin/actions.ts (Akquise): add, change or remove a Founding-Host contact; a status change lands in its history. */
+export function addAcquisitionContact(contact: Omit<AcquisitionContact, "id">): AcquisitionContact {
+  const added = { ...contact, id: newId("acq") };
+  write({ ...read(), acquisitionContacts: [added, ...(read().acquisitionContacts ?? [])] });
+  return added;
+}
+export function patchAcquisitionContact(id: string, patch: Partial<Omit<AcquisitionContact, "id" | "history">>, today: string) {
+  write({
+    ...read(),
+    acquisitionContacts: (read().acquisitionContacts ?? []).map((c) =>
+      c.id !== id ? c : { ...c, ...patch, history: patch.status && patch.status !== c.status ? [...c.history, { status: patch.status, at: today }] : c.history },
+    ),
+  });
+}
+export function removeAcquisitionContact(id: string) {
+  write({ ...read(), acquisitionContacts: (read().acquisitionContacts ?? []).filter((c) => c.id !== id) });
+}
+/** Akquise › Vorlagen: an edited template (null = back to the start text). */
+export function setAcquisitionTemplate(id: string, template: { subject: string | null; body: string } | null) {
+  const rest = Object.fromEntries(Object.entries(read().acquisitionTemplates ?? {}).filter(([key]) => key !== id));
+  write({ ...read(), acquisitionTemplates: template ? { ...rest, [id]: template } : rest });
+}
+/** Akquise › Heute: DMs sent that day, one more (or one less). */
+export function bumpAcquisitionDms(day: string, by: number) {
+  const all = read().acquisitionDms ?? {};
+  write({ ...read(), acquisitionDms: { ...all, [day]: Math.max(0, (all[day] ?? 0) + by) } });
 }
 
 /** Internal – lib/admin/actions.ts sets a lab's status or one test answer (Admin › Labore) and logs it. */

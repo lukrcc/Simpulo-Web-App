@@ -8,7 +8,7 @@ export const TOPIC_CARDS = {
   analysis: { value: "Wert-Check", sweetSpot: "Sweet Spot", topic: "Thema", length: "Länge", crew: "Crew", category: "Ort-Typ", hub: "Hub", tier: "Host-Stufe" },
   houses: { all: "Alle", atRisk: "Braucht Hilfe", goingWell: "Läuft gut", full: "Gerade voll", reserved: "2+ vorgemerkt", themes: "Themen", unanswered: "Ohne Antwort", cancelled: "Abgesagt" },
   hosts: { all: "Alle", tiers: "Stufen", founding: "Founding", review: "Prüfen", applications: "Bewerbungen", prepared: "Vorbereitet", recurring: "Wiederkehrend", active: "Aktiv / inaktiv" },
-  marketing: { countdown: "Countdown", housesHubs: "Houses & Hubs", waitlist: "Warteliste", hebel: "Hebel", pipeline: "Pipeline", partners: "Partner", content: "Content", nextStep: "Nächster Schritt", need: "Bedarf" },
+  marketing: { countdown: "Countdown", housesHubs: "Houses & Hubs", waitlist: "Warteliste", hebel: "Hebel", pipeline: "Pipeline", partners: "Partner", content: "Content", nextStep: "Nächster Schritt", need: "Bedarf", foundingHosts: "Founding Hosts" },
   data: { points: "Datenpunkte", models: "Modelle", theses: "Thesen", flow: "Fluss", decisions: "Entscheidungen", gaps: "Datenlücken", never: "Nie erfasst", nextThesis: "Nächste These" },
   funding: { readiness: "Bereitschaft", valuation: "Bewertung", rounds: "Runden", documents: "Unterlagen", thesis: "These", structure: "Firmenstruktur", contribution: "Deckungsbeitrag", allocation: "Verwendung" },
   vision: { layers: "Schichten", connection: "Verbindung", continuum: "Kontinuum", market: "Markt", segments: "Zielgruppen", roadmap: "Roadmap", location: "Standort", funding: "Finanzierung" },

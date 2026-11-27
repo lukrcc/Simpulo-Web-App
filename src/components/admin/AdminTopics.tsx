@@ -195,7 +195,7 @@ export function TopicCards({ page, pool }: { page: TopicPage; /** The page's num
               <IconSquare icon={defOf(def.key)?.icon} />
               <span className="flex min-w-0 items-center gap-1">
                 <span className="adm-page-title adm-card-title whitespace-nowrap">{label}</span>
-                <InfoTip text={card.info} />
+                {card.info ? <InfoTip text={card.info} /> : null}
               </span>
               {card.badge !== undefined && <span className="ml-auto shrink-0 text-small whitespace-nowrap">{card.badge}</span>}
               {card.badge === undefined && card.change !== undefined && (

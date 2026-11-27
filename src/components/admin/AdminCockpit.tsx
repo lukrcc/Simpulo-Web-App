@@ -4,6 +4,8 @@
 // Geld · Nachfrage · Qualität, the period a menu right. Überblick: 20 tiles in four rows (config/admin/overview.ts), each in its group
 // capsule's colour; a click opens that capsule with the tile marked – its details from the pages' own parts (OverviewGroups.tsx). Every
 // number from lib/admin/metrics.ts.
+import { acquisitionNumbers } from "@/lib/acquisition";
+import { FOUNDING_GOAL } from "@/config/acquisition";
 import { numberPool, TopicCards, TopicHeader } from "./AdminTopics";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
@@ -94,7 +96,7 @@ export function AdminCockpit() {
   const next = nextMilestone(inputs.today, inputs.admin);
   const live = useLiveVisitors();
   // Planen: the launch countdown, the pipeline (contacts → Houses opened), active partners, shorts published this week, theses supported.
-  const contacts = inputs.admin.marketingContacts ?? [];
+  const acq = acquisitionNumbers(inputs.admin.acquisitionContacts ?? []);
   const partnersActive = (inputs.admin.marketingPartners ?? []).filter((p) => p.agreement.status === "active").length;
   const toLaunch = daysToLaunch(inputs.today);
   // Detail lines (CLAUDE.md "Überblick je Seitentyp"): two small lines per tile; on a short window one (the tiles are compact there).
@@ -205,13 +207,14 @@ export function AdminCockpit() {
           group: "plan",
           label: t("tiles.pipeline"),
           info: t("tiles.info.pipeline"),
+          // The Akquise (lib/acquisition.ts): contacts → Founding Hosts (from „Bestätigt“ on) – the same data as Marketing › Akquise.
           value: (
             <>
-              {num(contacts.length)} <span className="text-muted">→</span> {num(contacts.filter((x) => x.status === "house").length)}
+              {num(acq.contacts)} <span className="text-muted">→</span> {num(acq.founding)}
             </>
           ),
-          details: lines(td("partnersActive", { active: num(partnersActive), all: num(partners.length) }), td("pipelineSplit", { replied: num(contacts.filter((x) => x.status === "replied").length), demo: num(contacts.filter((x) => x.status === "demo").length) }), contacts.length ? td("pipelineRate", { rate: share(contacts.filter((x) => x.status === "house").length, contacts.length) }) : null),
-          href: "/admin/marketing?tab=pipeline",
+          details: lines(td("partnersActive", { active: num(partnersActive), all: num(partners.length) }), td("acqSplit", { replied: num(acq.replied), founding: num(acq.founding), goal: num(FOUNDING_GOAL) }), acq.contacts ? td("pipelineRate", { rate: share(acq.founding, acq.contacts) }) : null),
+          href: "/admin/marketing?topic=foundingHosts&tab=akquise",
         },
       ],
     },
@@ -325,7 +328,6 @@ export function AdminCockpit() {
   const critMet = [crit.houses, crit.hubs, crit.reservedShare, crit.waitlist].filter((p) => p.value >= p.target).length;
   const nextMs = nextMilestone(inputs.today, inputs.admin);
   const msName = useMilestoneName();
-  const funnelM = marketingFunnel(inputs.admin.marketingContacts ?? [], inputs.today);
   const fullNow = inputs.stays.filter((x) => !x.isExample && x.spotsTotal > 0 && x.spotsFilled >= x.spotsTotal && x.endDate >= inputs.today && x.status !== "closed").length;
   // The numbers (CLAUDE.md "Karten-Inhalte als Konfiguration"): which of them a card shows is config/admin/cards/overview.ts.
   const tiles = allRows.flatMap((r) => r.tiles);
@@ -335,7 +337,7 @@ export function AdminCockpit() {
     activeHosts: { label: ts("activeHosts"), info: ts("hostsInfo"), value: num(hostList.filter((r) => hostActivity(r, inputs.today) === "active").length) },
     newHosts: { label: ts("newMonth"), value: num(hostList.filter((r) => r.houses.map((h) => h.createdAt).toSorted()[0]?.startsWith(month)).length) },
     applicationsOpen: { label: ts("applicationsOpen"), value: num(inputs.admin.applications.filter((a) => a.status === "new" || a.status === "maybe").length) },
-    replyRate: { label: ts("replyRate"), value: funnelM.all.replyRate === null ? "–" : pct(Math.round(funnelM.all.replyRate * 100)) },
+    replyRate: { label: ts("replyRate"), value: acq.replyRate === null ? "–" : pct(Math.round(acq.replyRate * 100)) },
     readiness: { label: ts("readiness"), value: `${num(ready.met)} / ${num(ready.total)}` },
     criteria: { label: ts("criteria"), value: `${num(critMet)} / 4` },
     nextMilestone: nextMs ? { label: ts("nextMilestone"), value: msName(nextMs) } : null,

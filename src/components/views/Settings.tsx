@@ -109,7 +109,14 @@ function SettingsContent({ me, path }: { me: User; path: string }) {
     <Container className="settings-page pb-10 pt-6 md:pt-10">
       <div className="mx-auto max-w-[680px]">
         {!section ? (
-          <SettingsHome me={me} isAdmin={isAdmin} />
+          <>
+            {/* Settings belongs to the Profile tab: "‹ Profile" left in the content (CLAUDE.md "Kopfleiste als Seitenwerkzeug" – the bar's middle stays empty here). */}
+            <Link href="/profile" className="-ml-1.5 mb-2 inline-flex min-h-11 items-center gap-0.5 text-body text-ink">
+              <ChevronLeft aria-hidden className="size-5" />
+              {tu("backProfile")}
+            </Link>
+            <SettingsHome me={me} isAdmin={isAdmin} />
+          </>
         ) : (
           <div className="min-w-0">
             {/* Back one level, like iOS – from a page behind an area to the area, from an area to the list. */}

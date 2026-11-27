@@ -3,3 +3,6 @@
 // (--hdr-item-on), the colour changing in 150ms; 14px regular – an active Short trips filter medium (500).
 export const hdrItem =
   "hdr-item inline-flex h-(--header-pill-h) min-w-0 shrink-0 items-center whitespace-nowrap px-2.5 text-nav font-normal text-(--hdr-item) transition-colors duration-150 hover:text-(--hdr-item-on) aria-expanded:text-(--hdr-item-on) data-on:font-medium data-on:text-(--hdr-item-on) focus-visible:rounded-md focus-visible:outline-2 focus-visible:outline-(--focus-ring)";
+
+/** The row of a page's views in the bar's middle – the same for Explore (HeaderCenter) and every other tab (HeaderViews). */
+export const hdrViewsRow = "flex min-w-0 items-center gap-1";

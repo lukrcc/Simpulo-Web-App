@@ -18,6 +18,7 @@ import { useFormat } from "@/i18n/format";
 import { crewInOf, findUser, getCrew, getCurrentUser, settingsOf, useStore } from "@/lib/store";
 import { useToast } from "@/components/ui/Toast";
 import type { Stay, User } from "@/lib/types";
+import type { MoreMenuItem } from "@/components/ui/MoreMenu";
 import { cn, housePhotos } from "@/lib/utils";
 import { shortNameOf } from "@/lib/shortName";
 
@@ -85,7 +86,7 @@ export function CrewHeader({ stay, embedded, threadId }: { stay: Stay; embedded:
  * The House chat's "…" by role (CLAUDE.md "Messenger ruhig"): the host Manage House · Edit House · Stop taking requests | Mute · Get help ·
  * Report | Cancel this House (red); a guest Mute · Get help · Report | Leave this House (red). The phone's head and the info bar share it.
  */
-export function CrewChatMenu({ stay, threadId }: { stay: Stay; threadId: string }) {
+export function CrewChatMenu({ stay, threadId, extraItems = [] }: { stay: Stay; threadId: string; /** On top of the House's group (the chat card's head: Who's in, Your stay) */ extraItems?: MoreMenuItem[] }) {
   const { dark } = useChatMenu();
   const t = useTranslations("messages.thread");
   const tHelp = useTranslations("help");
@@ -98,6 +99,7 @@ export function CrewChatMenu({ stay, threadId }: { stay: Stay; threadId: string 
       afterLeaveHref="/messages"
       hideView
       dark={dark}
+      extraItems={extraItems}
       helpItems={[
         {
           label: muted ? t("unmute") : t("mute"),

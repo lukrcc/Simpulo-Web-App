@@ -73,6 +73,7 @@ function DevSwitcherInner() {
   const houseRole = useDevSetting("houseRole");
   const installedApp = useDevSetting("installedApp");
   const simOffline = useDevSetting("simOffline");
+  const pageToneSim = useDevSetting("pageTone");
   const consentBump = useDevSetting("consentBump");
   const adminRole = useDevSetting("adminRole");
   const phase = usePlatformPhase();
@@ -189,6 +190,10 @@ function DevSwitcherInner() {
                   <a href="/dev/crash" className="text-small font-semibold text-ink underline-offset-4 hover:underline">
                     {t("errorPageOpen")}
                   </a>
+                </DevRow>
+                {/* The light page ground (config/theme.ts): a · b · c · d to compare; Auto = the configured one. */}
+                <DevRow label={t("pageTone")}>
+                  <CapsuleGroup size="sm" label={t("pageTone")} value={pageToneSim ?? "auto"} onChange={(value) => setDevSetting("pageTone", value === "auto" ? null : value)} options={(["auto", "a", "b", "c", "d"] as const).map((value) => ({ value, content: value === "auto" ? t("pageToneAuto") : value }))} />
                 </DevRow>
                 <DevRow label={t("simOffline")}>
                   <DevSwitch label={t("simOffline")} on={simOffline} onChange={(on) => setDevSetting("simOffline", on)} />

@@ -2,6 +2,7 @@
 
 import { ArrowDown, ArrowUp } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useFormat } from "@/i18n/format";
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ReportSheet } from "@/components/safety/ReportSheet";
 import { PhotoLightbox } from "@/components/stay/PhotoLightbox";
@@ -37,6 +38,7 @@ interface MessageListProps {
  */
 export function MessageList({ thread, emptyText, onReply, footer }: MessageListProps) {
   const t = useTranslations("messages.thread");
+  const f = useFormat();
   const messageText = useMessageText();
   const store = useStore();
   const newestFirst = useContext(NewestFirstContext);
@@ -201,7 +203,7 @@ export function MessageList({ thread, emptyText, onReply, footer }: MessageListP
     <div className="relative min-h-0 flex-1">
       <div ref={paneRef} onScroll={onScroll} data-scroll-from-end className="scroll-pane h-full overflow-y-auto overscroll-contain">
         {/* Under the glass head and over the floating composer: the messages keep clear of them when at either end. */}
-        <div ref={innerRef} className="mx-auto max-w-[920px] px-4 pb-[calc(var(--chat-bottom,0px)+32px)] pt-[calc(var(--chat-top,0px)+16px)]">
+        <div ref={innerRef} data-message-list-inner className="mx-auto max-w-[760px] px-4 pb-[calc(var(--chat-bottom,0px)+32px)] pt-[calc(var(--chat-top,0px)+16px)]">
         {count === 0 && !footer && <p className="py-16 text-center text-small text-muted">{emptyText}</p>}
         {newestFirst && footer}
         {newestFirst && typingLine}
@@ -216,6 +218,7 @@ export function MessageList({ thread, emptyText, onReply, footer }: MessageListP
                 <span aria-hidden className="h-px flex-1 bg-ink/15" />
               </div>
             );
+          if (row.kind === "time") return <p key={row.key} className="mb-1 mt-4 text-center text-small tabular-nums text-muted">{f.time(row.at)}</p>;
           if (row.kind === "line") return <SystemLine key={row.key} message={row.message} />;
           if (row.kind === "arc") return house && arc ? <ArcChatCard key={row.key} stay={house} stepId={row.message.arcStep!} at={Date.parse(row.message.createdAt)} now={arc.now} /> : null;
 

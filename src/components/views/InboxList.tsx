@@ -1,20 +1,24 @@
 "use client";
 
 import { useReloadOnReturn } from "@/lib/useReloadOnReturn";
-import { ChevronRight, LifeBuoy, MessageCircle, PanelLeft, Search } from "lucide-react";
+import { ChevronRight, LifeBuoy, MessageCircle, Search } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { RequireLogin } from "@/components/auth/RequireLogin";
 import { MasterDetail } from "@/components/layout/MasterDetail";
-import { setListCollapsed, useListCollapsed } from "@/lib/messengerList";
 import { Button } from "@/components/ui/ActionButton";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { IconButton } from "@/components/ui/IconButton";
+import { Sheet } from "@/components/ui/Sheet";
+import { ScrollRow } from "@/components/ui/ScrollRow";
+import { HeaderViews } from "@/components/layout/header/HeaderViews";
+import { usePageView } from "@/lib/pageViews";
 import { Img } from "@/components/ui/Img";
 import { PersonPhoto } from "@/components/ui/PersonPhoto";
 import { ThreadPanel } from "@/components/views/ThreadView";
+import { ChatTools } from "@/components/chat/ChatInfoBar";
+import { profileHref } from "@/lib/privacy";
 import { useMessageText } from "@/i18n/events";
 import { useFormat } from "@/i18n/format";
 import { crewInOf, findUser, isBlocked, isThreadUnread, lastMessageAtOf, useStore } from "@/lib/store";
@@ -53,8 +57,6 @@ export function InboxList() {
 /** By the chat's lastMessageAt (lib/store.tsx), the newest first. */
 const newestFirst = (a: ThreadRow, b: ThreadRow) => (lastMessageAtOf(b.thread) ?? "").localeCompare(lastMessageAtOf(a.thread) ?? "");
 
-/** More chats than this, and the search shows (as a magnifier beside the tabs). */
-const SEARCH_FROM = 16;
 const DAY_MS = 86_400_000;
 /**
  * /messages – ONE list of every chat (the crews' House chats and the questions – direct chats, each about one House, DIRECT_MESSAGE_POLICY),
@@ -69,12 +71,13 @@ function InboxContent() {
   const me = store.currentUserId;
   // List and chat side by side from 744px (Tablet and Desktop); phones: the list, a chat opens as its own page.
   const isDesktop = useMediaQuery(MEDIA.tabletUp);
-  const collapsed = useListCollapsed();
+  // The bar's views (CLAUDE.md "Kopfleiste als Seitenwerkzeug"): All · Unread · Houses · People – kept for the session.
+  const [view, setView] = usePageView("messages", ["all", "unread", "houses", "people"] as const, "all");
+  const [searchOpen, setSearchOpen] = useState(false);
   const params = useSearchParams();
   const selectedId = params.get("id");
   const f = useFormat();
   const [query, setQuery] = useState("");
-  const [searching, setSearching] = useState(false);
   const [pastOpen, setPastOpen] = useState(false);
   const [now] = useState(() => Date.now());
   const today = new Date(now).toISOString().slice(0, 10);
@@ -104,8 +107,8 @@ function InboxContent() {
   if (supportThread) rows.push({ thread: supportThread, title: tSupport("title"), support: true, past: false });
 
 
-  const canSearch = rows.length >= SEARCH_FROM;
-  const q = canSearch ? query.trim().toLowerCase() : "";
+  // The search lives in the window ("Search" in the bar; phones: the magnifier with many chats).
+  const q = query.trim().toLowerCase();
   const matches = (row: ThreadRow) => !q || row.title.toLowerCase().includes(q) || (row.subtitle?.toLowerCase().includes(q) ?? false);
   const inTab = rows.filter(matches);
   const current = inTab.filter((r) => !r.past).toSorted(newestFirst);
@@ -145,7 +148,7 @@ function InboxContent() {
         {current.length === 0 && past.length === 0 && q === "" && <p className="mt-6 text-small text-muted">{t("housesEmpty")}</p>}
         {past.length > 0 && (
           <section className="mt-5">
-            <button type="button" onClick={() => setPastOpen((open) => !open)} aria-expanded={showPast} className="flex min-h-8 items-center gap-1 text-small uppercase text-muted hover:text-ink">
+            <button type="button" onClick={() => setPastOpen((open) => !open)} aria-expanded={showPast} className="flex min-h-8 items-center gap-1 text-small text-muted hover:text-ink">
               <ChevronRight className={cn("size-4 transition-transform duration-200 motion-reduce:transition-none", showPast && "rotate-90")} aria-hidden />
               {t("past")}
             </button>
@@ -156,57 +159,115 @@ function InboxContent() {
       </>
     );
 
+  // From 744px (CLAUDE.md "Messages: Chat-Leiste oben, Chat immer offen"): no list on the left – the bar's views All · Unread · Houses · People,
+  // a sideways chat strip on top (filtered by the view, the newest activity first, its last entry the magnifier that opens the full list in a
+  // window), under it ONE middle axis: the chat's head, the messages and the composer, at most 760px. A chat is always open – the newest one
+  // unless one is chosen (?id=).
+  const strip = rows
+    .filter((r) => !r.past && (view === "all" || (view === "unread" ? isThreadUnread(store, r.thread) : view === "houses" ? r.thread.type === "house" : r.thread.type !== "house")))
+    .toSorted(newestFirst);
+  const newest = rows.filter((r) => !r.past).toSorted(newestFirst)[0] ?? ordered[0];
+  const deskActive = rows.some((r) => r.thread.id === selectedId) ? selectedId : (newest?.thread.id ?? null);
+
   return (
-    <MasterDetail
-      title={t("title")}
-      fullHeight
-      listCollapsed={collapsed}
-      cardCorner={
-        <IconButton size="md" aria-label={collapsed ? t("expandList") : t("collapseList")} aria-expanded={!collapsed} onClick={() => setListCollapsed(!collapsed)}>
-          <PanelLeft className="size-5" aria-hidden />
-        </IconButton>
-      }
-      list={
-        <>
-          {/* No All / Unread – one list by the newest message, unread in bold with the dot; the search only with many chats. */}
-          <div className="flex shrink-0 items-center justify-end gap-2 empty:hidden">
-            {canSearch && (
-              <IconButton size="sm" aria-label={t("searchLabel")} aria-expanded={searching} onClick={() => setSearching((open) => !open)}>
-                <Search className="size-4" aria-hidden />
-              </IconButton>
-            )}
-          </div>
-          {canSearch && searching && (
-            <label className="mt-3 flex h-11 shrink-0 items-center gap-2 rounded-2xl bg-ink/5 px-4 transition-shadow focus-within:ring-2 focus-within:ring-ink/25">
-              <Search className="size-4 shrink-0 text-muted" aria-hidden />
-              <input
-                type="search"
-                autoFocus
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder={t("searchPlaceholder")}
-                aria-label={t("searchLabel")}
-                className="min-w-0 flex-1 bg-transparent text-body outline-none placeholder:text-muted"
-              />
-            </label>
-          )}
-          {/* No footer and no legal line on Messages – the one dark page, nothing light under it. */}
-          {/* The rows reach the list's edges (--bleed-l/-r: the column's inner padding) – the chosen chat a calm fill across the whole row. */}
-          <div className="[--bleed-l:var(--page-margin)] [--bleed-r:var(--page-margin)] md:scroll-pane md:-ml-(--bleed-l) md:-mr-(--bleed-r) md:min-h-0 md:flex-1 md:pl-(--bleed-l) md:pr-(--bleed-r) md:pt-1 md:[--bleed-l:16px] md:[--bleed-r:0px] split:[--bleed-l:var(--list-gutter)]">{chats}</div>
-        </>
-      }
-      // Mounted from 744px only: on phones it would mark the chat as read without anyone seeing it.
-      detail={isDesktop && activeId ? <ThreadPanel threadId={activeId} /> : null}
-    />
+    <>
+      {/* Phones: the list as before (a chat opens as its own page). */}
+      <div className="md:hidden">
+        <MasterDetail title={t("title")} fullHeight list={<div className="[--bleed-l:var(--page-margin)] [--bleed-r:var(--page-margin)]">{chats}</div>} detail={null} />
+      </div>
+      <div data-messenger data-app-pane="desktop" className="hidden h-[calc(100dvh-var(--header-h)-var(--band-h)-var(--tabbar-safe))] min-h-0 flex-col md:flex">
+        <HeaderViews
+          label={t("viewsLabel")}
+          value={view}
+          onChange={setView}
+          views={[
+            { value: "all", label: t("viewAll") },
+            { value: "unread", label: t("viewUnread") },
+            { value: "houses", label: t("viewHouses") },
+            { value: "people", label: t("viewPeople") },
+          ]}
+        />
+        {rows.length === 0 ? (
+          <div className="mx-auto mt-16 max-w-[760px] px-6">{chats}</div>
+        ) : (
+          <>
+            <ChatStrip rows={strip} activeId={deskActive} label={t("title")} onSearch={() => setSearchOpen(true)} searchLabel={t("viewSearch")} />
+            {/* Mounted from 744px only: on phones it would mark the chat as read without anyone seeing it. */}
+            <div className="min-h-0 flex-1">{isDesktop && deskActive && <ThreadPanel threadId={deskActive} />}</div>
+          </>
+        )}
+      </div>
+      <Sheet open={searchOpen} onClose={() => setSearchOpen(false)} title={t("searchTitle")}>
+        <label className="flex h-11 items-center gap-2 rounded-full bg-(--fill) px-4 transition-shadow focus-within:shadow-[0_0_0_1.5px_var(--text)]">
+          <Search className="size-4 shrink-0 text-muted" aria-hidden />
+          <input type="search" autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("searchPlaceholder")} aria-label={t("searchLabel")} className="min-w-0 flex-1 bg-transparent text-body outline-none placeholder:text-muted" />
+        </label>
+        {/* A choice closes the window (the row is a link; the click bubbles here). */}
+        <div className="mt-3 [--bleed-l:8px] [--bleed-r:8px]" onClick={(e) => (e.target as Element).closest("a") && setSearchOpen(false)}>
+          {chats}
+        </div>
+      </Sheet>
+    </>
   );
 }
 
-function ThreadRowLink({ row, active, isDesktop }: { row: ThreadRow; active: boolean; isDesktop: boolean }) {
+/**
+ * The chat strip on top (from 744px, CLAUDE.md "Messages breiter und ruhiger"): one slim row from the page's left edge – sideways, no
+ * scrollbar, a soft fade and arrow circles (ScrollRow); each entry the picture 40px (people round, Houses radius 12), the name 12px in one
+ * line, a dot in the accent colour when unread; the chosen one a white surface behind the picture and its name in the primary colour – a
+ * click on it opens the House's overview or the person's profile. Its last entry the magnifier (the full list in a window). At its right
+ * end, on the same line, the open chat's colour dots and "···" (ChatTools).
+ */
+function ChatStrip({ rows, activeId, label, onSearch, searchLabel }: { rows: ThreadRow[]; activeId: string | null; label: string; onSearch: () => void; searchLabel: string }) {
+  return (
+    <div data-chat-strip className="flex shrink-0 items-center gap-4 py-3 pl-(--page-margin) pr-(--page-margin)">
+      <ScrollRow label={label} active={activeId} className="min-w-0 flex-1 gap-1">
+        {rows.map((row) => (
+          <StripLink key={row.thread.id} row={row} active={row.thread.id === activeId} />
+        ))}
+        {/* The last entry: a circle with the magnifier – the full list in a window (search on top, Past below). */}
+        <button type="button" onClick={onSearch} className="group flex w-16 shrink-0 flex-col items-center gap-1 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-(--focus-ring)">
+          <span className="flex size-12 items-center justify-center rounded-full">
+            <span className="flex size-10 items-center justify-center rounded-full bg-(--chat-row-on) text-ink transition-opacity group-hover:opacity-80">
+              <Search aria-hidden className="size-[18px]" />
+            </span>
+          </span>
+          <span className="w-full truncate px-1 text-center text-caption text-muted group-hover:text-ink">{searchLabel}</span>
+        </button>
+      </ScrollRow>
+      {activeId && <ChatTools threadId={activeId} />}
+    </div>
+  );
+}
+
+function StripLink({ row, active }: { row: ThreadRow; active: boolean }) {
+  const t = useTranslations("messages.inbox");
+  const { unread } = useRowInfo(row.thread);
+  // The chosen entry again: the House's overview (a House chat) or the person's profile (a question); Simpulo Support stays.
+  const href = active && !row.support ? (row.thread.type === "house" ? `/houses/${row.thread.houseId}` : row.avatar ? profileHref(row.avatar.id) : `/messages?id=${row.thread.id}`) : `/messages?id=${row.thread.id}`;
+  return (
+    <Link
+      href={href}
+      scroll={false}
+      aria-current={active ? "page" : undefined}
+      data-active={active || undefined}
+      className="group flex w-16 shrink-0 flex-col items-center gap-1 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-(--focus-ring)"
+    >
+      <span className={cn("rail-item relative flex size-12 items-center justify-center rounded-full", active && "is-active")}>
+        <RowPicture row={row} size={40} />
+        {unread && <span role="img" aria-label={t("unread")} className="absolute right-0.5 top-0.5 size-2.5 rounded-full bg-(--brand-action) ring-2 ring-(--surface-page)" />}
+      </span>
+      <span className={cn("w-full truncate px-1 text-center text-caption", active ? "font-medium text-ink" : "text-muted group-hover:text-ink")}>{row.title}</span>
+    </Link>
+  );
+}
+
+/** A row's last message as a preview line, its time (today) or day, and whether it's unread – shared by the full list and the narrow rail. */
+function useRowInfo(thread: Thread) {
   const t = useTranslations("messages.inbox");
   const f = useFormat();
   const messageText = useMessageText();
   const store = useStore();
-  const { thread, title, subtitle, avatar, cover } = row;
 
   /** Photos and files get a hint instead of an empty preview; event lines are translated. */
   function previewText(message: Message): string {
@@ -228,48 +289,67 @@ function ThreadRowLink({ row, active, isDesktop }: { row: ThreadRow; active: boo
       : t("preview", { author, text: previewText(last) });
   // Today (UTC calendar day, like the formatters): the time; older: the day.
   const time = last && (last.createdAt.slice(0, 10) === new Date().toISOString().slice(0, 10) ? f.time(last.createdAt) : f.day(last.createdAt));
+  return { preview, time, unread };
+}
+
+/** The row's picture: Simpulo Support's mark, a person in a circle (with the House's badge), or the House in a rounded square – 48px. */
+function RowPicture({ row, size = 48 }: { row: ThreadRow; /** 48px in the lists, 40px in the chat strip */ size?: 40 | 48 }) {
+  const { avatar, cover } = row;
+  const box = size === 40 ? "size-10" : "size-12";
+  if (row.support)
+    return (
+      <span className={cn("flex shrink-0 items-center justify-center rounded-full bg-ink text-inverse", box)}>
+        <LifeBuoy aria-hidden className="size-5" />
+      </span>
+    );
+  if (avatar)
+    return (
+      // Questions: the person in a circle 48px, the House as a rounded-square badge 20px at the bottom right (a 2px edge in the list's ground).
+      <span className={cn("relative shrink-0", box)}>
+        <PersonPhoto src={avatar.photos[0]} alt={avatar.name} size={size} className={cn("bg-line", box)} />
+        {cover && (
+          <span className="absolute -bottom-0.5 -right-0.5 block size-5 overflow-hidden rounded-md ring-2 ring-(--chat-bg)">
+            <Img src={cover} alt="" fill sizes="20px" className="object-cover" />
+          </span>
+        )}
+      </span>
+    );
+  if (cover)
+    return (
+      // House chats: the House's photo in a rounded square 48px (radius 12).
+      <span className={cn("relative shrink-0 overflow-hidden rounded-xl bg-line", box)}>
+        <Img src={cover} alt="" fill sizes={`${size}px`} className="object-cover" />
+      </span>
+    );
+  return <span className={cn("shrink-0 rounded-xl bg-surface", box)} />;
+}
+
+function ThreadRowLink({ row, active, isDesktop }: { row: ThreadRow; active: boolean; isDesktop: boolean }) {
+  const t = useTranslations("messages.inbox");
+  const { thread, title } = row;
+  const { preview, time, unread } = useRowInfo(thread);
 
   return (
     <Link
       href={isDesktop ? `/messages?id=${thread.id}` : `/messages/${thread.id}`}
       scroll={false}
       aria-current={active ? "page" : undefined}
-      // Rows inset with radius 16; chosen light graphite with white words, dark one step lighter (globals.css [data-messenger] .chat-row).
+      // Rows inset with radius 16; the chosen one the chat card's surface (light white, dark raised), hover half of it (globals.css
+      // [data-messenger] .chat-row; CLAUDE.md "Messages: ruhige Liste").
       className="chat-row -ml-(--bleed-l) -mr-(--bleed-r) block pl-(--bleed-l) pr-(--bleed-r)"
     >
-      <span className="flex items-center gap-3 py-3">
-        {row.support ? (
-          <span className="flex size-14 shrink-0 items-center justify-center rounded-full bg-ink text-inverse">
-            <LifeBuoy aria-hidden className="size-6" />
-          </span>
-        ) : avatar ? (
-          // Questions: the person in a circle 56px, the House as a rounded-square badge 22px at the bottom right (a 2px edge in the chat's ground).
-          <span className="relative size-14 shrink-0">
-            <PersonPhoto src={avatar.photos[0]} alt={avatar.name} size={56} className="size-14 bg-line" />
-            {cover && (
-              <span className="absolute -bottom-0.5 -right-0.5 block size-5.5 overflow-hidden rounded-md ring-2 ring-(--chat-bg)">
-                <Img src={cover} alt="" fill sizes="22px" className="object-cover" />
-              </span>
-            )}
-          </span>
-        ) : cover ? (
-          // House chats: the House's photo in a rounded square 56px.
-          <span className="relative size-14 shrink-0 overflow-hidden rounded-2xl bg-line">
-            <Img src={cover} alt="" fill sizes="56px" className="object-cover" />
-          </span>
-        ) : (
-          <span className="size-14 shrink-0 rounded-2xl bg-surface" />
-        )}
+      <span className="flex items-center gap-3 py-2.5">
+        {/* Unread: a dot in the accent colour left of the picture – its slot stays, so every row lines up. */}
+        <span className="flex w-2 shrink-0 justify-center">{unread && <span className="size-2 rounded-full bg-(--brand-action)" role="img" aria-label={t("unread")} />}</span>
+        <RowPicture row={row} />
+        {/* Two lines: title left and the day grey right; the preview one line grey (unread: only the title bold). */}
         <span className="block min-w-0 flex-1">
           <span className="flex items-baseline justify-between gap-2 text-body text-ink">
             <span className={cn("min-w-0 truncate", unread ? "font-semibold" : "font-medium")}>{title}</span>
-            {time && <span className="shrink-0 text-small text-ink/40">{time}</span>}
+            {time && <span className="shrink-0 text-small text-muted">{time}</span>}
           </span>
-          {subtitle && <span className="block truncate text-small text-muted">{subtitle}</span>}
-          {/* Unread: the preview semibold, and a small neutral dot. */}
-          <span className={cn("block truncate text-small", unread ? "font-semibold text-ink" : "text-muted")}>{preview}</span>
+          <span className="block truncate text-small text-muted">{preview}</span>
         </span>
-        {unread && <span className="size-2 shrink-0 rounded-full bg-(--brand-action)" role="img" aria-label={t("unread")} />}
       </span>
     </Link>
   );

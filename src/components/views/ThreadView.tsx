@@ -1,6 +1,6 @@
 "use client";
 
-import { ChatInfoBar } from "@/components/chat/ChatInfoBar";
+import { cn } from "@/lib/utils";
 import { SearchX } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -9,6 +9,7 @@ import { RequireLogin } from "@/components/auth/RequireLogin";
 import { DoItAgainCard } from "@/components/chat/ChatCards";
 import { Composer, type ReplyDraft } from "@/components/chat/Composer";
 import { MessageList, NewestFirstContext } from "@/components/chat/MessageList";
+import { DEFAULT_CHAT_COLOR, OwnChatColorContext, useChatColor, type ChatColor } from "@/lib/chatColors";
 import { CrewHeader, DirectHeader } from "@/components/chat/ThreadHeader";
 import { useOfferInstall } from "@/components/installPromptContext";
 import { Container } from "@/components/layout/Container";
@@ -77,7 +78,7 @@ function SupportContent({ embedded }: { embedded: boolean }) {
     <ThreadFrame
       embedded={embedded}
       head={
-        embedded ? <ChatInfoBar threadId={SUPPORT_THREAD_ID} /> : <div className="flex h-16 items-center gap-3 px-5">
+        embedded ? undefined : <div className="flex h-16 items-center gap-3 px-5">
           <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-ink text-inverse">
             <LifeBuoy aria-hidden className="size-5" />
           </span>
@@ -180,7 +181,7 @@ function UpdatesContent({ thread, embedded }: { thread: Thread; embedded: boolea
  * The chat: messages over the whole height, the glass head and the floating glass composer over them. Both can grow (a pinned vote, a reply
  * being written), so their heights are measured and the messages keep clear of them (--chat-top, --chat-bottom).
  */
-function ThreadFrame({ embedded, head, tabs, composer, children }: { embedded: boolean; head?: ReactNode; /** Later: Chat · Crew · Plan · Moments · Me – a row under the head, inside the glass (not built yet) */ tabs?: ReactNode; composer?: ReactNode; children: ReactNode }) {
+function ThreadFrame({ embedded, head, tabs, composer, children, color }: { embedded: boolean; /** The chat colour (lib/chatColors.ts) – own bubbles, send, a faint glow */ color?: ChatColor; head?: ReactNode; /** Later: Chat · Crew · Plan · Moments · Me – a row under the head, inside the glass (not built yet) */ tabs?: ReactNode; composer?: ReactNode; children: ReactNode }) {
   // ONE calm background (CLAUDE.md "Messenger ruhig"): the "cream" tokens – light, and their dark variant in dark mode; no backgrounds to pick.
   const theme = "cream";
   // From 744px (list and chat side by side) the variant of config/messenger.ts: 'top' – the input line at the top, the newest message right
@@ -232,8 +233,9 @@ function ThreadFrame({ embedded, head, tabs, composer, children }: { embedded: b
       {children}
       {composer && (
         // The input line at the bottom: the chat's ground, a fine line above it, 20px under it; centred in at most 920px like the messages.
-        <div ref={composerRef} className="absolute inset-x-0 bottom-0 z-20 bg-(--chat-bg) px-4 pb-[max(12px,var(--safe-bottom))] pt-1">
-          <div className={embedded ? "w-full" : "mx-auto max-w-[920px]"}>{composer}</div>
+        <div ref={composerRef} data-composer-bar className={cn("absolute inset-x-0 bottom-0 z-20 bg-(--chat-bg) pb-[max(12px,var(--safe-bottom))] pt-1", embedded ? "px-(--page-margin)" : "px-4")}>
+          {/* From 744px over the full width between the page's edges ("+" left, the field, send right – CLAUDE.md "Messages breiter und ruhiger"). */}
+          <div className={embedded ? "w-full" : "mx-auto max-w-[760px]"}>{composer}</div>
         </div>
       )}
     </div>
@@ -241,7 +243,7 @@ function ThreadFrame({ embedded, head, tabs, composer, children }: { embedded: b
   // From 744px: the right column on the page's ground, the same as the list's (one background, a fine vertical line between them).
   if (embedded)
     return (
-      <div data-chat-theme={theme} className="chat-dark h-full min-h-0 bg-(--chat-bg)">
+      <div data-chat-theme={theme} data-chat-color={color ?? DEFAULT_CHAT_COLOR} className="chat-dark h-full min-h-0 bg-(--chat-bg)">
         {stage}
       </div>
     );
@@ -292,14 +294,19 @@ function ThreadContent({ thread, stay, embedded, inline }: { thread: Thread; sta
   const guestIn = guestId !== undefined && isCrewMember(store, stay, guestId);
   const guestName = guestId ? findUser(store, guestId)?.name.split(" ")[0] : undefined;
 
+  // The chat colour of this person for this chat (lib/chatColors.ts, CLAUDE.md "Chat-Farben pro Chat").
+  const [color] = useChatColor(store.currentUserId, thread.id);
   return (
+    <OwnChatColorContext.Provider value={color}>
     <ThreadFrame
       embedded={embedded}
+      color={color}
       // From 744px the House or person, the crew, settings and "…" are the info bar under list and chat (ChatInfoBar); phones keep the head.
       head={
         <>
-          {/* From 744px the chat column's head: the House or person, the crew, settings and "…" (ChatInfoBar); phones their own head. */}
-          {embedded ? <ChatInfoBar threadId={thread.id} /> : thread.type === "house" ? <CrewHeader stay={stay} embedded={embedded} threadId={thread.id} /> : <DirectHeader stay={stay} other={other} embedded={embedded} threadId={thread.id} />}
+          {/* From 744px no head (CLAUDE.md "Messages breiter und ruhiger"): the chosen chat is marked in the strip, its colours and "···"
+              sit at the strip's right end (ChatTools). Phones keep their own head. */}
+          {embedded ? null : thread.type === "house" ? <CrewHeader stay={stay} embedded={embedded} threadId={thread.id} /> : <DirectHeader stay={stay} other={other} embedded={embedded} threadId={thread.id} />}
           {thread.type === "house" && <CrewVotes stay={stay} pinned />}
         </>
       }
@@ -323,5 +330,6 @@ function ThreadContent({ thread, stay, embedded, inline }: { thread: Thread; sta
         }
       />
     </ThreadFrame>
+    </OwnChatColorContext.Provider>
   );
 }

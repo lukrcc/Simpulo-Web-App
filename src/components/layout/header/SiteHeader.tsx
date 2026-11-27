@@ -4,7 +4,7 @@ import { useOpenHouseEntry } from "@/components/platform/useOpenHouseEntry";
 import { CompactSearch } from "./CompactSearch";
 import { HeaderCenterNav } from "./HeaderCenter";
 import { HeaderPanelShell } from "./HeaderPanel";
-import { setHeaderSlot } from "@/lib/headerSlot";
+import { setHeaderSlot, setPageSlot } from "@/lib/headerSlot";
 
 import { HousePlus } from "lucide-react";
 import Link from "next/link";
@@ -99,7 +99,8 @@ function SiteHeaderView({ pathname }: { pathname: string | null }) {
         ) : adminPage ? (
           <div data-admin-slot className="flex min-w-0 flex-1 max-split:hidden" />
         ) : (
-          <div data-center-slot className="flex min-w-0 flex-1 items-center justify-center max-split:hidden split:justify-self-center">
+          // The page's own views (HeaderViews portal here) – or, on the pages that look for Houses, the entries leading to Explore.
+          <div ref={setPageSlot} data-center-slot className="flex min-w-0 flex-1 items-center justify-center max-split:hidden split:justify-self-center">
             {discoveryPage && <HeaderCenterNav />}
           </div>
         )}

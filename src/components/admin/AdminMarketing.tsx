@@ -1,6 +1,10 @@
 "use client";
 import { numberPool, TopicCards, TopicHeader } from "./AdminTopics";
 import { AdminCapsuleView } from "./AdminCapsuleView";
+import { AdminAcquisition, useAcquisitionContacts } from "./AdminAcquisition";
+import { acquisitionNumbers, callsBetween } from "@/lib/acquisition";
+import { FOUNDING_GOAL } from "@/config/acquisition";
+import { useAdminPeriod } from "@/lib/admin/period";
 import { AdminButton } from "./AdminButton";
 import { FounderFormat, FoundingOffer, LeversView, MomentsProgram, NeedCalc, PrelaunchPlan, StageTargets, needRows, stageNumbers, useFoundingSeats, usePlanState } from "./MarketingPlan";
 import { LEVER_LABELS, marketingLevers, PLAN_LABELS, VIDEOS_PER_WEEK } from "@/config/admin/marketing-plan";
@@ -62,9 +66,9 @@ import { useMemorySrc } from "@/lib/memoryMedia";
 import type { HouseMemory } from "@/lib/types";
 import { copyText } from "@/lib/clipboard";
 
-type Tab = "overview" | "countdown" | "pipeline" | "partners" | "content" | "levers";
+type Tab = "overview" | "countdown" | "pipeline" | "partners" | "content" | "levers" | "akquise";
 /** Überblick first and by default (CLAUDE.md "Überblick zuerst"); deep links (?tab=pipeline|partners|content) open their tab. */
-const TABS: readonly Tab[] = ["overview", "countdown", "pipeline", "partners", "content", "levers"];
+const TABS: readonly Tab[] = ["overview", "countdown", "pipeline", "partners", "content", "levers", "akquise"];
 const STATUSES: readonly MarketingContactStatus[] = ["open", "replied", "demo", "house", "later"];
 const WAYS: readonly MarketingContactWay[] = ["email", "dm", "form"];
 const DAY_MS = 86_400_000;
@@ -227,6 +231,8 @@ export function AdminMarketing() {
 
   const openContact = contacts.find((c) => c.id === contactId) ?? null;
   const openPartner = partners.find((p) => p.id === partnerId) ?? null;
+  // Akquise: its own view – the head, Liste · Vorlagen · Launch-Tag (components/admin/AdminAcquisition.tsx).
+  if (tab === "akquise") return <AdminAcquisition />;
   return (
     <AdminShell
       title={t("title")}
@@ -525,8 +531,25 @@ function MarketingOverview({ onOpen, render }: { onOpen: (tab: Exclude<Tab, "ove
   const stages = stageNumbers(contacts, inputs.today);
   const need = needRows(stages.contacted, stages.houses);
   const seats = useFoundingSeats();
+  const acqContacts = useAcquisitionContacts();
+  const acq = acquisitionNumbers(acqContacts);
+  const [acqPeriod] = useAdminPeriod();
+  const acqRange = periodRanges(inputs.today, acqPeriod).current;
   const videos = shortsInWeek(posts, mondayOf(inputs.today));
   const pool = numberPool(tiles, {
+    // Akquise (lib/acquisition.ts): Founding Hosts from „Bestätigt“ on of 100, the reply rate, the calls in the chosen period. No ⓘ.
+    // „23 / 100“ – the goal small like a unit, so the card's one value size keeps it on one line.
+    foundingHosts: {
+      label: tm("acquisition.card.founding"),
+      value: (
+        <span className="adm-tile-value">
+          {num(acq.founding)}
+          <span className="adm-tile-unit">/ {num(FOUNDING_GOAL)}</span>
+        </span>
+      ),
+    },
+    acqReplyRate: { label: tm("acquisition.card.replyRate"), value: share(acq.replyRate) },
+    acqCalls: { label: tm("acquisition.card.calls"), value: num(callsBetween(acqContacts, acqRange.from, acqRange.to)) },
     planDays: { label: PLAN_LABELS.daysToLaunch, value: planState.state === "launched" ? PLAN_LABELS.launched : num(planState.daysToLaunch) },
     planPhase: { label: PLAN_LABELS.phase, value: planState.state === "before" ? `${PLAN_LABELS.beforePlan} · ${planState.current?.title ?? ""}` : (planState.current?.title ?? PLAN_LABELS.launched) },
     planOpen: { label: PLAN_LABELS.openTasks, value: num(planState.openTasks) },

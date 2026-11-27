@@ -17,7 +17,7 @@
 :root {
   /* The home page's large line "Where to next, {Name}?" (CLAUDE.md "Hauptzeile ruhiger"): a warm dark grey instead of near-black. Not called
      --text-display – that's the display font size (Tailwind's text-display); one name for both would make the size a colour. */
-  --display-ink: #2a2724;
+  --display-ink: #1d1d1f;
   --signal: #f0633a;
   --graphite: #48423e;
   --graphite-line: rgba(251, 247, 242, 0.08);
@@ -79,10 +79,14 @@
 }
 
 /* ── Floor (the page, always light) ── */
-/* ONE page ground in light mode (CLAUDE.md "Ein einheitlicher Seitenhintergrund"): --surface-page, picked in config/theme.ts (pageTone a · b · c,
+/* ONE page ground in light mode (CLAUDE.md "Ein einheitlicher Seitenhintergrund", "Farb-Token neutral"): --surface-page, picked in
+   config/theme.ts (pageTone a · b · c · d – d #F5F5F7, neutral, the default; the Dev menu compares them),
    data-page-tone on <html>). Every product page, the stages beside the photos, Messages, the header's glass and its panels take it; raised
    surfaces (menus, popovers, dropdowns) are pure white with a soft shadow. Dark mode sets its own --bg and never reads this. */
 :root {
+  --surface-page: #f5f5f7;
+}
+:root[data-page-tone="b"] {
   --surface-page: #f7f6f3;
 }
 :root[data-page-tone="a"] {
@@ -99,7 +103,7 @@
   --settings-switch-on: #3a3a3c;
 }
 :root[data-theme="dark"] {
-  --settings-group: #2b2724;
+  --settings-group: #1c1c1e;
   --settings-danger: #ff6961;
   --settings-switch-on: #8e8e93;
 }
@@ -109,8 +113,12 @@
 :root {
   color-scheme: light;
   --bg: var(--surface-page);
-  --surface: #fbf8f4;
-  --surface-2: #f0ebe5;
+  /* CLAUDE.md "Farb-Token neutral" (Apple-neutral): raised (cards, sheets, the chat card) pure white; filled (the others' bubble, filled
+     fields) #E9E9EB; a quote inside a bubble #DCDCE0 with a 3px bar in the secondary text colour. */
+  --surface: #ffffff;
+  --surface-2: #e9e9eb;
+  --fill: #e9e9eb;
+  --quote-bg: #dcdce0;
   /* Tinted bands across the page; the House page's crew tile a warmer tint. */
   --band: #eae4dd;
   --tile-tint: #efe6dc;
@@ -120,9 +128,14 @@
   --tile-place: #ded6cc;
   /* Explore's filter sheet: a light glass over the slightly dimmed page. */
   --filter-sheet-bg: color-mix(in srgb, var(--surface-page) 86%, transparent);
-  --text: #221e1b;
-  --text-muted: rgba(34, 30, 27, 0.64);
-  --text-faint: rgba(34, 30, 27, 0.42);
+  /* Text (CLAUDE.md "Farb-Token neutral"): primary #1D1D1F · secondary #6E6E73 · tertiary #86868B (only dates and hints). --text, --text-muted
+     and --text-faint are the same three under their old names. */
+  --text-primary: #1d1d1f;
+  --text-secondary: #6e6e73;
+  --text-tertiary: #86868b;
+  --text: var(--text-primary);
+  --text-muted: var(--text-secondary);
+  --text-faint: var(--text-tertiary);
   --line: rgba(34, 30, 27, 0.08);
   --input-border: rgba(34, 30, 27, 0.1);
   --text-inverse: #f4eee7;
@@ -200,7 +213,7 @@
   --card-edge-stroke: rgba(34, 30, 27, 0.22);
   --spot-glow: rgba(34, 30, 27, 0.16);
   /* Muted words on Explore's light filter sheet. */
-  --filter-sheet-muted: rgba(34, 30, 27, 0.72);
+  --filter-sheet-muted: var(--text-secondary);
   /* The thin divider before the header's tabs (Explore), cream 15 %. */
   --header-divider: rgba(244, 238, 231, 0.15);
   /* The unread dot on Messages (--hdr-dot below): neutral grey. */
@@ -327,7 +340,7 @@
    Contrast (WCAG, computed): text 15.5 : 1 on --bg, 14.1 on --surface, 12.9 on --surface-2; muted (cream 66 %) ≥ 6.4 : 1 on all three;
    faint (cream 45 %) ≥ 3.8 : 1 (decoration and placeholders only, like on light); the action orange --brand-action 5.6 : 1 on --bg (4.6 on --surface-2); the header over the dark floor: white 10.7, muted 8.3, in the active capsule 6.6. ── */
 :root[data-theme="dark"] {
-  --display-ink: #ece8e3;
+  --display-ink: #f5f5f7;
   --glass-bar-bg: rgb(28 28 30 / 0.62);
   --glass-bar-edge: rgb(255 255 255 / 0.08);
   --glass-bar-shadow: none;
@@ -347,19 +360,25 @@
   --row-strip-from: #201e1d;
   --row-strip-to: #33251e;
   color-scheme: dark;
-  --bg: #1a1715;
-  --surface: #23201d;
-  --surface-2: #2b2724;
-  --band: #211d1b;
+  /* Neutral (CLAUDE.md "Farb-Token neutral"): page #161617 · raised #1C1C1E · filled (bubbles, fields) #2C2C2E. */
+  --bg: #161617;
+  --surface: #1c1c1e;
+  --surface-2: #2c2c2e;
+  --fill: #2c2c2e;
+  --quote-bg: #3a3a3c;
+  --band: #1c1c1e;
   --tile-tint: #2a2420;
   --tile-host: #2b2622;
   --tile-crew: #2e2722;
   --tile-place: #27221f;
-  --filter-sheet-bg: rgba(35, 32, 29, 0.88);
+  --filter-sheet-bg: rgb(28 28 30 / 0.88);
   --filter-sheet-muted: rgba(244, 238, 231, 0.72);
-  --text: #f4eee7;
-  --text-muted: rgba(244, 238, 231, 0.66);
-  --text-faint: rgba(244, 238, 231, 0.45);
+  --text-primary: #f5f5f7;
+  --text-secondary: #a1a1a6;
+  --text-tertiary: #86868b;
+  --text: var(--text-primary);
+  --text-muted: var(--text-secondary);
+  --text-faint: var(--text-tertiary);
   --line: rgba(244, 238, 231, 0.08);
   --input-border: rgba(244, 238, 231, 0.14);
   --text-inverse: #221e1b;
@@ -381,8 +400,8 @@
   --filters-capsule: rgba(244, 238, 231, 0.06);
   --panel-shadow: inset 0 0 0 1px rgba(244, 238, 231, 0.08);
   /* Milk glass turns into dark glass: a warm graphite, no brightening, a fine light edge instead of the shadow. */
-  --glass-bg: rgba(38, 34, 31, 0.8);
-  --glass-solid: #26221f;
+  --glass-bg: rgb(28 28 30 / 0.92);
+  --glass-solid: #1c1c1e;
   --glass-blur: blur(24px) saturate(1.2);
   --glass-edge: inset 0 0 0 1px rgba(244, 238, 231, 0.1);
   --glass-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
@@ -393,19 +412,19 @@
   --card-blank-to: #262a30;
   --card-blank: #2a2520;
   --pick-option-bg: rgba(244, 238, 231, 0.06);
-  --row-surface: rgba(26, 23, 21, 0.92);
+  --row-surface: rgb(22 22 23 / 0.92);
   --headline-gradient: linear-gradient(135deg, #f4eee7 0%, #e3d9ce 40%, #a59b92 100%);
   --stage-wash: 0;
   --stage-mist: rgba(244, 238, 231, 0.04);
   --scrim: rgba(0, 0, 0, 0.45);
   --scrim-soft: rgba(0, 0, 0, 0.3);
   /* Messages' tokens (a chat background from config/chat-themes.ts sets its own over these). */
-  --chat-bg: #1a1715;
-  --chat-input: #23201d;
-  --bubble-other: #2f2c2a;
+  --chat-bg: #161617;
+  --chat-input: #2c2c2e;
+  --bubble-other: #2c2c2e;
   --bubble-other-line: rgba(255, 255, 255, 0.06);
   /* The stage's light surfaces become the floor's dark steps. */
-  --stage-cream: #211d1b;
+  --stage-cream: #1c1c1e;
   --stage-card: rgba(244, 238, 231, 0.06);
   --stage-card-line: rgba(244, 238, 231, 0.1);
   --ask-link: rgba(244, 238, 231, 0.78);
@@ -460,6 +479,16 @@
   --pick-bg: var(--text);
   --pick-text: var(--text-inverse);
   --pick-edge: var(--signal);
+}
+/* Graphite stays as it was (CLAUDE.md "Farb-Token neutral"): the primary button and the picked filter keep #221E1B on the light page (cream
+   #F4EEE7 on the dark one) – the text became neutral, the action did not. Dark grounds (.ember, the header …) still derive their own above. */
+:root:not([data-theme="dark"]) {
+  --action-bg: #221e1b;
+  --pick-bg: #221e1b;
+}
+:root[data-theme="dark"] {
+  --action-bg: #f4eee7;
+  --pick-bg: #f4eee7;
 }
 
 /* ── Painted grounds ── */
@@ -817,7 +846,7 @@
 /* "Ask {host} a question →" on the House page (stay/HouseSections.tsx AskLink): graphite at the lowest opacity that keeps 4.5 : 1 on the page
    (78 %: 4.8 : 1 – 70 % would be 3.9 : 1); hover graphite 100 %. */
 :root {
-  --ask-link: rgba(72, 66, 62, 0.78);
+  --ask-link: var(--text-secondary);
   --ask-link-hover: var(--graphite);
 }
 
@@ -883,9 +912,9 @@
   --bubble-other-line: rgba(0, 0, 0, 0.04);
   --bubble-own: #48423e;
   --bubble-own-text: #ffffff;
-  --chat-input: #fbf8f4;
-  --text: #221e1b;
-  --text-muted: rgba(34, 30, 27, 0.66);
+  --chat-input: #e9e9eb;
+  --text: #1d1d1f;
+  --text-muted: #6e6e73;
 }
 [data-chat-theme="stone"] {
   color-scheme: light;
@@ -934,14 +963,14 @@
 /* Dark mode: the light ones darkened. Text ≥ 12 : 1 on the ground and in the others' bubble, white in yours ≥ 8.9, the times ≥ 6. */
 :root[data-theme="dark"] :is([data-chat-theme="house"], [data-chat-theme="cream"]) {
   color-scheme: dark;
-  --chat-bg: #1a1715;
-  --bubble-other: #2f2b28;
-  --bubble-other-line: rgba(255, 255, 255, 0.06);
+  --chat-bg: #161617;
+  --bubble-other: #2c2c2e;
+  --bubble-other-line: transparent;
   --bubble-own: #4d4642;
   --bubble-own-text: #ffffff;
-  --chat-input: #24201d;
-  --text: #f4eee7;
-  --text-muted: rgba(244, 238, 231, 0.7);
+  --chat-input: #2c2c2e;
+  --text: #f5f5f7;
+  --text-muted: #a1a1a6;
 }
 :root[data-theme="dark"] [data-chat-theme="stone"] {
   color-scheme: dark;
@@ -982,7 +1011,7 @@
   --chat-base-house: var(--surface-page);
 }
 :root[data-theme="dark"] [data-chat-theme="house"] {
-  --chat-base-house: #1a1715;
+  --chat-base-house: #161617;
   --chat-bg: color-mix(in oklab, var(--chat-base-house) calc(100% - var(--chat-house-share, 0%)), var(--chat-accent, var(--chat-base-house)) var(--chat-house-share, 0%));
 }
 /* In dark mode every chat background is a dark ground: the tokens of the dark grounds (surfaces, selection, buttons) inside it. */

@@ -7,6 +7,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { useMessageText } from "@/i18n/events";
 import { useFormat } from "@/i18n/format";
 import { useStore } from "@/lib/store";
+import { nameColorOf, useOwnChatColor } from "@/lib/chatColors";
 import type { Message, User } from "@/lib/types";
 import { cn, findUrls } from "@/lib/utils";
 import { ChatLinkCard, FileRow, ImageGrid, MessageText } from "./ChatCards";
@@ -52,6 +53,8 @@ export function MessageBubble(props: MessageBubbleProps) {
   const f = useFormat();
   const messageText = useMessageText();
   const store = useStore();
+  // Your own colour in this chat – the others' name tones avoid it.
+  const ownColor = useOwnChatColor();
   const pickerRef = useRef<HTMLDivElement>(null);
   const { onTogglePicker } = props;
 
@@ -109,33 +112,30 @@ export function MessageBubble(props: MessageBubbleProps) {
       type="button"
       onClick={() => props.onJumpTo(replyTo.message.id)}
       className={cn(
-        // The quote: a 3px bar (yours cream 40 %, theirs cream 25 % – no orange in bubbles) on black 15 %.
-        "mb-1.5 block w-full min-w-0 rounded-lg border-l-[3px] bg-shade/15 py-1 pl-2 pr-2 text-left",
-        mine ? "border-ink/40" : "border-ink/25",
+        // The quote (CLAUDE.md "Farb-Token neutral"): in the others' bubble #DCDCE0 (dark #3A3A3C, --quote-bg) with a 3px bar in the secondary
+        // text colour; in your graphite bubble black 15 % with a cream 40 % bar. No orange in bubbles.
+        "mb-1.5 block w-full min-w-0 rounded-lg border-l-[3px] py-1 pl-2 pr-2 text-left",
+        mine ? "bg-shade/15" : "bg-(--quote-bg)",
       )}
+      // The bar in the quoted person's colour (CLAUDE.md "Messages breiter und ruhiger"): someone else's name tone, yours your chat colour.
+      style={{ borderLeftColor: replyTo.message.senderId === store.currentUserId ? "var(--chat-color, var(--text-secondary))" : nameColorOf(replyTo.message.senderId, ownColor) }}
     >
       {replyTo.blocked ? (
-        <span className={cn("line-clamp-1 text-small italic leading-[18px]", mine ? "text-ink/60" : "text-muted")}>{tSafety("blockedMessage")}</span>
+        <span className={cn("line-clamp-1 text-small italic leading-[18px]", mine ? "text-ink/60" : "text-ink/80")}>{tSafety("blockedMessage")}</span>
       ) : (
         <>
           <span className={cn("block truncate text-small font-semibold", mine ? "text-ink" : "text-ink")}>
             {replyTo.author?.name.split(" ")[0] ?? t("unknown")}
           </span>
-          <span className={cn("line-clamp-1 text-small leading-[18px]", mine ? "text-ink/70" : "text-muted")}>{quoteText(replyTo.message, messageText(replyTo.message), t)}</span>
+          <span className={cn("line-clamp-1 text-small leading-[18px]", mine ? "text-ink/70" : "text-ink/80")}>{quoteText(replyTo.message, messageText(replyTo.message), t)}</span>
         </>
       )}
     </button>
   );
 
-  // The time only under a run's last message (same person, < 5 min apart), muted; the others' times show on hover beside their bubble. The
-  // read state (✓ sent · ✓✓ read) only at your last own message.
+  // The time on hover beside every bubble (CLAUDE.md "Messages: ruhiger Verlauf" – a centred time line marks gaps over 30 min, chatUtils);
+  // the read state (✓ sent · ✓✓ read) only under your last own message.
   const ticks = mine && props.showRead && (props.read ? <CheckCheck aria-label={t("read")} className="size-3.5" strokeWidth={2.25} /> : <Check aria-label={t("sent")} className="size-3.5" strokeWidth={2.25} />);
-  const timeStamp = () => (
-    <span className="inline-flex items-center gap-1 text-small leading-none tabular-nums text-muted">
-      {time}
-      {ticks}
-    </span>
-  );
   const hasBubble = !bigEmoji && Boolean(text || quote);
   const reactions = message.reactions ?? [];
 
@@ -146,7 +146,12 @@ export function MessageBubble(props: MessageBubbleProps) {
       className={cn("flex items-end gap-2", mine && "flex-row-reverse", first ? "mt-3" : "mt-0.5", reactions.length > 0 && "mb-2")}
     >
       {/* The avatar beside the run's last bubble – above its time line (13px + 4px); a placeholder of the same width keeps bubbles flush. */}
-      {!mine && <div className={cn("w-8 shrink-0 self-end", props.last && "mb-[17px]")}>{props.last && author && <Avatar user={author} size="sm" linked />}</div>}
+      {!mine && <div className="w-8 shrink-0 self-end">{props.last && author && (
+          // A fine 2px ring in the person's tone round the face.
+          <span className="block rounded-full" style={{ boxShadow: `0 0 0 2px ${nameColorOf(author.id, ownColor)}` }}>
+            <Avatar user={author} size="sm" linked />
+          </span>
+        )}</div>}
 
       <div
         onPointerDown={onPointerDown}
@@ -155,9 +160,14 @@ export function MessageBubble(props: MessageBubbleProps) {
         onPointerCancel={cancelPress}
         // No native "copy / look up" menu on long-press – ours opens instead.
         onContextMenu={(e) => e.nativeEvent instanceof PointerEvent && e.nativeEvent.pointerType === "touch" && e.preventDefault()}
-        className={cn("group relative flex min-w-0 flex-col", mine ? "items-end" : "items-start", hasCard ? "w-[min(420px,75%)] max-md:w-[80%]" : "max-w-[min(560px,65%)] max-md:max-w-[80%]")}
+        className={cn("group relative flex min-w-0 flex-col", mine ? "items-end" : "items-start", hasCard ? "w-[min(420px,75%)] max-md:w-[80%]" : "max-w-[60%] max-md:max-w-[80%]")}
       >
-        {first && showName && author && <p className="mb-1 px-1 text-small font-semibold text-ink">{author.name.split(" ")[0]}</p>}
+        {/* The name over a group in the person's own tone (stable, never like your chat colour); the bubbles stay white. */}
+        {first && showName && author && (
+          <p className="mb-1 px-1 text-small font-semibold" style={{ color: nameColorOf(author.id, ownColor) }}>
+            {author.name.split(" ")[0]}
+          </p>
+        )}
 
         <div
           className={cn(
@@ -212,14 +222,12 @@ export function MessageBubble(props: MessageBubbleProps) {
             <FileRow key={file.url} file={file} mine={mine} />
           ))}
         </div>
-        {/* The time: under a run's last message; any other message shows its time on hover (touch: a tap on the bubble, or while its actions are open – long press), beside the bubble. */}
-        {props.last ? (
-          <span className={cn("mt-1 px-1", reactions.length > 0 && "order-last")}>{timeStamp()}</span>
-        ) : (
-          <span aria-hidden className={cn("pointer-events-none absolute bottom-1 whitespace-nowrap text-small tabular-nums text-muted opacity-0 transition-opacity duration-150 group-hover:opacity-100", (active || timeShown) && "opacity-100", mine ? "right-full mr-2" : "left-full ml-2")}>
-            {time}
-          </span>
-        )}
+        {/* The time on hover beside the bubble (touch: a tap on the bubble, or while its actions are open – long press); the read state only
+            under your last own message. */}
+        <span aria-hidden className={cn("pointer-events-none absolute bottom-1 whitespace-nowrap text-small tabular-nums text-muted opacity-0 transition-opacity duration-150 group-hover:opacity-100", (active || timeShown) && "opacity-100", mine ? "right-full mr-2" : "left-full ml-2")}>
+          {time}
+        </span>
+        {ticks && <span className={cn("mt-1 inline-flex px-1 text-muted", reactions.length > 0 && "order-last")}>{ticks}</span>}
 
         {reactions.length > 0 && (
           // Overlaps the bubble's bottom edge (the row's bottom margin keeps it clear of the next message); under

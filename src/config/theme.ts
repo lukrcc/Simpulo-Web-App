@@ -1,8 +1,8 @@
 // The light mode's one page ground (CLAUDE.md "Ein einheitlicher Seitenhintergrund"): three tones to compare, one is live. The values sit in
 // src/styles/tokens.css (--surface-page under :root[data-page-tone]); the root layout puts the choice on <html>. Dark mode doesn't read it.
-export type PageTone = "a" | "b" | "c";
+export type PageTone = "a" | "b" | "c" | "d";
 
-/** a #FAF9F7 almost white · b #F7F6F3 paper, slightly warm (default) · c #F3F1ED a little warmer */
-export const pageTone: PageTone = "b";
+/** a #FAF9F7 almost white · b #F7F6F3 paper, slightly warm · c #F3F1ED a little warmer · d #F5F5F7 neutral, Apple-like (default) */
+export const pageTone: PageTone = "d";
 
-export const PAGE_TONES: Record<PageTone, string> = { a: "#faf9f7", b: "#f7f6f3", c: "#f3f1ed" };
+export const PAGE_TONES: Record<PageTone, string> = { a: "#faf9f7", b: "#f7f6f3", c: "#f3f1ed", d: "#f5f5f7" };

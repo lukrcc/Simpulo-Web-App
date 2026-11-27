@@ -4,6 +4,9 @@ import type { Message } from "@/lib/types";
 /** Messages from the same sender within this window collapse into one group. */
 const GROUP_WINDOW_MS = 5 * 60 * 1000;
 
+/** A gap longer than this between two messages gets a centred time line (CLAUDE.md "Messages: ruhiger Verlauf"). */
+const TIME_GAP_MS = 30 * 60 * 1000;
+
 /** Distance (px) from the bottom that still counts as "at the bottom" (auto-scroll, no "new messages" pill). */
 export const BOTTOM_THRESHOLD = 80;
 
@@ -19,6 +22,8 @@ export const PICKER_EMOJIS = [
 export type ChatRow =
   | { kind: "day"; key: string; day: string }
   | { kind: "unread"; key: string }
+  /** A centred grey time – before a message more than 30 min after the one before it (also the first of a day) */
+  | { kind: "time"; key: string; at: string }
   /** System and payment lines – centered, never grouped */
   | { kind: "line"; key: string; message: Message }
   /** A Simpulo card of the arc (message.arcStep) – centered, never grouped */
@@ -45,6 +50,8 @@ export function buildRows(messages: Message[], firstUnreadId: string | null): Ch
     const unread = message.id === firstUnreadId;
     if (newDay) rows.push({ kind: "day", key: `day-${dayOf(message.createdAt)}`, day: dayOf(message.createdAt) });
     if (unread) rows.push({ kind: "unread", key: "unread" });
+    // A time line when more than 30 min lie between this message and the one before (either direction – newest first builds from the reversed list).
+    if (!previous || Math.abs(new Date(message.createdAt).getTime() - new Date(previous.createdAt).getTime()) > TIME_GAP_MS) rows.push({ kind: "time", key: `time-${message.id}`, at: message.createdAt });
 
     if (message.arcStep) {
       open = null;

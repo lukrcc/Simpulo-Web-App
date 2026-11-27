@@ -35,6 +35,8 @@ import { useIdentity } from "@/lib/payments/hooks";
 import { COUNTRIES } from "@/lib/places";
 import { HANDLE_PREFIX, MAX_SOCIAL_LINKS, SOCIAL_PLATFORMS, isValidHandle, isValidWebsite, normalizeSocialValue, socialHandle } from "@/lib/socialLinks";
 import { getCurrentUser, useStore, type ProfilePatch } from "@/lib/store";
+import { Switch } from "@/components/ui/Switch";
+import { PRIVACY_DEFAULTS } from "@/config/privacy";
 import type { HouseVibe, JoinRequest, SocialLink, SocialPlatform, User } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -520,6 +522,8 @@ function BasicsSection({ form, update, today, errorText }: { form: FormState; up
       <FormField id="edit-birth-date" label={t("birthDate")} error={errorText("birthDate") ?? errorText("underAge")} helper={age !== null && age >= MIN_AGE ? t("shownAsAge", { age }) : undefined}>
         <BirthField value={form.birth} onChange={(birthParts) => update("birth", birthParts)} invalid={Boolean(errorText("birthDate") ?? errorText("underAge"))} />
       </FormField>
+      {/* "Show my age" (CLAUDE.md "Profil neu geordnet"): edited here too – the same setting as Settings › Privacy, saved at once. Off by default. */}
+      <ShowAgeRow />
       <div className="grid gap-4 sm:grid-cols-2">
         <FormField id="edit-country" label={t("country")} error={errorText("country")} group>
           <Combobox
@@ -824,6 +828,24 @@ function SocialLinksEditor({ links, onChange, showErrors }: { links: SocialLink[
       ) : (
         <p className="text-small text-muted">{t("linksFull", { max: MAX_SOCIAL_LINKS })}</p>
       )}
+    </div>
+  );
+}
+
+/** "Show my age" on the profile and on House pages – the one privacy setting (Settings › Privacy has the same switch), saved at once. */
+function ShowAgeRow() {
+  const t = useTranslations("settings.privacy");
+  const store = useStore();
+  const me = getCurrentUser(store);
+  if (!me) return null;
+  const on = me.privacy?.showAge ?? PRIVACY_DEFAULTS.showAge;
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <span className="min-w-0">
+        <span className="block text-body text-ink">{t("showAge")}</span>
+        <span className="block text-small text-muted">{t("showAgeText")}</span>
+      </span>
+      <Switch on={on} label={t("showAge")} onChange={(next) => store.updateCurrentUser({ privacy: { ...me.privacy, showAge: next } })} />
     </div>
   );
 }
