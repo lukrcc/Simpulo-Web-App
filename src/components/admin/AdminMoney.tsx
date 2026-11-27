@@ -26,6 +26,8 @@ import { TileBoard, chunkRows, type TileSpec } from "./AdminTiles";
 import { routeTiles, withUnits } from "./tileRoutes";
 import { useAdminTab } from "@/lib/admin/urlState";
 import { useAdminInputs } from "@/lib/admin/useAdminInputs";
+import { useLabs } from "@/lib/admin/labState";
+import { getLabRevenue } from "@/lib/data";
 import { getPaymentIssues } from "@/lib/data";
 import { TAX_RESERVE_PERCENT } from "@/config/tax";
 import { getBankBalance, type CostCategory } from "@/lib/data";
@@ -45,7 +47,7 @@ import { AdminTaxJournal } from "./AdminTaxJournal";
 import { PayoutsDetail, useMoneyDetail } from "./details/MoneyDetails";
 import { numberPool, TopicCards, TopicHeader } from "./AdminTopics";
 
-const TABS = ["overview", "history", "costs", "guests", "hosts", "payments", "taxes", "withdrawals", "forecast"] as const;
+const TABS = ["overview", "history", "costs", "guests", "hosts", "payments", "taxes", "withdrawals", "forecast", "sources"] as const;
 type Tab = (typeof TABS)[number];
 const CATEGORIES: readonly CostCategory[] = ["tools", "creator", "marketing", "other"];
 
@@ -98,6 +100,7 @@ export function AdminMoney({ initialView = "overview" }: { initialView?: Tab }) 
       {tab === "taxes" && (taxView === "journal" ? <AdminTaxJournal /> : <AdminTaxes />)}
       {tab === "withdrawals" && moneyDetail("withdrawals")}
       {tab === "forecast" && parts("monthForecast", "takeRate")}
+      {tab === "sources" && <RevenueSources />}
     </AdminShell>
   );
 }
@@ -161,6 +164,7 @@ function OverviewTiles({ period, onOpen, render }: { period: ComparePeriod; onOp
   const forecast = { revenue: (monthSoFarTotals.revenue / monthDays.done) * monthDays.all, profit: (monthSoFarTotals.profit / monthDays.done) * monthDays.all };
   const yearTotals = moneyTotals(inputs, `${inputs.today.slice(0, 4)}-01-01`, inputs.today);
   const issues = getPaymentIssues() ?? [];
+  const sources = useRevenueSources();
   const openIssues = issues.filter((i) => !inputs.admin.taskStates[`payment:${i.id}`]?.done).length;
   const tiles: TileSpec[] = [
     tile("bookingVolume", money(m.now.bookingVolume), "history", {
@@ -240,9 +244,76 @@ function OverviewTiles({ period, onOpen, render }: { period: ComparePeriod; onOp
     inCompany: { label: ts("inCompany"), value: eur(balance.left) },
     profitYear: { label: ts("profitYear"), value: eur(balance.profit) },
     forecastProfit: { label: ts("forecastProfit"), value: eur(Math.round(forecast.profit)) },
+    // Einnahmequellen: how many, and the first three as sub numbers (the marketplace fee first).
+    sources: { label: t("sources.count"), value: num(sources.length), info: t("sources.countInfo") },
+    ...Object.fromEntries(sources.slice(0, 3).map((x, i) => [`source-${i}`, { label: x.name, value: x.perMonth === null ? "–" : eur(x.perMonth) }])),
   });
   if (render) return render(tiles);
   return <TopicCards page="money" pool={pool} />;
+}
+
+// ── Einnahmequellen ───────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+interface RevenueSource {
+  key: string;
+  name: string;
+  offer: string;
+  /** € a month – the marketplace: this month projected to its end; a lab: the mock value (none in production) */
+  perMonth: number | null;
+  href: string;
+}
+
+/**
+ * Where Simpulo's money comes from (CLAUDE.md „Labore: Weg und Status“): the marketplace fee – always – and every lab with status „Einnahme“
+ * (only possible with a paying buyer, lib/admin/labState.ts), each with its external offer and a link back to the lab.
+ */
+function useRevenueSources(): RevenueSource[] {
+  const t = useTranslations("admin.money.sources");
+  const inputs = useAdminInputs();
+  const labs = useLabs();
+  const revenue = getLabRevenue();
+  const monthStart = `${inputs.today.slice(0, 7)}-01`;
+  const soFar = moneyTotals(inputs, monthStart, inputs.today);
+  const done = Number(inputs.today.slice(8, 10));
+  const all = new Date(Date.UTC(Number(inputs.today.slice(0, 4)), Number(inputs.today.slice(5, 7)), 0)).getUTCDate();
+  const market: RevenueSource = { key: "marketplace-fee", name: t("marketplace"), offer: t("marketplaceOffer"), perMonth: Math.round((soFar.revenue / done) * all), href: "/admin/labore?topic=marketplace" };
+  const earning = labs
+    .filter((l) => l.status === "revenue")
+    .map((l): RevenueSource => ({ key: l.id, name: l.name, offer: l.external, perMonth: revenue?.[l.id] ?? null, href: `/admin/labore?topic=${l.id}` }));
+  return [market, ...earning];
+}
+
+function RevenueSources() {
+  const t = useTranslations("admin.money.sources");
+  const sources = useRevenueSources();
+  return (
+    <section data-revenue-sources className="flex flex-col gap-3">
+      <table className="w-full text-left text-body">
+        <thead>
+          <tr className="text-small text-(--adm-label)">
+            <th className="py-2 pr-6 font-medium">{t("cols.source")}</th>
+            <th className="py-2 pr-6 font-medium">{t("cols.offer")}</th>
+            <th className="py-2 text-right font-medium">{t("cols.perMonth")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sources.map((x) => (
+            <tr key={x.key} className="border-t border-ink/8">
+              <td className="py-3 pr-6 align-top">
+                <Link href={x.href} aria-label={`${t("toLab")}: ${x.name}`} className="font-semibold text-ink hover:underline">
+                  {x.name} <span aria-hidden>→</span>
+                </Link>
+              </td>
+              <td className="py-3 pr-6 align-top text-ink">{x.offer}</td>
+              <td className={cn("py-3 text-right align-top tabular-nums", x.perMonth === null ? "text-muted" : "text-ink")}>{x.perMonth === null ? "–" : eur(x.perMonth)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {sources.length === 1 && <p className="text-small text-muted">{t("onlyMarketplace")}</p>}
+      <p className="text-small text-muted">{t("perMonthNote")}</p>
+    </section>
+  );
 }
 
 // ── Verlauf (the former Überblick) ────────────────────────────────────────────────────────────────────────────────────────────

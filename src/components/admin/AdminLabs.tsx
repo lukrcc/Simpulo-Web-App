@@ -6,7 +6,9 @@
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { MOMENTS } from "@/config/data-points";
 import { ADMIN_DE } from "@/lib/i18n/admin.de";
-import { LAB_MAP, LABS, LABS_TEXT, labOf, PHYSICAL_TREE, POTENTIAL, TEST_KEYS, type Lab, type LabId, type LabStatus, type TestValue } from "@/lib/admin/labs";
+import { algorithmHref, INTERNAL_LINKS, LAB_MAP, LAB_STATUSES, LABS, LABS_TEXT, labOf, PHYSICAL_TREE, POTENTIAL, TEST_KEYS, type Lab, type LabId, type LabStatus, type TestKey, type TestValue } from "@/lib/admin/labs";
+import { canEarn, useLabs } from "@/lib/admin/labState";
+import { useAdminActions } from "@/lib/admin/actions";
 import { cn } from "@/lib/utils";
 import { labNumbers } from "@/lib/admin/metrics";
 import { useAdminInputs } from "@/lib/admin/useAdminInputs";
@@ -14,6 +16,7 @@ import { setAdminSearch, useAdminSearch } from "@/lib/admin/urlState";
 import { ARCHITECTURE, type ArchitectureView } from "@/lib/admin/labs/architecture";
 import { DATA_POINTS, type DataPointStatus } from "@/config/data-points";
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { num, pct, share } from "@/lib/i18n/adminFormat";
 import { StatusDot } from "./AdminCharts";
 import { AdminShell } from "./AdminShell";
@@ -38,7 +41,8 @@ export function AdminLabs() {
   const view = !topic && VIEWS.includes(tab as View) ? (tab as View) : null;
   const openView = (v: View) => setAdminSearch({ topic: null, tab: v, focus: null, view: null });
   const pool = useLabsPool();
-  const lab = topic ? labOf(topic as LabId) : null;
+  const labs = useLabs();
+  const lab = topic ? (labs.find((l) => l.id === topic) ?? null) : null;
   return (
     <AdminShell
       title={ADMIN_DE.nav.labs}
@@ -69,20 +73,30 @@ function ViewHeader({ view, onBack }: { view: View; onBack: () => void }) {
   );
 }
 
-/** The status as text (Idee · läuft · bestätigt · verworfen) – its colour is the statement (status colours). */
-const LAB_STATUS_TEXT: Record<LabStatus, string> = { idea: "text-muted", running: "text-adm-warning", confirmed: "text-adm-good", dropped: "text-adm-critical" };
+/** The status dot: Idee neutral, Test amber, Einnahme sage – the word beside it stays in the text colour (AA on every ground). */
+const LAB_STATUS_DOT: Record<LabStatus, "good" | "warning" | null> = { idea: null, test: "warning", revenue: "good" };
+
+/** A small status capsule (Idee · Test · Einnahme): a neutral pill, the status as a dot, the word in the text colour. */
+export function LabStatusCapsule({ status }: { status: LabStatus }) {
+  return (
+    <span data-lab-status={status} className="inline-flex h-6 items-center gap-1.5 rounded-full bg-(--adm-pill) px-2.5 text-small font-medium whitespace-nowrap text-ink">
+      <StatusDot status={LAB_STATUS_DOT[status]} />
+      {T.status[status]}
+    </span>
+  );
+}
 
 /** The labs' numbers for their cards: today's real number (lib/admin/metrics.ts labNumbers), the question, the status, ceiling and next step. */
 function useLabsPool(): NumberPool {
   const t = useTranslations("admin.pageTiles.labs");
   const numbers = labNumbers(useAdminInputs());
   const out: Record<string, NumberEntry> = {};
-  for (const lab of LABS) {
+  for (const lab of useLabs()) {
     const n = numbers[lab.id];
     const has = n.kind !== "none" && n.value !== null;
     const value = !has ? "–" : n.kind === "share" ? share(n.value!) : n.kind === "pct" ? pct(n.value!) : num(n.value!);
     out[`metric-${lab.id}`] = { label: has ? t(`card.metricLabel.${lab.id}`) : t("card.noMetric"), value, caption: lab.question, info: t("card.metricInfo") };
-    out[`status-${lab.id}`] = { label: "", value: <span data-lab-status={lab.status} className={LAB_STATUS_TEXT[lab.status]}>{T.status[lab.status]}</span> };
+    out[`status-${lab.id}`] = { label: "", value: <LabStatusCapsule status={lab.status} /> };
     out[`ceiling-${lab.id}`] = { label: t("card.ceilingShort"), value: lab.ceiling };
     out[`next-${lab.id}`] = { label: t("card.nextShort"), value: <span title={lab.next}>{lab.nextShort}</span>, oneLine: true };
   }
@@ -238,57 +252,118 @@ function LabMap({ onOpen }: { onOpen: (id: LabId) => void }) {
 
 // ── Labore ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-const TEST_DOT: Record<TestValue, "good" | "critical" | null> = { yes: "good", no: "critical", open: null };
+/** The test's states: offen ○ · ja ✓ · nein ✕ – a click goes to the next. */
+const TEST_MARK: Record<TestValue, string> = { open: "○", yes: "✓", no: "✕" };
+const TEST_NEXT: Record<TestValue, TestValue> = { open: "yes", yes: "no", no: "open" };
+const TEST_TONE: Record<TestValue, string> = { open: "text-muted", yes: "text-adm-good", no: "text-adm-critical" };
 
+/**
+ * A lab's way from the question to a possible revenue (CLAUDE.md „Labore: Weg und Status“): the head (name, level, the question as a quote,
+ * the status), then four equal columns with space only – ① Daten ② Intern (entries with a place in Algorithmus link there) ③ Extern (below
+ * it small: Physisch, Markt, Ab wann) ④ Test (the five questions, a click switches offen → ja → nein). Empty fields "–" in grey.
+ */
 function LabDetail({ lab, onBack }: { lab: Lab; onBack?: () => void }) {
   // Raum has a second level: Überblick · Architektur · Datenplan (?view=, Vision › Schichten links to Architektur).
   const view = useAdminSearch().get("view");
   const spaceView: ArchitectureView = lab.id === "space" && (view === "architecture" || view === "plan") ? view : "overview";
-  if (lab.id === "space" && spaceView !== "overview")
-    return (
-      <article data-lab-detail>
-        {onBack && <BackToList onBack={onBack} />}
-        <LabHead lab={lab} view={spaceView} />
-        {spaceView === "architecture" ? <Architecture /> : <DataPlan />}
-      </article>
-    );
-  const fields = [
-    { label: T.fields.level, value: T.level[lab.level] },
-    { label: T.fields.question, value: lab.question },
-    { label: T.fields.data, value: lab.data },
-    { label: T.fields.internal, value: lab.internal },
-    { label: T.fields.external, value: lab.external },
-    { label: T.fields.physical, value: lab.physical },
-    ...(lab.from ? [{ label: T.fields.from, value: lab.from }] : []),
-    { label: T.fields.ceiling, value: lab.ceiling },
-  ];
   return (
     <article data-lab-detail>
       {onBack && <BackToList onBack={onBack} />}
-      <LabHead lab={lab} view="overview" />
-      <dl className="mt-(--adm-inner) grid gap-x-6 gap-y-(--adm-inner) sm:grid-cols-2">
-        {fields.map((f) => (
-          <div key={f.label} className="min-w-0">
-            <dt className="text-eyebrow uppercase text-(--adm-label)">{f.label}</dt>
-            <dd className="mt-1 text-body leading-normal text-ink">{f.value}</dd>
-          </div>
-        ))}
-      </dl>
-      <section className="mt-(--adm-section)">
-        <h3 className="mb-2 text-eyebrow uppercase text-(--adm-label)">{T.fields.test}</h3>
-        <ul className="divide-y divide-ink/8 border-y border-ink/8">
+      <LabHead lab={lab} view={spaceView} />
+      {spaceView === "architecture" ? <Architecture /> : spaceView === "plan" ? <DataPlan /> : <LabWay lab={lab} />}
+    </article>
+  );
+}
+
+const dash = (value: string | null) => (!value || value === "–" ? null : value);
+
+function WayColumn({ no, title, line, children }: { no: number; title: string; line: string; children: ReactNode }) {
+  return (
+    <section data-way-column className="min-w-0">
+      <h3 className="flex items-baseline gap-2">
+        <span aria-hidden className="text-small font-semibold tabular-nums text-(--adm-label)">{no}</span>
+        <span className="text-eyebrow uppercase text-(--adm-label)">{title}</span>
+      </h3>
+      <p className="mt-0.5 text-small text-muted">{line}</p>
+      <div className="mt-3">{children}</div>
+    </section>
+  );
+}
+
+const Empty = () => <span className="text-body text-muted">–</span>;
+
+function LabWay({ lab }: { lab: Lab }) {
+  const W = T.way;
+  const actions = useAdminActions();
+  const internal = dash(lab.internal)?.split(", ") ?? [];
+  const small = [
+    { label: T.fields.physical, value: dash(lab.physical) },
+    { label: T.fields.ceiling, value: dash(lab.ceiling) },
+    { label: T.fields.from, value: dash(lab.from) },
+  ];
+  const toggle = (key: TestKey) => {
+    const next = TEST_NEXT[lab.test[key]];
+    actions.setLabTest(lab.id, lab.name, key, next, `${T.test[key]} ${T.testValue[next]}`, key === "payingBuyer" && lab.status === "revenue" && next !== "yes");
+  };
+  return (
+    <div data-lab-way className="mt-(--adm-section) grid gap-x-10 gap-y-(--adm-section) sm:grid-cols-2 xl:grid-cols-4">
+      <WayColumn no={1} title={W.data.title} line={W.data.line}>
+        {dash(lab.data) ? <p className="text-body leading-normal text-ink">{lab.data}</p> : <Empty />}
+      </WayColumn>
+      <WayColumn no={2} title={W.internal.title} line={W.internal.line}>
+        {internal.length === 0 ? (
+          <Empty />
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {internal.map((entry) => {
+              const link = INTERNAL_LINKS[entry];
+              return (
+                <li key={entry} className="text-body leading-normal">
+                  {link ? (
+                    <Link href={algorithmHref(link.select)} data-tooltip-info={W.linkTo(link.label)} className="text-ink underline decoration-ink/30 underline-offset-4 hover:decoration-ink">
+                      {entry} <span aria-hidden>→</span>
+                    </Link>
+                  ) : (
+                    <span className="text-ink">{entry}</span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </WayColumn>
+      <WayColumn no={3} title={W.external.title} line={W.external.line}>
+        {dash(lab.external) ? <p className="text-body leading-normal text-ink">{lab.external}</p> : <Empty />}
+        <dl className="mt-4 flex flex-col gap-2">
+          {small.map((f) => (
+            <div key={f.label} className="flex min-w-0 items-baseline gap-3">
+              <dt className="w-20 shrink-0 text-small text-muted">{f.label}</dt>
+              <dd className={cn("min-w-0 text-small", f.value ? "text-ink" : "text-muted")}>{f.value ?? "–"}</dd>
+            </div>
+          ))}
+        </dl>
+      </WayColumn>
+      <WayColumn no={4} title={W.test.title} line={W.test.line}>
+        <ul className="flex flex-col gap-1">
           {TEST_KEYS.map((key) => (
-            <li key={key} className="flex h-10 items-center justify-between gap-3 text-small">
-              <span className="text-ink">{T.test[key]}</span>
-              <span className="inline-flex items-center gap-2 text-ink/80">
-                <StatusDot status={TEST_DOT[lab.test[key]]} />
-                {T.testValue[lab.test[key]]}
-              </span>
+            <li key={key}>
+              <button
+                type="button"
+                onClick={() => toggle(key)}
+                aria-label={W.toggleTest(T.test[key], T.testValue[lab.test[key]])}
+                className="adm-press -mx-2 flex min-h-9 w-[calc(100%+16px)] items-center gap-2.5 rounded-lg px-2 text-left text-body hover:bg-ink/5"
+              >
+                <span aria-hidden className={cn("w-4 shrink-0 text-center font-semibold", TEST_TONE[lab.test[key]])}>
+                  {TEST_MARK[lab.test[key]]}
+                </span>
+                <span className="min-w-0 flex-1 text-ink">{T.test[key]}</span>
+                <span className="shrink-0 text-small text-muted">{T.testValue[lab.test[key]]}</span>
+              </button>
             </li>
           ))}
         </ul>
-      </section>
-    </article>
+      </WayColumn>
+    </div>
   );
 }
 
@@ -396,11 +471,41 @@ function Potential() {
 /** The lab's title; for Raum the second level (AdminSubTabs) right under it. */
 function LabHead({ lab, view }: { lab: Lab; view: ArchitectureView }) {
   const A = ARCHITECTURE;
+  const actions = useAdminActions();
+  const earn = canEarn(lab);
   return (
-    <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
-      <p className="text-h3 text-ink">
-        {lab.number} {lab.name}
-      </p>
+    <header data-lab-head className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+        <div className="min-w-0">
+          <h2 className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <span className="adm-page-title text-h2">{lab.name}</span>
+            <span className="text-body text-muted">{T.level[lab.level]}</span>
+          </h2>
+          <blockquote className="mt-3 max-w-[40ch] text-h3 leading-snug text-ink">„{lab.question}“</blockquote>
+        </div>
+        {/* The status: Idee · Test · Einnahme – "Einnahme" only with a paying buyer (the reason as a tooltip). */}
+        <div role="radiogroup" aria-label={T.statusLabel} className="flex shrink-0 items-center gap-(--adm-cap-gap)">
+          {LAB_STATUSES.map((status) => {
+            const locked = status === "revenue" && !earn;
+            return (
+              <button
+                key={status}
+                type="button"
+                role="radio"
+                aria-checked={lab.status === status}
+                aria-disabled={locked || undefined}
+                data-on={lab.status === status ? "" : undefined}
+                data-tooltip-info={locked ? T.revenueLocked : undefined}
+                onClick={() => !locked && lab.status !== status && actions.setLabStatus(lab.id, lab.name, status, T.status[status])}
+                className={cn("adm-cap adm-press", locked && "cursor-not-allowed opacity-45")}
+              >
+                <StatusDot status={LAB_STATUS_DOT[status]} />
+                {T.status[status]}
+              </button>
+            );
+          })}
+        </div>
+      </div>
       {lab.id === "space" && (
         <AdminSubTabs<ArchitectureView>
           label={A.views.label}
@@ -409,7 +514,7 @@ function LabHead({ lab, view }: { lab: Lab; view: ArchitectureView }) {
           tabs={(["overview", "architecture", "plan"] as const).map((value) => ({ value, label: A.views[value] }))}
         />
       )}
-    </div>
+    </header>
   );
 }
 

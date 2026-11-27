@@ -3,7 +3,7 @@
 export const TOPIC_CARDS = {
   barLabel: "Themen: {page}",
   overview: { money: "Geld", growth: "Wachstum", analysis: "Analyse", houses: "Houses", hosts: "Hosts", marketing: "Marketing", funding: "Finanzierung", launch: "Launch" },
-  money: { history: "Verlauf", costs: "Kosten", guests: "Gäste", hosts: "Hosts", payments: "Zahlungen", taxes: "Steuern", withdrawals: "Entnahmen", forecast: "Prognose" },
+  money: { history: "Verlauf", costs: "Kosten", guests: "Gäste", hosts: "Hosts", payments: "Zahlungen", taxes: "Steuern", withdrawals: "Entnahmen", forecast: "Prognose", sources: "Einnahmequellen" },
   growth: { visitors: "Besucher", signups: "Anmeldungen", requests: "Anfragen", origin: "Herkunft", bestChannel: "Bester Kanal", costPerBooking: "Kosten pro Buchung", waitlist: "Warteliste", usage: "Nutzung" },
   analysis: { value: "Wert-Check", sweetSpot: "Sweet Spot", topic: "Thema", length: "Länge", crew: "Crew", category: "Ort-Typ", hub: "Hub", tier: "Host-Stufe" },
   houses: { all: "Alle", atRisk: "Braucht Hilfe", goingWell: "Läuft gut", full: "Gerade voll", reserved: "2+ vorgemerkt", themes: "Themen", unanswered: "Ohne Antwort", cancelled: "Abgesagt" },

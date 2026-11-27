@@ -14,7 +14,7 @@ import type { ApplicationStatus, HostHelpItem, HostTier, HostApplication, Platfo
 import { addContentHouse, addHouseAction, addTeamMessage, markNudged, addMarketingContact, addMarketingPartner, deleteMarketingContact, deleteMarketingPartner, patchMarketingContact, patchMarketingPartner, setHouseDone, setMarketingClips, setMarketingStep, patchRoadmapTodo, setRoadmapReached, addCostEntry, deleteCostEntry, setLaunchTask, addLaunchCustomTask, deleteLaunchCustomTask, addOwnTodo, patchRoadmapMilestone, addContentPost, patchContentPost, deleteContentPost } from "./store";
 import { useAdminData } from "./store";
 import { setSafetySubtype } from "./store";
-import { appendAdminLog, patchApplication, patchTaxQuestion, setBacklog, setLaunchCheck, setFundingDoc, setLocation, patchTicket, setReceipt, setTaskState, pushWithdrawal, setApplicationStatus } from "./store";
+import { appendAdminLog, patchApplication, patchTaxQuestion, setBacklog, setLaunchCheck, patchLabState, setFundingDoc, setLocation, patchTicket, setReceipt, setTaskState, pushWithdrawal, setApplicationStatus } from "./store";
 import type { ContentPost, CostEntry, MarketingContact, MarketingPartner, TaxQuestion } from "@/lib/data";
 
 /** Reports opened in this visit (the log line once each). */
@@ -268,6 +268,16 @@ export function useAdminActions() {
     setBacklogStatus(id: string, title: string, status: "open" | "inProgress" | "done" | "parked", statusLabel: string) {
       setBacklog(id, status);
       appendAdminLog("backlog_status", `${title} · ${statusLabel}`, by);
+    },
+    /** Labore: a lab's status (Idee · Test · Einnahme) – "Einnahme" only with a paying buyer (the page checks, lib/admin/labState.ts). */
+    setLabStatus(id: string, name: string, status: "idea" | "test" | "revenue", statusLabel: string) {
+      patchLabState(id, { status });
+      appendAdminLog("lab_status", `${name} · ${statusLabel}`, by);
+    },
+    /** Labore: one answer of a lab's test; a paying buyer that is no longer "ja" takes "Einnahme" back to "Test". */
+    setLabTest(id: string, name: string, key: "uniqueData" | "strengthensCore" | "littleCapital" | "littlePersonalData" | "payingBuyer", value: "yes" | "no" | "open", label: string, demote: boolean) {
+      patchLabState(id, demote ? { test: { [key]: value }, status: "test" } : { test: { [key]: value } });
+      appendAdminLog("lab_test", `${name} · ${label}`, by);
     },
     /** System › Launch: a point confirmed by hand (or taken back). */
     confirmLaunchCheck(id: string, label: string, confirmed: boolean) {

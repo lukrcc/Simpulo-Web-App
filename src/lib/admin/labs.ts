@@ -7,9 +7,12 @@ import type { Moment } from "@/config/data-points";
 export type LabLevel = "foundation" | "core" | "extended" | "top" | "band";
 export type LabId = "marketplace" | "crew" | "arc" | "space" | "places" | "trust" | "phases" | "community" | "impact";
 export type TestValue = "yes" | "no" | "open";
-/** Where a lab stands: an idea, running (being tried), confirmed (the test holds), dropped. */
-export type LabStatus = "idea" | "running" | "confirmed" | "dropped";
-export const LAB_STATUSES: readonly LabStatus[] = ["idea", "running", "confirmed", "dropped"];
+/**
+ * Where a lab stands on its way to money: an idea · being tested · earning (Einnahme). "Einnahme" only when the test's "zahlender Käufer" is
+ * ja (lib/admin/labState.ts) – then the lab is a source of revenue on Geld. The value here is the start; Admin › Labore changes it by click.
+ */
+export type LabStatus = "idea" | "test" | "revenue";
+export const LAB_STATUSES: readonly LabStatus[] = ["idea", "test", "revenue"];
 
 export interface Lab {
   id: LabId;
@@ -32,7 +35,7 @@ export interface Lab {
    * the tab Fluss. Change here when the real assignment is decided.
    */
   moments: readonly Moment[];
-  /** Where the lab stands – "idea" for all until a decision says otherwise (no lab has been started or tested yet). */
+  /** Where the lab stands (Idee · Test · Einnahme) – "idea" unless a decision says otherwise; the marketplace is being tested with the first Houses. */
   status: LabStatus;
   /** The next step – a short proposal for every lab (never "noch offen") */
   next: string;
@@ -45,7 +48,7 @@ export const TEST_KEYS: readonly TestKey[] = ["uniqueData", "strengthensCore", "
 const OPEN_TEST: Record<TestKey, TestValue> = { uniqueData: "open", strengthensCore: "open", littleCapital: "open", littlePersonalData: "open", payingBuyer: "open" };
 
 export const LABS: readonly Lab[] = [
-  { id: "marketplace", number: 0, name: "Marktplatz", level: "foundation", question: "Wann wird ein House schnell voll?", data: "Preise, Orte, Themen, Anfragen, Vormerkungen", internal: "Preisvorschlag, Vorhersage, Frühwarnung, Explore-Reihenfolge", external: "Werkzeuge für Gruppenreisen", physical: "–", from: "ab dem ersten House", ceiling: "10–25 Mrd. €", test: OPEN_TEST, moments: ["search", "create", "request"], status: "running", next: "Frühwarnung an den ersten 50 Houses prüfen", nextShort: "Frühwarnung prüfen" },
+  { id: "marketplace", number: 0, name: "Marktplatz", level: "foundation", question: "Wann wird ein House schnell voll?", data: "Preise, Orte, Themen, Anfragen, Vormerkungen", internal: "Preisvorschlag, Vorhersage, Frühwarnung, Explore-Reihenfolge", external: "Werkzeuge für Gruppenreisen", physical: "–", from: "ab dem ersten House", ceiling: "10–25 Mrd. €", test: OPEN_TEST, moments: ["search", "create", "request"], status: "test", next: "Frühwarnung an den ersten 50 Houses prüfen", nextShort: "Frühwarnung prüfen" },
   { id: "crew", number: 1, name: "Crew", level: "core", question: "Wer passt zusammen?", data: "–", internal: "Crew Engine, Houses aus Nachfrage", external: "Matching als Dienst (Unis, Coliving, Firmen, Senioren-WGs)", physical: "–", from: null, ceiling: "1–5 Mrd. €", test: OPEN_TEST, moments: ["onboarding", "request", "afterTheStay"], status: "idea", next: "Verbindungsrate je Crew-Mischung auswerten", nextShort: "Mischung auswerten" },
   { id: "arc", number: 2, name: "Bogen", level: "core", question: "Wie entsteht Verbindung?", data: "–", internal: "Bogen passt sich an", external: "Protokoll für Verbindung (Offsites, Einarbeitung, Konferenzen, Retreats, Klassen 18+)", physical: "Fragenkarten, Welcome-Box, Album", from: null, ceiling: "0,5–3 Mrd. €", test: OPEN_TEST, moments: ["inTheHouse", "afterTheStay"], status: "idea", next: "„Absicht erreicht“ nach 10 Houses auswerten", nextShort: "Absicht auswerten" },
   { id: "space", number: 3, name: "Raum", level: "core", question: "Welcher Raum verbindet?", data: "–", internal: "Hinweise für Hosts", external: "Musterbuch, Entwurfssoftware 2D/3D, Planung gegen Beteiligung", physical: "Tisch, Möbel, Simpulo-Räume, Hof", from: null, ceiling: "2–20 Mrd. €", test: OPEN_TEST, moments: ["create", "inTheHouse"], status: "idea", next: "Raum-Angaben von 20 Houses sammeln", nextShort: "Raum erfassen" },
@@ -61,10 +64,22 @@ export const labOf = (id: LabId) => LABS.find((l) => l.id === id)!;
 export const LABS_TEXT = {
   tabs: { pyramid: "Pyramide", map: "Karte", labs: "Labore", flow: "Fluss", potential: "Potenzial" },
   level: { foundation: "Fundament", core: "Kern", extended: "Erweitert", top: "Spitze", band: "Band" },
-  fields: { level: "Ebene", question: "Frage", data: "Daten", internal: "Intern", external: "Extern", physical: "Physisch", from: "Ab wann", ceiling: "Obergrenze/Jahr", test: "Labor-Test" },
+  fields: { level: "Ebene", question: "Frage", data: "Daten", internal: "Intern", external: "Extern", physical: "Physisch", from: "Ab wann", ceiling: "Markt", test: "Labor-Test" },
+  /** The lab's way in four columns (Detail): ① Daten → ② Intern → ③ Extern → ④ Test */
+  way: {
+    data: { title: "Daten", line: "was wir sammeln" },
+    internal: { title: "Intern", line: "was es in Simpulo verbessert" },
+    external: { title: "Extern", line: "was man verkaufen könnte" },
+    test: { title: "Test", line: "die fünf Prüffragen" },
+    toggleTest: (question: string, value: string) => `${question} – ${value}, klicken zum Ändern`,
+    linkTo: (target: string) => `Im Algorithmus: ${target}`,
+  },
+  statusLabel: "Status",
+  /** Why "Einnahme" can't be chosen yet */
+  revenueLocked: "Einnahme erst, wenn der Test „zahlender Käufer?“ ja ist.",
   test: { uniqueData: "einzigartige Daten?", strengthensCore: "stärkt den Kern?", littleCapital: "wenig Kapital?", littlePersonalData: "wenig persönliche Daten?", payingBuyer: "zahlender Käufer?" },
   testValue: { yes: "ja", no: "nein", open: "offen" },
-  status: { idea: "Idee", running: "läuft", confirmed: "bestätigt", dropped: "verworfen" } satisfies Record<LabStatus, string>,
+  status: { idea: "Idee", test: "Test", revenue: "Einnahme" } satisfies Record<LabStatus, string>,
   pick: "Wähle links ein Labor.",
   /** Tab Pyramide */
   pyramid: {
@@ -102,7 +117,7 @@ export const LABS_TEXT = {
   },
   /** Tab Potenzial */
   potential: {
-    cols: { rank: "Rang", lab: "Labor", market: "Markt dahinter", earn: "Wie Simpulo verdient", ceiling: "Obergrenze/Jahr" },
+    cols: { rank: "Rang", lab: "Labor", market: "Markt dahinter", earn: "Wie Simpulo verdient", ceiling: "Markt" },
     note: "Theoretische Obergrenzen, Schätzung, keine Marktstudie.",
   },
 } as const;
@@ -141,3 +156,20 @@ export const POTENTIAL: readonly { rank: number | null; lab: LabId; name?: strin
   { rank: 7, lab: "trust", market: "Sicherheit und Identität im Teilen und Wohnen", earn: "Vertrauens-Dienst für andere Plattformen und Vermieter", ceiling: "0,2–1 Mrd. €", from: 0.2, to: 1 },
   { rank: 8, lab: "impact", market: "Forschung, Stiftungen", earn: "Fördergelder, Partnerschaften", ceiling: "unter 0,1 Mrd. € direkt, großer indirekter Wert für Marke und Vertrauen", from: 0.02, to: 0.1 },
 ];
+
+/**
+ * Spalte „Intern“: an entry of a lab's internal field (split at ", ") that has a place in Admin › Algorithmus links there – a model or a
+ * decision of the flow, selected (?select=). Entries without a place stay text.
+ */
+export const INTERNAL_LINKS: Readonly<Record<string, { select: string; label: string }>> = {
+  "Explore-Reihenfolge": { select: "decision:Explore-Reihen", label: "Explore-Reihen" },
+  "Crew Engine": { select: "model:crewFit", label: "Crew-Passung" },
+  "Houses aus Nachfrage": { select: "model:demandMap", label: "Nachfrage-Karte" },
+  "Hinweise für Hosts": { select: "decision:Einrichtungs-Hinweise für Hosts", label: "Einrichtungs-Hinweise für Hosts" },
+  "Landkarte der Nachfrage": { select: "model:demandMap", label: "Nachfrage-Karte" },
+  "Partnerhäuser": { select: "model:placeFit", label: "Ort-Eignung" },
+};
+
+/** The link into Algorithmus › Fluss with the model or decision selected. */
+export const algorithmHref = (select: string) => `/admin/data?topic=flow&tab=flow&select=${encodeURIComponent(select)}`;
+

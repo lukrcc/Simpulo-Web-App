@@ -9,6 +9,7 @@ import { withMockHistory } from "../mock-chat";
 import { withMockPlaces } from "../mock-places";
 import { MOCK_SEARCHES, MOCK_SEARCHES_LIVE } from "../mock-saved-searches";
 import type { DataAdapter } from "./adapter";
+import { LAB_REVENUE_MOCK } from "../mock-labs";
 import { delayedPageOfList } from "./paging";
 import imageMeta from "../../../data/image-meta.json";
 
@@ -46,6 +47,7 @@ export const mockAdapter: DataAdapter = {
   getLedger: mockLedger,
   getBankBalance: () => MOCK_BANK_BALANCE,
   // ⚠ Simulated: around 6 people in the evening, 2 at night, a little noise – the overview reads it again every few seconds.
+  getLabRevenue: () => LAB_REVENUE_MOCK,
   getLiveVisitors: () => {
     const hour = new Date().getHours() + new Date().getMinutes() / 60;
     // Demo and dev: a few people on the site at any time of day – busier in the afternoon, never 0 (CLAUDE.md "live").

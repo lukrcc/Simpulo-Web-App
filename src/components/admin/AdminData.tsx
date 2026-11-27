@@ -30,7 +30,7 @@ import { AdminSort, AdminTabs, BackToList } from "./AdminLayout";
 import { BlockMap, type MapLink } from "./BlockMap";
 import { TileBoard, chunkRows, type TileSpec } from "./AdminTiles";
 import { routeTiles, withUnits } from "./tileRoutes";
-import { setAdminSearch, useAdminTab } from "@/lib/admin/urlState";
+import { setAdminSearch, useAdminSearch, useAdminTab } from "@/lib/admin/urlState";
 
 const STAGES: readonly ModelStage[] = ["idea", "rules", "trained"];
 const MODEL_NAME = Object.fromEntries(MODELS.map((m) => [m.id, m.name])) as Record<ModelId, string>;
@@ -172,11 +172,25 @@ type TileKey = "points" | "used" | "collecting" | "planned" | "moments" | "model
 
 type FlowSelection = { kind: "moment"; id: Moment } | { kind: "model"; id: ModelId } | { kind: "decision"; id: string } | null;
 
+/** A block named in the address (?select=), only when it exists. */
+function selectionOf(raw: string | null): FlowSelection {
+  if (!raw) return null;
+  const at = raw.indexOf(":");
+  const kind = raw.slice(0, at);
+  const id = raw.slice(at + 1);
+  if (kind === "model" && (MODEL_IDS as readonly string[]).includes(id)) return { kind, id: id as ModelId };
+  if (kind === "decision" && MODELS.some((m) => m.decisions.includes(id))) return { kind, id };
+  if (kind === "moment" && (MOMENTS as readonly string[]).includes(id)) return { kind, id: id as Moment };
+  return null;
+}
+
 function Flow() {
   const t = useTranslations("admin.data");
   const tStage = useTranslations("admin.data.stage");
   const short = modelMeasuresShort(useAdminInputs());
-  const [selected, setSelected] = useState<FlowSelection>(null);
+  // ?select=model:<id> | decision:<label> | moment:<id> preselects a block (Labore › a lab's „Intern“ links here).
+  const preselect = useAdminSearch().get("select");
+  const [selected, setSelected] = useState<FlowSelection>(() => selectionOf(preselect));
   const keyOf = (s: NonNullable<FlowSelection>) => `${s.kind}:${s.id}`;
 
   // Lines: moment → model (width = the moment's data points that model reads), model → decision (width = the model's data points, at most 6).

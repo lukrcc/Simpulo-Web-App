@@ -243,6 +243,8 @@ export type AdminAction =
   | "funding_doc"
   | "backlog_status"
   | "launch_check"
+  | "lab_status"
+  | "lab_test"
   | "location_decided"
   | "marketing_step"
   | "roadmap_todo"

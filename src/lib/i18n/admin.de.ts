@@ -1558,6 +1558,8 @@ export const ADMIN_DE = {
       funding_doc: "Unterlage (Finanzierung) geändert",
       backlog_status: "Backlog-Status geändert",
       launch_check: "Launch-Punkt von Hand",
+      lab_status: "Labor-Status geändert",
+      lab_test: "Labor-Test geändert",
       location_decided: "Standort-Entscheidung gespeichert",
       marketing_step: "Marketing-Schritt abgehakt",
       roadmap_todo: "Vorbereitung",
@@ -1650,6 +1652,17 @@ export const ADMIN_DE = {
   },
   money: {
     title: "Geld",
+    /** Einnahmequellen: the marketplace fee and every lab with status „Einnahme“ (Admin › Labore) */
+    sources: {
+      count: "Quellen",
+      countInfo: "Woher Simpulo Geld bekommt: die Marktplatz-Gebühr und jedes Labor mit Status „Einnahme“ (Admin › Labore).",
+      marketplace: "Marktplatz-Gebühr",
+      marketplaceOffer: "Servicegebühr der Gäste und Anteil an der Host-Fee",
+      cols: { source: "Quelle", offer: "Angebot", perMonth: "Einnahmen/Monat" },
+      perMonthNote: "Marktplatz: Monat hochgerechnet · Labore: Beispielwerte",
+      onlyMarketplace: "Noch kein Labor mit Status „Einnahme“ – die Marktplatz-Gebühr ist die einzige Quelle.",
+      toLab: "Zum Labor",
+    },
     perMonth: "Gewinn pro Monat",
     profitMonth: "Gewinn diesen Monat",
     perHouse: "Pro vollem House",

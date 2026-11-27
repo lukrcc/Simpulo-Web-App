@@ -59,6 +59,8 @@ export interface AdminData {
   backlog: Record<string, "open" | "inProgress" | "done" | "parked">;
   /** Admin › System › Launch: points confirmed by hand (config/launch.ts ids) → when */
   launchChecks?: Record<string, string>;
+  /** Admin › Labore: a lab's status and test answers set by click (lib/admin/labs.ts ids), over the start values there */
+  labStates?: Record<string, { status?: "idea" | "test" | "revenue"; test?: Partial<Record<"uniqueData" | "strengthensCore" | "littleCapital" | "littlePersonalData" | "payingBuyer", "yes" | "no" | "open">> }>;
   /** Aufgaben › Sicherheit: the kind of a safety case set by hand (task id → config/support-templates.ts SafetySubtype); else recognised */
   safetySubtypes?: Record<string, "harassment" | "payment" | "onsite">;
   /** Vision › Standort: the chosen country (null = noch offen) and why */
@@ -538,6 +540,8 @@ export interface DataAdapter {
    * source needs Simpulo's own visitor count (Firebase phase, TODO(firestore): a presence count per minute) – until then null.
    */
   getLiveVisitors(): number | null;
+  /** Geld › Einnahmequellen: what a lab with status „Einnahme“ earns a month, by lab id – mock values; the real source later (null) */
+  getLabRevenue(): Readonly<Record<string, number>> | null;
   /** Geld › Steuern › DAC7: hosts' tax data by user id – mock; the real source from the payout onboarding */
   getHostTaxData(): Readonly<Record<string, HostTaxData>>;
 }

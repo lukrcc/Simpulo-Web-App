@@ -34,7 +34,7 @@ export function topicOfTab(page: TopicPage, tab: string, focus: string | null): 
 /** Pages with more than eight topics (CLAUDE.md "Acht Karten") – empty when fine. */
 export function topicClashes(): string[] {
   return Object.entries(ADMIN_TOPICS)
-    // Labore is the one page with nine (its 3 × 3 board of labs).
-    .filter(([page, list]) => list.length > (page === "labs" ? 9 : TOPIC_PALETTE.length))
+    // Labore (its 3 × 3 board of labs) and Geld (with Einnahmequellen) have nine.
+    .filter(([page, list]) => list.length > (page === "labs" || page === "money" ? 9 : TOPIC_PALETTE.length))
     .map(([page, list]) => `${page}: ${list.length} Themen, höchstens ${TOPIC_PALETTE.length}`);
 }
